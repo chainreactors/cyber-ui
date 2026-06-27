@@ -1,0 +1,12 @@
+{
+  "name": "cyber-ui",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "dev": "turbo run dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  }
+}

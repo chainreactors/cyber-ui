@@ -10,6 +10,7 @@ interface Props {
   compact?: boolean
   muted?: boolean
   inverted?: boolean
+  isDark?: boolean
   /** Show anchor links on headings (hover to reveal) */
   headingAnchors?: boolean
   className?: string
@@ -285,7 +286,7 @@ export function MarkdownContent({
       )}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {displayContent || ''}
+        {content || ''}
       </ReactMarkdown>
     </div>
   )

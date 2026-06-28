@@ -2,6 +2,8 @@ import { useState, type ComponentType, type CSSProperties } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { cn } from '@aspect/theme'
 
+declare const require: any
+
 /* ---------- optional syntax highlighting ---------- */
 
 let SyntaxHighlighter: ComponentType<any> | null = null

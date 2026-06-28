@@ -62,7 +62,7 @@ export type { ChatThinkingProps } from './components/chat/ChatThinking'
 export type { AssistantResponseProps } from './components/chat/AssistantResponse'
 export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
 export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
-export type { ChatInputProps, CommandHint } from './components/chat/ChatInput'
+export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode } from './components/chat/ChatInput'
 
 // Types — protocol & data
 export type { APGEvent } from './types/protocol'

@@ -1,26 +1,16 @@
 import type { ReactNode } from 'react'
-import { Inbox, Search, AlertCircle, type LucideIcon } from 'lucide-react'
-import { Button } from './button'
+import { Inbox, type LucideIcon } from 'lucide-react'
 import { cn } from '@aspect/theme'
 
-interface EmptyStateProps {
+export interface EmptyStateProps {
   icon?: LucideIcon
   title: string
   description?: string
-  action?: {
-    label: string
-    onClick: () => void
-  }
+  action?: ReactNode
   compact?: boolean
   className?: string
   children?: ReactNode
 }
-
-const presets = {
-  inbox: Inbox,
-  search: Search,
-  error: AlertCircle,
-} as const
 
 export function EmptyState({
   icon: Icon = Inbox,
@@ -62,19 +52,8 @@ export function EmptyState({
           </p>
         )}
       </div>
-      {action && (
-        <Button
-          variant="outline"
-          size={compact ? 'sm' : 'default'}
-          onClick={action.onClick}
-          className="mt-1"
-        >
-          {action.label}
-        </Button>
-      )}
+      {action}
       {children}
     </div>
   )
 }
-
-export { presets as emptyStateIcons }

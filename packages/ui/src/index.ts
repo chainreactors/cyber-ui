@@ -12,7 +12,7 @@ export {
   DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent,
   DropdownMenuSubTrigger, DropdownMenuRadioGroup,
 } from './dropdown-menu'
-export { EmptyState, emptyStateIcons } from './empty-state'
+export { EmptyState, type EmptyStateProps } from './empty-state'
 export { Input, type InputProps } from './input'
 export { Popover, PopoverTrigger, PopoverContent } from './popover'
 export { ScrollArea, ScrollBar } from './scroll-area'
@@ -32,3 +32,13 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs'
 export { Textarea, type TextareaProps } from './textarea'
 export { ToggleGroup, ToggleGroupItem } from './toggle-group'
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip'
+export { ThemeToggle, type ThemeToggleProps } from './theme-toggle'
+export {
+  AssistantResponse,
+  ChatThinking,
+  MessageBubble,
+  ToolCallDisplay,
+  summarizeArgs,
+  type MessageBubbleProps,
+  type ToolCallDisplayProps,
+} from './chat'

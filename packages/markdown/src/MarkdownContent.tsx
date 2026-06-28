@@ -3,6 +3,8 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@aspect/theme'
 
+declare const require: any
+
 interface Props {
   content: string
   compact?: boolean
@@ -36,6 +38,7 @@ export function MarkdownContent({
   inverted = false,
   className,
 }: Props) {
+  const displayContent = content.replace(/[ \t\r\n]+$/g, '')
   const components: Components = useMemo(
     () => ({
       h1: ({ children }) => (
@@ -203,13 +206,14 @@ export function MarkdownContent({
     <div
       className={cn(
         'break-words',
+        '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
         compact ? 'text-xs leading-relaxed' : 'text-sm leading-[1.65]',
         inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
         className,
       )}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {content || ''}
+        {displayContent || ''}
       </ReactMarkdown>
     </div>
   )

@@ -1,83 +1,102 @@
-import { useState, type CSSProperties } from 'react'
-import { ChevronDown, ChevronRight, User, Bot } from 'lucide-react'
-import { useResolvedTheme } from '../../lib/use-resolved-theme'
-import { MarkdownContent } from '@aspect/markdown'
+import { useState, type ReactNode } from 'react'
+import { Bot, ChevronDown, ChevronRight, User } from 'lucide-react'
+import { cn } from '@aspect/theme'
 
-interface Props {
-  kind: 'user' | 'assistant'
-  agentName: string
-  content: string
-  timestamp: string
-  isDark?: boolean
+export interface MessageBubbleProps {
+  role: 'user' | 'assistant' | 'system'
+  actorName?: string | null
+  content?: ReactNode
+  timestamp?: string
+  streaming?: boolean
+  defaultExpanded?: boolean
+  className?: string
+  children?: ReactNode
 }
 
-const themes = {
-  dark: {
-    user:      { border: '#1e3a5f', bg: 'rgba(30,58,95,0.3)', text: '#60a5fa' },
-    assistant: { border: '#4c1d95', bg: 'rgba(76,29,149,0.3)', text: '#a78bfa' },
-    agent: '#d1d5db', time: '#4b5563', chevron: '#6b7280',
-    summaryText: '#6b7280', summaryBorder: 'rgba(31,41,55,0.3)',
-    bodyText: '#e5e7eb', bodyBorder: 'rgba(31,41,55,0.3)',
-  },
-  light: {
-    user:      { border: '#bfdbfe', bg: '#eff6ff', text: '#2563eb' },
-    assistant: { border: '#ddd6fe', bg: '#f5f3ff', text: '#7c3aed' },
-    agent: '#4b5563', time: '#9ca3af', chevron: '#9ca3af',
-    summaryText: '#6b7280', summaryBorder: '#e5e7eb',
-    bodyText: '#374151', bodyBorder: '#e5e7eb',
-  },
-}
+export default function MessageBubble({
+  role,
+  actorName,
+  content,
+  timestamp,
+  streaming,
+  defaultExpanded = true,
+  className,
+  children,
+}: MessageBubbleProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const time = timestamp ? new Date(timestamp).toLocaleTimeString() : ''
+  const body = children ?? content
 
-export default function MessageBubble({ kind, agentName, content, timestamp, isDark: isDarkProp }: Props) {
-  const [expanded, setExpanded] = useState(true)
-  const isDark = useResolvedTheme(isDarkProp)
-  const s = themes[isDark ? 'dark' : 'light']
-  const c = kind === 'user' ? s.user : s.assistant
+  if (role === 'system') {
+    return (
+      <div
+        className={cn(
+          'w-full rounded-md border border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground',
+          className,
+        )}
+      >
+        {body || <span className="italic">Empty message</span>}
+      </div>
+    )
+  }
+
+  const isUser = role === 'user'
+  const label = isUser ? 'You' : actorName || 'Assistant'
+  const Icon = isUser ? User : Bot
   const Chevron = expanded ? ChevronDown : ChevronRight
-  const Icon = kind === 'user' ? User : Bot
-  const label = kind === 'user' ? 'Prompt' : 'Response'
-  const time = new Date(timestamp).toLocaleTimeString()
-  const firstLine = content.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80)
-
-  const wrapStyle: CSSProperties = {
-    borderRadius: 6,
-    border: `1px solid ${c.border}`,
-    overflow: 'hidden',
-  }
-
-  const headerStyle: CSSProperties = {
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '6px 12px',
-    background: c.bg,
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'filter 0.15s',
-  }
-
-  const iconStyle: CSSProperties = { width: 12, height: 12, flexShrink: 0, color: c.text }
 
   return (
-    <div style={wrapStyle}>
-      <button onClick={() => setExpanded(!expanded)} style={headerStyle}>
-        <Icon style={iconStyle} />
-        <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: c.text }}>{label}</span>
-        <span style={{ fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: s.agent }}>{agentName}</span>
-        <span style={{ fontSize: 9, marginLeft: 'auto', marginRight: 4, fontFamily: 'monospace', color: s.time }}>{time}</span>
-        <Chevron style={{ width: 12, height: 12, flexShrink: 0, color: s.chevron }} />
-      </button>
+    <div className={cn('flex w-full gap-3', isUser && 'flex-row-reverse', className)}>
+      {/* avatar */}
+      <div
+        className={cn(
+          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors',
+          isUser
+            ? 'bg-primary/15 text-primary'
+            : 'bg-purple-400/20 text-purple-600 dark:text-purple-300',
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" />
+      </div>
 
-      {!expanded && (
-        <div style={{ padding: '4px 12px', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderTop: `1px solid ${s.summaryBorder}`, color: s.summaryText }}>{firstLine}</div>
-      )}
+      {/* bubble */}
+      <div className={cn('min-w-0 space-y-1', isUser ? 'flex max-w-[min(82%,52rem)] flex-col items-end' : 'flex-1')}>
+        {/* header */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className={cn(
+            'flex items-center gap-2 text-[10px] text-muted-foreground',
+            isUser && 'flex-row-reverse',
+          )}
+        >
+          <span className="font-medium">{label}</span>
+          {time && <span className="font-mono">{time}</span>}
+          <Chevron className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+        </button>
 
-      {expanded && (
-        <div style={{ borderTop: `1px solid ${s.bodyBorder}`, padding: '8px 12px', maxHeight: 384, overflowY: 'auto', fontSize: 14, color: s.bodyText }}>
-          <MarkdownContent content={content} isDark={isDarkProp} />
-        </div>
-      )}
+        {/* body */}
+        {expanded && (
+          <div
+            className={cn(
+              'rounded-lg px-3 py-2 text-sm leading-relaxed',
+              isUser
+                ? 'bg-primary/10 text-foreground'
+                : 'border border-border bg-card text-foreground',
+              streaming && 'border-primary/40',
+            )}
+          >
+            {body || (!streaming && <span className="text-muted-foreground italic">Empty message</span>)}
+            {streaming && <StreamingCursor />}
+          </div>
+        )}
+      </div>
     </div>
+  )
+}
+
+export function StreamingCursor() {
+  return (
+    <span className="ml-0.5 inline-block h-[14px] w-[2px] animate-pulse bg-primary align-text-bottom" />
   )
 }

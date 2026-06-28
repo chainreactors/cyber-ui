@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType } from 'react'
+import { useMemo, type ComponentType, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@aspect/theme'
@@ -10,6 +10,8 @@ interface Props {
   compact?: boolean
   muted?: boolean
   inverted?: boolean
+  /** Show anchor links on headings (hover to reveal) */
+  headingAnchors?: boolean
   className?: string
 }
 
@@ -29,62 +31,133 @@ try {
   // react-syntax-highlighter is an optional peer dependency
 }
 
-/* -------------------------------------------------- */
+/* ---------- heading anchor helpers ---------- */
+
+function nodeText(node: ReactNode): string {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(nodeText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return nodeText((node as { props?: { children?: ReactNode } }).props?.children)
+  }
+  return ''
+}
+
+function anchorSlug(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/<[^>]*>/g, '')
+    .replace(/&[a-z0-9#]+;/g, '')
+    .replace(/[^a-z0-9一-龥]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return (slug || 'section').slice(0, 96)
+}
+
+function uniqueAnchorSlug(value: string, slugCounts: Map<string, number>) {
+  const base = anchorSlug(value)
+  const count = slugCounts.get(base) || 0
+  slugCounts.set(base, count + 1)
+  return count === 0 ? base : `${base}-${count + 1}`
+}
+
+type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+
+function anchoredHeading(
+  Tag: HeadingTag,
+  slugCounts: Map<string, number>,
+  compact: boolean,
+  inverted: boolean,
+  muted: boolean,
+) {
+  const sizeClass: Record<HeadingTag, string> = {
+    h1: compact ? 'text-sm mt-1.5 mb-1' : 'text-[22px] mt-5 mb-2',
+    h2: compact ? 'text-sm mt-1.5 mb-1' : 'text-h2 mt-5 mb-2',
+    h3: compact ? 'text-xs mt-1.5 mb-1' : 'text-h3 mt-4 mb-1.5',
+    h4: compact ? 'text-xs mt-1.5 mb-1' : 'text-h4 mt-4 mb-1.5',
+    h5: compact ? 'text-xs mt-1.5 mb-1' : 'text-h4 mt-4 mb-1.5',
+    h6: compact ? 'text-xs mt-1.5 mb-1' : 'text-h4 mt-4 mb-1.5',
+  }
+
+  return function Heading({ children }: { children?: ReactNode }) {
+    const text = nodeText(children)
+    const id = uniqueAnchorSlug(text || 'section', slugCounts)
+
+    return (
+      <Tag
+        id={id}
+        className={cn(
+          'group scroll-mt-24 font-semibold leading-tight',
+          sizeClass[Tag],
+          inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
+        )}
+      >
+        {children}
+        <a
+          href={`#${id}`}
+          aria-label={`Link to ${text}`}
+          className="ml-2 inline-flex align-middle text-muted-foreground opacity-0 transition-opacity group-hover:opacity-70 hover:!opacity-100"
+        >
+          #
+        </a>
+      </Tag>
+    )
+  }
+}
+
+function plainHeading(
+  Tag: HeadingTag,
+  compact: boolean,
+  inverted: boolean,
+  muted: boolean,
+) {
+  const sizeClass: Record<HeadingTag, string> = {
+    h1: compact ? 'text-sm mt-1.5 mb-1' : 'text-[22px] mt-5 mb-2',
+    h2: compact ? 'text-sm mt-1.5 mb-1' : 'text-h2 mt-5 mb-2',
+    h3: compact ? 'text-xs mt-1.5 mb-1' : 'text-h3 mt-4 mb-1.5',
+    h4: compact ? 'text-xs mt-1.5 mb-1' : 'text-h4 mt-4 mb-1.5',
+    h5: compact ? 'text-xs mt-1.5 mb-1' : 'text-h4 mt-4 mb-1.5',
+    h6: compact ? 'text-xs mt-1.5 mb-1' : 'text-h4 mt-4 mb-1.5',
+  }
+
+  return ({ children }: { children?: ReactNode }) => (
+    <Tag
+      className={cn(
+        'font-semibold leading-tight',
+        sizeClass[Tag],
+        inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
+      )}
+    >
+      {children}
+    </Tag>
+  )
+}
+
+/* ---------- component ---------- */
 
 export function MarkdownContent({
   content,
   compact = false,
   muted = false,
   inverted = false,
+  headingAnchors = false,
   className,
 }: Props) {
-  const displayContent = content.replace(/[ \t\r\n]+$/g, '')
-  const components: Components = useMemo(
-    () => ({
-      h1: ({ children }) => (
-        <h1
-          className={cn(
-            'font-semibold leading-tight',
-            compact ? 'text-sm mt-1.5 mb-1' : 'text-[22px] mt-5 mb-2',
-            inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
-          )}
-        >
-          {children}
-        </h1>
-      ),
-      h2: ({ children }) => (
-        <h2
-          className={cn(
-            'font-semibold leading-tight',
-            compact ? 'text-sm mt-1.5 mb-1' : 'text-h2 mt-5 mb-2',
-            inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
-          )}
-        >
-          {children}
-        </h2>
-      ),
-      h3: ({ children }) => (
-        <h3
-          className={cn(
-            'font-semibold leading-tight',
-            compact ? 'text-xs mt-1.5 mb-1' : 'text-h3 mt-4 mb-1.5',
-            inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
-          )}
-        >
-          {children}
-        </h3>
-      ),
-      h4: ({ children }) => (
-        <h4
-          className={cn(
-            'font-semibold leading-tight',
-            compact ? 'text-xs mt-1.5 mb-1' : 'text-h4 mt-4 mb-1.5',
-            inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
-          )}
-        >
-          {children}
-        </h4>
-      ),
+  const headingSlugs = useMemo(() => new Map<string, number>(), [content])
+
+  const components: Components = useMemo(() => {
+    const headings = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).reduce(
+      (acc, tag) => {
+        acc[tag] = headingAnchors
+          ? anchoredHeading(tag, headingSlugs, compact, inverted, muted)
+          : plainHeading(tag, compact, inverted, muted)
+        return acc
+      },
+      {} as Record<string, any>,
+    )
+
+    return {
+      ...headings,
       p: ({ children }) => (
         <p className={cn(compact ? 'my-1 leading-relaxed' : 'my-3 leading-[1.65]')}>{children}</p>
       ),
@@ -198,9 +271,8 @@ export function MarkdownContent({
       hr: () => (
         <hr className={cn('border-none border-t border-border', compact ? 'my-2' : 'my-5')} />
       ),
-    }),
-    [compact, inverted, muted],
-  )
+    }
+  }, [compact, inverted, muted, headingAnchors, headingSlugs])
 
   return (
     <div

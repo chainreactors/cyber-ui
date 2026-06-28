@@ -1,149 +1,74 @@
-import React, { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { MessageSquare, Send } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { MessageSquare } from 'lucide-react'
+import { cn } from '@aspect/theme'
 import { useChatState } from '../../providers/useChatState'
 import { useAPGEvents } from '../../providers/APGWebSocketProvider'
 import type { ChatMessage } from '../../lib/event-reducer'
 import MessageBubble from './MessageBubble'
 import ToolCallDisplay from './ToolCallDisplay'
+import ChatInput from './ChatInput'
 
 export interface LiveChatPanelProps {
   messages: ChatMessage[]
   isDark?: boolean
+  className?: string
   renderMessage?: (msg: ChatMessage) => React.ReactNode
   renderToolCall?: (msg: ChatMessage) => React.ReactNode
   onSendInput?: (content: string) => void
 }
 
-const containerStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  flex: 1,
-  minHeight: 0,
-}
-
-const scrollStyle: CSSProperties = {
-  flex: 1,
-  minHeight: 0,
-  overflowY: 'auto',
-  padding: '12px 16px',
-}
-
-const innerStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 12,
-}
-
-const emptyStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100%',
-  color: '#9ca3af',
-}
-
-const inputBarStyle: CSSProperties = {
-  display: 'flex',
-  gap: 8,
-  padding: '8px 12px',
-  borderTop: '1px solid #374151',
-}
-
-const textareaStyle: CSSProperties = {
-  flex: 1,
-  resize: 'none',
-  border: '1px solid #4b5563',
-  borderRadius: 6,
-  padding: '6px 10px',
-  fontSize: 13,
-  lineHeight: '1.4',
-  background: 'transparent',
-  color: 'inherit',
-  outline: 'none',
-  fontFamily: 'inherit',
-}
-
-const sendBtnStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 34,
-  height: 34,
-  border: 'none',
-  borderRadius: 6,
-  background: '#3b82f6',
-  color: '#fff',
-  cursor: 'pointer',
-  flexShrink: 0,
-  alignSelf: 'flex-end',
-}
-
 export default function LiveChatPanel({
   messages,
-  isDark,
+  className,
   renderMessage,
   renderToolCall,
   onSendInput,
 }: LiveChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
-  const [draft, setDraft] = useState('')
-
-  const handleSend = () => {
-    const text = draft.trim()
-    if (!text || !onSendInput) return
-    onSendInput(text)
-    setDraft('')
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
   return (
-    <div style={containerStyle}>
-      <div style={scrollStyle}>
+    <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
+      {/* scrollable message area */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {messages.length === 0 && (
-          <div style={emptyStyle}>
-            <MessageSquare style={{ width: 24, height: 24, marginBottom: 8, opacity: 0.4 }} />
-            <p style={{ fontSize: 12 }}>Waiting for agent events...</p>
+          <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+            <MessageSquare className="mb-2 h-6 w-6 opacity-40" />
+            <p className="text-xs">Waiting for agent events...</p>
           </div>
         )}
 
-        <div style={innerStyle}>
+        <div className="flex flex-col gap-3">
           {messages.map((msg) => {
             if (msg.kind === 'tool-call' || msg.kind === 'tool-return') {
-              if (renderToolCall) return <React.Fragment key={msg.id}>{renderToolCall(msg)}</React.Fragment>
+              if (renderToolCall) {
+                return <React.Fragment key={msg.id}>{renderToolCall(msg)}</React.Fragment>
+              }
               return (
                 <ToolCallDisplay
                   key={msg.id}
-                  kind={msg.kind}
                   toolName={msg.toolName ?? ''}
-                  content={msg.content}
-                  toolCallId={msg.toolCallId}
-                  rawContent={msg.rawContent}
-                  isDark={isDark}
+                  toolArgs={msg.content}
+                  defaultExpanded
                 />
               )
             }
 
-            if (renderMessage) return <React.Fragment key={msg.id}>{renderMessage(msg)}</React.Fragment>
+            if (renderMessage) {
+              return <React.Fragment key={msg.id}>{renderMessage(msg)}</React.Fragment>
+            }
             return (
               <MessageBubble
                 key={msg.id}
-                kind={msg.kind}
-                agentName={msg.agentName}
-                content={msg.content}
+                role={msg.kind}
+                actorName={msg.agentName}
                 timestamp={msg.timestamp}
-                isDark={isDark}
-              />
+              >
+                {msg.content}
+              </MessageBubble>
             )
           })}
         </div>
@@ -152,24 +77,7 @@ export default function LiveChatPanel({
       </div>
 
       {onSendInput && (
-        <div style={inputBarStyle}>
-          <textarea
-            rows={1}
-            style={textareaStyle}
-            placeholder="Type a message..."
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <button
-            style={{ ...sendBtnStyle, opacity: draft.trim() ? 1 : 0.5 }}
-            disabled={!draft.trim()}
-            onClick={handleSend}
-            aria-label="Send"
-          >
-            <Send style={{ width: 16, height: 16 }} />
-          </button>
-        </div>
+        <ChatInput onSend={onSendInput} />
       )}
     </div>
   )
@@ -194,6 +102,5 @@ export function ConnectedChatPanel(props: Omit<LiveChatPanelProps, 'messages' | 
   }
 
   const allMessages = [...messages, ...localMessages]
-
   return <LiveChatPanel messages={allMessages} onSendInput={handleSend} {...props} />
 }

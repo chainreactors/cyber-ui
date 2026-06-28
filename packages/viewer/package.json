@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@aspect/theme": "workspace:*",
+    "@aspect/ui": "workspace:*",
     "@aspect/markdown": "workspace:*",
     "react-syntax-highlighter": "^16.1.0",
     "lucide-react": "^0.400.0"

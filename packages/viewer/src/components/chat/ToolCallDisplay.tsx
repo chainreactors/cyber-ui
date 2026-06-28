@@ -1,149 +1,199 @@
-import { useState, type CSSProperties } from 'react'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { useState, type ReactNode } from 'react'
 import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Code2,
+  Loader2,
   Terminal,
-  AlertTriangle,
-  CheckCircle2,
+  Wrench,
 } from 'lucide-react'
-import { useResolvedTheme } from '../../lib/use-resolved-theme'
+import { cn } from '@aspect/theme'
+import { CodeBlock } from '@aspect/markdown'
+import { stripAnsiControl, formatArgs, summarizeArgs } from '../../lib/tool-utils'
 
-interface Props {
-  kind: 'tool-call' | 'tool-return'
+export interface ToolCallDisplayProps {
   toolName: string
-  content: string
-  toolCallId?: string
-  rawContent?: Record<string, unknown>
-  isDark?: boolean
+  toolArgs?: string
+  result?: string
+  pending?: boolean
+  defaultExpanded?: boolean
+  className?: string
 }
 
-const themes = {
-  dark: {
-    python:  { border: '#78350f66', bg: 'rgba(69,26,3,0.3)',  text: '#fbbf24' },
-    call:    { border: '#312e8166', bg: 'rgba(49,46,129,0.3)', text: '#818cf8' },
-    ret:     { border: '#115e5966', bg: 'rgba(17,94,89,0.3)',  text: '#2dd4bf' },
-    id: '#4b5563', chevron: '#6b7280',
-    summaryText: '#6b7280', summaryBorder: 'rgba(31,41,55,0.3)',
-    divider: 'rgba(31,41,55,0.3)', agent: '#d1d5db',
-    stdout:  { border: 'rgba(22,101,52,0.3)', hdrBg: 'rgba(5,46,22,0.3)', hdrBorder: 'rgba(22,101,52,0.2)', pre: '#e5e7eb' },
-    stderr:  { border: 'rgba(113,63,18,0.3)', hdrBg: 'rgba(69,26,3,0.3)', hdrBorder: 'rgba(113,63,18,0.2)', pre: '#fde68a' },
-    error:   { border: 'rgba(127,29,29,0.4)', hdrBg: 'rgba(69,10,10,0.4)', hdrBorder: 'rgba(127,29,29,0.3)', val: '#fca5a5', frameTxt: 'rgba(254,202,202,0.7)', frameBorder: 'rgba(127,29,29,0.2)' },
-    result:  { border: 'rgba(22,78,99,0.3)', hdrBg: 'rgba(8,51,68,0.3)', hdrBorder: 'rgba(22,78,99,0.2)' },
-    codeBg: 'rgba(0,0,0,0.3)',
-    lineNum: '#4b5563',
-  },
-  light: {
-    python:  { border: '#fde68a', bg: '#fffbeb',  text: '#d97706' },
-    call:    { border: '#c7d2fe', bg: '#eef2ff', text: '#4f46e5' },
-    ret:     { border: '#99f6e4', bg: '#f0fdfa',  text: '#0d9488' },
-    id: '#9ca3af', chevron: '#9ca3af',
-    summaryText: '#6b7280', summaryBorder: '#e5e7eb',
-    divider: '#e5e7eb', agent: '#4b5563',
-    stdout:  { border: '#bbf7d0', hdrBg: '#f0fdf4', hdrBorder: '#bbf7d0', pre: '#1f2937' },
-    stderr:  { border: '#fde68a', hdrBg: '#fffbeb', hdrBorder: '#fde68a', pre: '#92400e' },
-    error:   { border: '#fecaca', hdrBg: '#fef2f2', hdrBorder: '#fecaca', val: '#dc2626', frameTxt: '#f87171', frameBorder: '#fee2e2' },
-    result:  { border: '#a5f3fc', hdrBg: '#ecfeff', hdrBorder: '#a5f3fc' },
-    codeBg: 'rgba(0,0,0,0.03)',
-    lineNum: '#9ca3af',
-  },
-}
+export default function ToolCallDisplay({
+  toolName,
+  toolArgs = '',
+  result,
+  pending = false,
+  defaultExpanded = false,
+  className,
+}: ToolCallDisplayProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const summary = summarizeArgs(toolArgs)
+  const formattedArgs = formatArgs(toolArgs)
+  const displayResult = result === undefined ? undefined : stripAnsiControl(result)
 
-const iconSm: CSSProperties = { width: 12, height: 12, flexShrink: 0 }
-
-export default function ToolCallDisplay({ kind, toolName, content, toolCallId, rawContent, isDark: isDarkProp }: Props) {
-  const [expanded, setExpanded] = useState(true)
-  const isDark = useResolvedTheme(isDarkProp)
-  const s = themes[isDark ? 'dark' : 'light']
-  const hlStyle = isDark ? oneDark : oneLight
-  const isCall = kind === 'tool-call'
-  const Chevron = expanded ? ChevronDown : ChevronRight
-
-  const wrap = (border: string): CSSProperties => ({
-    borderRadius: 6, border: `1px solid ${border}`, overflow: 'hidden',
-  })
-
-  const hdrBtn = (bg: string): CSSProperties => ({
-    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-    padding: '6px 12px', background: bg, border: 'none', cursor: 'pointer',
-    transition: 'filter 0.15s',
-  })
-
-  if (isCall) {
-    const isPythonExec = toolName === 'python_exec' || rawContent?.code != null
-
-    if (isPythonExec) {
-      const code = rawContent?.code as string ?? content
-      const firstLine = code.split('\n')[0].slice(0, 80)
-      const c = s.python
-
-      return (
-        <div style={wrap(c.border)}>
-          <button onClick={() => setExpanded(!expanded)} style={hdrBtn(c.bg)}>
-            <Code2 style={{ ...iconSm, color: c.text }} />
-            <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: c.text }}>python_exec</span>
-            {toolCallId && (
-              <span style={{ fontSize: 9, color: s.id, marginLeft: 'auto', marginRight: 4, fontFamily: 'monospace' }}>{toolCallId.slice(0, 8)}</span>
-            )}
-            <Chevron style={{ ...iconSm, color: s.chevron }} />
-          </button>
-          {!expanded && (
-            <div style={{ padding: '4px 12px', fontSize: 10, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderTop: `1px solid ${s.summaryBorder}`, color: s.summaryText }}>{firstLine}</div>
+  return (
+    <div
+      className={cn(
+        'overflow-hidden rounded-lg border transition-colors duration-200',
+        pending ? 'border-warning/30' : 'border-border',
+        className,
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50"
+      >
+        <Wrench
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 transition-colors',
+            pending ? 'text-warning' : 'text-muted-foreground',
           )}
-          {expanded && (
-            <div style={{ borderTop: `1px solid ${s.divider}`, maxHeight: 288, overflowY: 'auto' }}>
-              <SyntaxHighlighter
-                language="python"
-                style={hlStyle}
-                customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', background: s.codeBg, borderRadius: 0 }}
-                showLineNumbers
-                lineNumberStyle={{ color: s.lineNum, fontSize: '0.65rem', minWidth: '2em' }}
-              >
-                {code}
-              </SyntaxHighlighter>
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    // Other tool calls
-    const jsonStr = typeof rawContent === 'object' ? JSON.stringify(rawContent, null, 2) : content
-    const cc = s.call
-
-    return (
-      <div style={wrap(cc.border)}>
-        <button onClick={() => setExpanded(!expanded)} style={hdrBtn(cc.bg)}>
-          <CheckCircle2 style={{ ...iconSm, color: cc.text }} />
-          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: cc.text }}>{toolName}</span>
-          {toolCallId && (
-            <span style={{ fontSize: 9, color: s.id, marginLeft: 'auto', marginRight: 4, fontFamily: 'monospace' }}>{toolCallId.slice(0, 8)}</span>
-          )}
-          <Chevron style={{ ...iconSm, color: s.chevron }} />
-        </button>
-        {expanded && (
-          <div style={{ borderTop: `1px solid ${s.divider}`, maxHeight: 288, overflowY: 'auto' }}>
-            <SyntaxHighlighter
-              language="json"
-              style={hlStyle}
-              customStyle={{ margin: 0, padding: '0.75rem', fontSize: '0.75rem', background: s.codeBg, borderRadius: 0 }}
-            >
-              {jsonStr}
-            </SyntaxHighlighter>
-          </div>
+        />
+        <span className="shrink-0 rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono font-medium text-foreground">
+          {toolName || 'tool'}
+        </span>
+        <span
+          className="min-w-0 flex-1 truncate font-mono text-muted-foreground"
+          title={summary || formattedArgs}
+        >
+          {summary || (pending ? 'running' : 'completed')}
+        </span>
+        {pending ? (
+          <Loader2 className="h-3 w-3 shrink-0 animate-spin text-warning" />
+        ) : (
+          <Check className="h-3 w-3 shrink-0 text-success" />
         )}
-      </div>
-    )
-  }
+        {expanded ? (
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+        )}
+      </button>
 
-  // Tool return — render structured BlockingOutput
-  const raw = rawContent ?? {}
-  const stdout = raw.stdout as string | undefined
-  const stderr = raw.stderr as string | undefined
-  const result = raw.result
-  const tb = raw.traceback as Record<string, unknown> | undefined
+      <div
+        className={cn(
+          'grid transition-[grid-template-rows] duration-200 ease-in-out',
+          expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-border">
+            {toolArgs && (
+              <div className="bg-muted/30 px-3 py-2">
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Arguments
+                </div>
+                <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
+                  {formattedArgs}
+                </pre>
+              </div>
+            )}
+            {displayResult !== undefined && (
+              <div className="border-t border-border px-3 py-2">
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Result
+                </div>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
+                  {displayResult}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- Code call rendering (uses CodeBlock) ---- */
+
+export interface CodeCallDisplayProps {
+  language: string
+  label: string
+  code: string
+  toolCallId?: string
+  defaultExpanded?: boolean
+  className?: string
+}
+
+export function CodeCallDisplay({
+  language,
+  label,
+  code,
+  toolCallId,
+  defaultExpanded = false,
+  className,
+}: CodeCallDisplayProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const Chevron = expanded ? ChevronDown : ChevronRight
+  const firstLine = code.split('\n')[0].slice(0, 80)
+
+  return (
+    <div className={cn('overflow-hidden rounded-lg border border-warning/30', className)}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full min-w-0 items-center gap-2 bg-warning/10 px-3 py-2 text-left text-xs transition-colors hover:bg-warning/20"
+      >
+        <Code2 className="h-3.5 w-3.5 shrink-0 text-warning" />
+        <span className="text-[10px] font-semibold uppercase text-warning">{label}</span>
+        {toolCallId && (
+          <span className="ml-auto mr-1 font-mono text-[9px] text-muted-foreground">
+            {toolCallId.slice(0, 8)}
+          </span>
+        )}
+        <Chevron className="h-3 w-3 shrink-0 text-muted-foreground" />
+      </button>
+
+      {!expanded && (
+        <div className="truncate border-t border-border px-3 py-1 font-mono text-[10px] text-muted-foreground">
+          {firstLine}
+        </div>
+      )}
+
+      {expanded && (
+        <div className="border-t border-border">
+          <CodeBlock
+            code={code}
+            language={language}
+            showLineNumbers
+            maxHeight={288}
+            className="rounded-none border-0"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---- Structured BlockingOutput (stdout/stderr/traceback/result) ---- */
+
+export interface BlockingOutputDisplayProps {
+  toolName: string
+  rawContent: Record<string, unknown>
+  toolCallId?: string
+  defaultExpanded?: boolean
+  className?: string
+}
+
+export function BlockingOutputDisplay({
+  toolName,
+  rawContent,
+  toolCallId,
+  defaultExpanded = false,
+  className,
+}: BlockingOutputDisplayProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const stdout = rawContent.stdout as string | undefined
+  const stderr = rawContent.stderr as string | undefined
+  const result = rawContent.result
+  const tb = rawContent.traceback as Record<string, unknown> | undefined
 
   const hasStdout = stdout && stdout.trim()
   const hasStderr = stderr && stderr.trim()
@@ -158,94 +208,131 @@ export default function ToolCallDisplay({ kind, toolName, content, toolCallId, r
         ? String(typeof result === 'string' ? result : JSON.stringify(result)).slice(0, 80)
         : '(no output)'
 
-  const rc = s.ret
+  const Chevron = expanded ? ChevronDown : ChevronRight
 
   return (
-    <div style={wrap(rc.border)}>
-      <button onClick={() => setExpanded(!expanded)} style={hdrBtn(rc.bg)}>
-        <Terminal style={{ ...iconSm, color: rc.text }} />
-        <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: rc.text }}>Return</span>
-        <span style={{ fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: s.agent }}>{toolName}</span>
+    <div className={cn('overflow-hidden rounded-lg border border-success/30', className)}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full min-w-0 items-center gap-2 bg-success/10 px-3 py-2 text-left text-xs transition-colors hover:bg-success/20"
+      >
+        <Terminal className="h-3.5 w-3.5 shrink-0 text-success" />
+        <span className="text-[10px] font-semibold uppercase text-success">Return</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{toolName}</span>
         {toolCallId && (
-          <span style={{ fontSize: 9, color: s.id, marginLeft: 'auto', marginRight: 4, fontFamily: 'monospace' }}>{toolCallId.slice(0, 8)}</span>
+          <span className="mr-1 font-mono text-[9px] text-muted-foreground">
+            {toolCallId.slice(0, 8)}
+          </span>
         )}
-        <Chevron style={{ ...iconSm, color: s.chevron }} />
+        <Chevron className="h-3 w-3 shrink-0 text-muted-foreground" />
       </button>
 
       {!expanded && (
-        <div style={{ padding: '4px 12px', fontSize: 10, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderTop: `1px solid ${s.summaryBorder}`, color: s.summaryText }}>{summary}</div>
+        <div className="truncate border-t border-border px-3 py-1 font-mono text-[10px] text-muted-foreground">
+          {summary}
+        </div>
       )}
 
       {expanded && (
-        <div style={{ borderTop: `1px solid ${s.divider}`, display: 'flex', flexDirection: 'column', gap: 6, padding: 8 }}>
+        <div className="flex flex-col gap-1.5 border-t border-border p-2">
           {hasTb && (
-            <div style={{ borderRadius: 4, border: `1px solid ${s.error.border}`, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderBottom: `1px solid ${s.error.hdrBorder}`, background: s.error.hdrBg }}>
-                <AlertTriangle style={{ width: 12, height: 12, color: '#f87171' }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#f87171' }}>
-                  {(tb!.exc_type as string) ?? 'Error'}
-                </span>
+            <OutputSection
+              icon={<AlertTriangle className="h-3 w-3 text-destructive" />}
+              label={(tb.exc_type as string) ?? 'Error'}
+              labelClass="text-destructive"
+              borderClass="border-destructive/30"
+              bgClass="bg-destructive/10"
+            >
+              <div className="px-2 py-1.5 text-xs text-destructive">
+                {tb.exc_value as string}
               </div>
-              <div style={{ padding: '6px 8px', fontSize: 12, color: s.error.val }}>
-                {tb!.exc_value as string}
-              </div>
-              {Array.isArray(tb!.frames) && (tb!.frames as unknown[]).length > 0 && (
-                <pre style={{ padding: '6px 8px', fontSize: 10, fontFamily: 'monospace', borderTop: `1px solid ${s.error.frameBorder}`, overflowX: 'auto', color: s.error.frameTxt, margin: 0, whiteSpace: 'pre-wrap' }}>
-                  {(tb!.frames as Array<Record<string, unknown>>).map((f) =>
-                    `  ${f.filename}:${f.lineno} in ${f.name}\n    ${f.line ?? ''}\n`
-                  ).join('')}
+              {Array.isArray(tb.frames) && (tb.frames as unknown[]).length > 0 && (
+                <pre className="border-t border-destructive/20 px-2 py-1.5 font-mono text-[10px] text-destructive/70">
+                  {(tb.frames as Array<Record<string, unknown>>)
+                    .map((f) => `  ${f.filename}:${f.lineno} in ${f.name}\n    ${f.line ?? ''}\n`)
+                    .join('')}
                 </pre>
               )}
-            </div>
+            </OutputSection>
           )}
 
           {hasStdout && (
-            <div style={{ borderRadius: 4, border: `1px solid ${s.stdout.border}`, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderBottom: `1px solid ${s.stdout.hdrBorder}`, background: s.stdout.hdrBg }}>
-                <Terminal style={{ width: 12, height: 12, color: '#4ade80' }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#4ade80' }}>stdout</span>
-              </div>
-              <pre style={{ padding: '6px 8px', fontSize: 12, fontFamily: 'monospace', overflowX: 'auto', maxHeight: 160, whiteSpace: 'pre-wrap', color: s.stdout.pre, margin: 0 }}>
-                {stdout!.trim()}
+            <OutputSection
+              icon={<Terminal className="h-3 w-3 text-success" />}
+              label="stdout"
+              labelClass="text-success"
+              borderClass="border-success/30"
+              bgClass="bg-success/10"
+            >
+              <pre className="max-h-40 overflow-auto whitespace-pre-wrap px-2 py-1.5 font-mono text-xs text-foreground">
+                {stdout.trim()}
               </pre>
-            </div>
+            </OutputSection>
           )}
 
           {hasStderr && (
-            <div style={{ borderRadius: 4, border: `1px solid ${s.stderr.border}`, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderBottom: `1px solid ${s.stderr.hdrBorder}`, background: s.stderr.hdrBg }}>
-                <AlertTriangle style={{ width: 12, height: 12, color: '#fbbf24' }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#fbbf24' }}>stderr</span>
-              </div>
-              <pre style={{ padding: '6px 8px', fontSize: 12, fontFamily: 'monospace', overflowX: 'auto', maxHeight: 160, whiteSpace: 'pre-wrap', color: s.stderr.pre, margin: 0 }}>
-                {stderr!.trim()}
+            <OutputSection
+              icon={<AlertTriangle className="h-3 w-3 text-warning" />}
+              label="stderr"
+              labelClass="text-warning"
+              borderClass="border-warning/30"
+              bgClass="bg-warning/10"
+            >
+              <pre className="max-h-40 overflow-auto whitespace-pre-wrap px-2 py-1.5 font-mono text-xs text-warning">
+                {stderr.trim()}
               </pre>
-            </div>
+            </OutputSection>
           )}
 
           {hasResult && (
-            <div style={{ borderRadius: 4, border: `1px solid ${s.result.border}`, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderBottom: `1px solid ${s.result.hdrBorder}`, background: s.result.hdrBg }}>
-                <CheckCircle2 style={{ width: 12, height: 12, color: '#22d3ee' }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#22d3ee' }}>result</span>
-              </div>
-              <div style={{ maxHeight: 192, overflowY: 'auto' }}>
-                <SyntaxHighlighter
-                  language="json"
-                  style={hlStyle}
-                  customStyle={{ margin: 0, padding: '0.5rem', fontSize: '0.75rem', background: 'transparent', borderRadius: 0 }}
-                >
-                  {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
-                </SyntaxHighlighter>
-              </div>
-            </div>
+            <OutputSection
+              icon={<CheckCircle2 className="h-3 w-3 text-info" />}
+              label="result"
+              labelClass="text-info"
+              borderClass="border-info/30"
+              bgClass="bg-info/10"
+            >
+              <CodeBlock
+                code={typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
+                language="json"
+                maxHeight={192}
+                className="rounded-none border-0"
+              />
+            </OutputSection>
           )}
 
           {!hasTb && !hasStdout && !hasStderr && !hasResult && (
-            <div style={{ padding: '6px 8px', fontSize: 12, color: '#6b7280' }}>(no output)</div>
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">(no output)</div>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+export function OutputSection({
+  icon,
+  label,
+  labelClass,
+  borderClass,
+  bgClass,
+  children,
+}: {
+  icon: ReactNode
+  label: string
+  labelClass: string
+  borderClass: string
+  bgClass: string
+  children: ReactNode
+}) {
+  return (
+    <div className={cn('overflow-hidden rounded border', borderClass)}>
+      <div className={cn('flex items-center gap-1.5 border-b px-2 py-1', borderClass, bgClass)}>
+        {icon}
+        <span className={cn('text-[10px] font-semibold', labelClass)}>{label}</span>
+      </div>
+      {children}
     </div>
   )
 }

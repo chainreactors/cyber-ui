@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@aspect/theme": "workspace:*",
+    "lucide-react": "^0.400.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },

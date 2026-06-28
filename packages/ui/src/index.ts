@@ -33,12 +33,5 @@ export { Textarea, type TextareaProps } from './textarea'
 export { ToggleGroup, ToggleGroupItem } from './toggle-group'
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip'
 export { ThemeToggle, type ThemeToggleProps } from './theme-toggle'
-export {
-  AssistantResponse,
-  ChatThinking,
-  MessageBubble,
-  ToolCallDisplay,
-  summarizeArgs,
-  type MessageBubbleProps,
-  type ToolCallDisplayProps,
-} from './chat'
+export { Collapsible, type CollapsibleProps } from './collapsible'
+export { StatusIndicator, StatusDot, type StatusIndicatorProps, type StatusKind } from './status-indicator'

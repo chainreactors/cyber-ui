@@ -15,14 +15,23 @@ export {
   reduceExecutionHistoryTimeline,
 } from './lib/execution-history-graph'
 
+// Layer 0.5 — Utility functions
+export {
+  stripAnsiControl,
+  formatArgs,
+  summarizeArgs,
+} from './lib/tool-utils'
+
 // Layer 1 — Presentational components (props-first, no provider dependency)
 export { default as LiveGraphView } from './components/graph/LiveGraphView'
 export { default as LiveChatPanel } from './components/chat/LiveChatPanel'
 export { default as ExecutionTimeline } from './components/graph/ExecutionTimeline'
 export { default as StaticGraphView } from './components/graph/StaticGraphView'
 export { default as NodeDetailPanel } from './components/graph/NodeDetailPanel'
-export { default as MessageBubble } from './components/chat/MessageBubble'
-export { default as ToolCallDisplay } from './components/chat/ToolCallDisplay'
+export { default as MessageBubble, StreamingCursor } from './components/chat/MessageBubble'
+export { default as ToolCallDisplay, CodeCallDisplay, BlockingOutputDisplay, OutputSection } from './components/chat/ToolCallDisplay'
+export { default as ChatThinking, ThinkingDots } from './components/chat/ChatThinking'
+export { default as AssistantResponse } from './components/chat/AssistantResponse'
 export { default as ChatInput } from './components/chat/ChatInput'
 export { default as LiveAPGNode } from './components/graph/LiveAPGNode'
 export { MarkdownContent } from '@aspect/markdown'
@@ -47,7 +56,15 @@ export { default as ExecutionGraphView } from './components/ExecutionGraphView'
 export type { ExecutionGraphViewProps } from './components/ExecutionGraphView'
 export type { TokenUsageSummary } from './lib/token-usage'
 
-// Types
+// Types — components
+export type { MessageBubbleProps } from './components/chat/MessageBubble'
+export type { ChatThinkingProps } from './components/chat/ChatThinking'
+export type { AssistantResponseProps } from './components/chat/AssistantResponse'
+export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
+export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
+export type { ChatInputProps, CommandHint } from './components/chat/ChatInput'
+
+// Types — protocol & data
 export type { APGEvent } from './types/protocol'
 export type {
   ExecutionAccentKind,

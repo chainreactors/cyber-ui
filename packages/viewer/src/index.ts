@@ -21,6 +21,14 @@ export {
   formatArgs,
   summarizeArgs,
 } from './lib/tool-utils'
+export { chatMessagesToTimeline } from './lib/timeline-adapter'
+
+// Layer 0.5 — Timeline renderer registry
+export {
+  registerTimelineRenderer,
+  resolveTimelineRenderer,
+  clearTimelineRenderers,
+} from './components/chat/timeline-registry'
 
 // Layer 1 — Presentational components (props-first, no provider dependency)
 export { default as LiveGraphView } from './components/graph/LiveGraphView'
@@ -33,6 +41,7 @@ export { default as ToolCallDisplay, CodeCallDisplay, BlockingOutputDisplay, Out
 export { default as ChatThinking, ThinkingDots } from './components/chat/ChatThinking'
 export { default as AssistantResponse } from './components/chat/AssistantResponse'
 export { default as ChatInput } from './components/chat/ChatInput'
+export { ChatPanel } from './components/chat/ChatPanel'
 export { default as LiveAPGNode } from './components/graph/LiveAPGNode'
 export { MarkdownContent } from '@aspect/markdown'
 export { default as PromptContent } from './components/shared/PromptContent'
@@ -47,6 +56,7 @@ export { APGWebSocketProvider, StaticEventProvider, useAPGEvents } from './provi
 export { ThemeProvider, useTheme } from './providers/ThemeProvider'
 export { useGraphState } from './providers/useGraphState'
 export { useChatState } from './providers/useChatState'
+export { ChatSessionProvider, useChatSessionContext } from './providers/ChatSessionProvider'
 
 // Layer 3 — Full dashboard
 export { default as APGViewer } from './components/APGViewer'
@@ -62,10 +72,28 @@ export type { ChatThinkingProps } from './components/chat/ChatThinking'
 export type { AssistantResponseProps } from './components/chat/AssistantResponse'
 export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
 export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
-export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode } from './components/chat/ChatInput'
+export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode, InputDecorator } from './components/chat/ChatInput'
+export type { ChatPanelProps, ChatPanelTimelineProps, ChatPanelInputProps, ChatPanelHeaderProps } from './components/chat/ChatPanel'
+export type { ChatSessionState, ChatSessionActions, ChatSessionContextValue } from './providers/ChatSessionProvider'
+export type {
+  TimelineItemRendererProps,
+  ExtensionRendererProps,
+  TimelineRendererConfig,
+  BuiltinRendererOverride,
+} from './components/chat/timeline-registry'
 
 // Types — protocol & data
 export type { APGEvent } from './types/protocol'
+export type {
+  TimelineItem,
+  TimelineItemBase,
+  MessageTimelineItem,
+  AssistantResponseTimelineItem,
+  ToolCallTimelineItem,
+  ToolCallEntry,
+  DividerTimelineItem,
+  ExtensionTimelineItem,
+} from './types/timeline'
 export type {
   ExecutionAccentKind,
   ExecutionEventRecord,

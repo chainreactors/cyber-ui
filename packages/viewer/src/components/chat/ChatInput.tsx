@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type DragEvent } from 'react'
+import { useState, useRef, useEffect, useCallback, type DragEvent, type ReactNode } from 'react'
 import { FileText, Paperclip, Send, Slash, Square, Upload, X } from 'lucide-react'
 import { cn } from '@aspect/theme'
 
@@ -17,6 +17,12 @@ export interface ChatAttachment {
   progress?: number
 }
 
+export interface InputDecorator {
+  key: string
+  position: 'above' | 'inline-start'
+  render: () => ReactNode
+}
+
 export interface ChatInputProps {
   onSend: (content: string, attachments?: ChatAttachment[]) => void
   onPause?: () => void
@@ -28,6 +34,9 @@ export interface ChatInputProps {
   contextSizeLimit?: number
   className?: string
   inputClassName?: string
+  decorators?: InputDecorator[]
+  headerSlot?: ReactNode
+  footerSlot?: ReactNode
 }
 
 function isTextFile(file: File): boolean {
@@ -53,6 +62,9 @@ export default function ChatInput({
   contextSizeLimit = 10240,
   className,
   inputClassName,
+  decorators,
+  headerSlot,
+  footerSlot,
 }: ChatInputProps) {
   const [draft, setDraft] = useState('')
   const [showHints, setShowHints] = useState(false)
@@ -205,6 +217,13 @@ export default function ChatInput({
       )}
 
       <div className="px-4 py-3">
+        {/* above decorators */}
+        {decorators?.filter((d) => d.position === 'above').map((d) => (
+          <div key={d.key} className="mb-2">{d.render()}</div>
+        ))}
+
+        {headerSlot && <div className="mb-2">{headerSlot}</div>}
+
         {/* attachment chips */}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
@@ -247,6 +266,11 @@ export default function ChatInput({
         )}
 
         <div className="flex items-end gap-2">
+          {/* inline-start decorators */}
+          {decorators?.filter((d) => d.position === 'inline-start').map((d) => (
+            <div key={d.key} className="shrink-0">{d.render()}</div>
+          ))}
+
           {/* attachment button */}
           {enableAttachments && (
             <>
@@ -306,6 +330,8 @@ export default function ChatInput({
             {canPause ? <Square className="h-4 w-4 fill-current" /> : <Send className="h-4 w-4" />}
           </button>
         </div>
+
+        {footerSlot && <div className="mt-2">{footerSlot}</div>}
       </div>
     </div>
   )

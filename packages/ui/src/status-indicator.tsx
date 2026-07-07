@@ -1,12 +1,17 @@
+import type { ReactNode } from 'react'
 import { cn } from '@aspect/theme'
 import { Badge } from './badge'
 
-export type StatusKind = 'idle' | 'running' | 'success' | 'error' | 'pending' | 'warning' | 'info'
+export type StatusKind = 'idle' | 'running' | 'success' | 'error' | 'pending' | 'warning' | 'info' | 'online'
 
 export interface StatusIndicatorProps {
   status: StatusKind
   label?: string
+  /** Leading glyph. Defaults to a coloured dot; pass an icon to show it instead. */
+  icon?: ReactNode
   showDot?: boolean
+  /** Square, un-capitalised chip (not a full pill) for dense/inline contexts. */
+  compact?: boolean
   className?: string
 }
 
@@ -18,6 +23,7 @@ const dotColors: Record<StatusKind, string> = {
   pending: 'bg-warning animate-pulse',
   warning: 'bg-warning',
   info: 'bg-info',
+  online: 'bg-primary',
 }
 
 const badgeStyles: Record<StatusKind, string> = {
@@ -28,22 +34,26 @@ const badgeStyles: Record<StatusKind, string> = {
   pending: 'bg-warning/15 text-warning border-warning/15',
   warning: 'bg-warning/15 text-warning border-warning/15',
   info: 'bg-info/15 text-info border-info/15',
+  online: 'bg-primary/15 text-primary border-primary/15',
 }
 
-export function StatusIndicator({ status, label, showDot = true, className }: StatusIndicatorProps) {
+export function StatusIndicator({ status, label, icon, showDot = true, compact = false, className }: StatusIndicatorProps) {
   const displayLabel = label || status
 
   return (
     <Badge
       variant="outline"
       className={cn(
-        'gap-1.5 rounded-full px-2 py-0 text-[10px] font-semibold capitalize',
+        'gap-1.5 px-2 py-0 text-[10px] font-semibold',
+        compact ? 'rounded' : 'rounded-full capitalize',
         badgeStyles[status],
         className,
       )}
     >
-      {showDot && (
-        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotColors[status])} />
+      {icon ? (
+        <span className="flex shrink-0 items-center">{icon}</span>
+      ) : (
+        showDot && <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dotColors[status])} />
       )}
       {displayLabel}
     </Badge>

@@ -22,6 +22,10 @@ const buttonVariants = cva(
       size: {
         default: 'h-10 px-4 py-2',
         sm: 'h-9 rounded-md px-3',
+        // Dense micro-action (rail/toolbar rows): shorter than `sm`, 10px text.
+        // Replaces the hand-rolled `h-6 px-2 text-[10px]` buttons in SessionList
+        // /App that had no matching Button size.
+        xs: 'h-6 gap-1 rounded px-2 text-[10px]',
         lg: 'h-11 rounded-md px-8',
         icon: 'h-10 w-10',
         'icon-sm': 'h-8 w-8',

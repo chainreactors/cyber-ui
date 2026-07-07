@@ -290,7 +290,14 @@ export function upsertSession(setSessions: Dispatch<SetStateAction<PTYSession[]>
 }
 
 export function compareSessionsByActivity(a: PTYSession, b: PTYSession): number {
-  return activitySeq(b) - activitySeq(a) || timestampValue(b.last_activity_at) - timestampValue(a.last_activity_at)
+  // Order strictly by timestamps (both always populated by the backend view).
+  // Do NOT fold in activity_seq: it is a small per-session event counter that is
+  // only present for sessions the *current* connection's activity tracker has
+  // observed, so mixing it with epoch-millisecond timestamps in one subtraction
+  // produced an incoherent, churning order (finished tasks jumped rank every
+  // 350ms broadcast). activity_seq stays reserved for unread detection only.
+  return timestampValue(b.last_activity_at) - timestampValue(a.last_activity_at)
+    || timestampValue(b.started_at) - timestampValue(a.started_at)
 }
 
 export function activitySeq(session: PTYSession): number {

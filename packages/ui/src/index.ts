@@ -35,3 +35,8 @@ export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tool
 export { ThemeToggle, type ThemeToggleProps } from './theme-toggle'
 export { Collapsible, type CollapsibleProps } from './collapsible'
 export { StatusIndicator, StatusDot, type StatusIndicatorProps, type StatusKind } from './status-indicator'
+export { Callout, type CalloutProps, type CalloutTone } from './callout'
+export { Chip, type ChipProps } from './chip'
+export { Field, type FieldProps } from './field'
+export { StatTile, type StatTileProps, type StatTone } from './stat-tile'
+export { ConfirmProvider, useConfirm, type ConfirmOptions, type ConfirmLabels } from './confirm-dialog'

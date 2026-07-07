@@ -14,6 +14,10 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
+        // Soft-tinted primary — the "recessed / launch" affordance used by toolbars
+        // and rails across the deck (e.g. SessionList's local-agent launch button),
+        // instead of hand-rolled `bg-primary/10 text-primary`.
+        soft: 'bg-primary/10 text-primary hover:bg-primary/15',
       },
       size: {
         default: 'h-10 px-4 py-2',
@@ -35,15 +39,26 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  /**
+   * Pressed / selected state for toggle-style buttons (toolbar tabs, rail items).
+   * Applies the soft-primary tint over the chosen variant and sets `aria-pressed`,
+   * so a `ghost` button reads as "active" without callers re-implementing it.
+   */
+  active?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, active = false, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button'
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(
+          buttonVariants({ variant, size }),
+          active && 'bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary',
+          className,
+        )}
         ref={ref}
+        aria-pressed={active || undefined}
         {...props}
       />
     )

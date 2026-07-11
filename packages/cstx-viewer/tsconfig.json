@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"],
+      "@cyber/cstx": ["../cstx/src/index.ts"],
+      "@cyber/cstx/*": ["../cstx/src/*"],
+      "@cyber/graph": ["../graph/src/index.ts"],
+      "@cyber/graph/*": ["../graph/src/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

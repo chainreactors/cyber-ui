@@ -1,4 +1,5 @@
-export { CSTXTable } from './CSTXTable';
+export { CSTXTable } from './DataTable';
+export { CSTXTable as DataTable } from './DataTable';
 export { cstxTableManifest } from './manifest';
 export type { ColumnConfig } from './columns';
 export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './columns';

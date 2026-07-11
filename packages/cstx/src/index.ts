@@ -52,6 +52,7 @@ export type {
 export {
   registerBuiltins,
   CSTXTable,
+  DataTable,
   cstxTableManifest,
   StatCard,
   statCardManifest,
@@ -70,6 +71,31 @@ export {
   VerticalTimeline,
   verticalTimelineManifest,
 } from './components';
+
+// Timeline components
+export {
+  CommitGraph,
+  CommitTimeline,
+  HistoryTimeline,
+  LifecyclePlayer,
+  LifeRing,
+  TaskTimeline,
+} from './components/timeline';
+export type {
+  CommitGraphProps,
+  GitGraphData,
+  GitCommit,
+  GitRef,
+  CommitTimelineProps,
+  CheckpointSummary,
+  CstxDiffSummary,
+  HistoryTimelineProps,
+  LifecyclePlayerProps,
+  LifeRingProps,
+  TaskTimelineProps,
+  TaskWithStats,
+  TaskGraphStats,
+} from './components/timeline';
 
 // Graph components
 export {
@@ -124,8 +150,8 @@ export {
   DiffMetricCard,
   DiffObjectChangeSvg,
   DiffObjectChangeBadge,
-} from './components/cstx';
-export type { CstxFlagToolbarProps, CstxCommitSelectProps, CstxCommitSummary, DiffMetricCardProps } from './components/cstx';
+} from './components/commit';
+export type { CstxFlagToolbarProps, CstxCommitSelectProps, CstxCommitSummary, DiffMetricCardProps } from './components/commit';
 
 // Cell Renderers
 export {
@@ -136,8 +162,8 @@ export {
 export type { CellRendererFn } from './lib/renderers';
 
 // Column utilities
-export type { ColumnConfig } from './components/CSTXTable/columns';
-export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './components/CSTXTable/columns';
+export type { ColumnConfig } from './components/table/columns';
+export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './components/table/columns';
 
 // Color Manager
 export {
@@ -245,6 +271,73 @@ export {
   quoteCstxFilterValue,
   normalizeCstxQueryExpression,
 } from './lib/cstxQuery';
+
+// Search components
+export {
+  NodeCard,
+  FacetSidebar,
+  ResultList,
+  SyntaxGuide,
+} from './components/search';
+export type {
+  NodeCardProps,
+  FacetSidebarProps,
+  FacetItem,
+  FacetGroup,
+  ResultListProps,
+  SyntaxGuideProps,
+  SyntaxSection,
+  SyntaxItem,
+} from './components/search';
+
+// Search utilities
+export {
+  SENSITIVE_SIGNAL_CONFIG,
+  NODE_TYPE_CONFIG,
+  getNodeIcon,
+  parseNodeAttributes,
+  getRelationshipTypes,
+  getNodeConnectionCounts,
+  formatFieldLabel,
+  NODE_TYPE_META,
+  getNodeTypeHoverText,
+  getNodeTypeMeta,
+} from './lib/nodeTypeConfig';
+export type { NodeTypeConfig, ParsedNodeAttributes, FieldImportance, NodeTypeMeta } from './lib/nodeTypeConfig';
+export {
+  formatFieldValue,
+  getStatusColor,
+  getSeverityColor as getSearchSeverityColor,
+  getBorderAccent,
+  getTypeColor,
+  isFingerprintSourceCode,
+  fingerprintSourceLabel,
+  fingerprintSourceTitle,
+  formatCount,
+  parseRelationships,
+  getRelationshipIcon,
+  formatRelativeTime,
+  formatAbsoluteDate,
+} from './lib/searchUtils';
+export { rankSearchItems, getSearchPrioritySignals } from './lib/searchRanking';
+export type { SearchRankingContext, SearchPrioritySignals } from './lib/searchRanking';
+export {
+  SEARCH_FILTER_PRESET_METADATA,
+  SEARCH_FILTER_PRESET_FALLBACKS,
+  DEFAULT_SEARCH_FILTER_PRESET_KEY,
+  getSearchPresetMetadata,
+} from './lib/searchPresets';
+export type { SearchPresetRankingContext, SearchPresetMetadata, SearchFilterPresetFallback } from './lib/searchPresets';
+export { classifyFramework, classifyFrameworkNode, FW_CATEGORY_LABELS } from './lib/frameworkClassify';
+export type { FwCategory } from './lib/frameworkClassify';
+export { SEARCH_REPORT_TEMPLATES, DEFAULT_SEARCH_REPORT_TEMPLATE_ID } from './lib/reportTemplates';
+export type {
+  CstxReportColumnSpec,
+  CstxReportSheetSpec,
+  CstxReportTemplate,
+  CstxReportPreviewSheet,
+  CstxReportPreview,
+} from './lib/reportTemplates';
 
 // Utilities
 export { cn } from './lib/cn';

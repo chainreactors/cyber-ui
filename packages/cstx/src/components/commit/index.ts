@@ -1,5 +1,5 @@
-export { CstxFlagToolbar } from './CstxFlagToolbar';
-export type { CstxFlagToolbarProps } from './CstxFlagToolbar';
+export { CstxFlagToolbar } from './FlagToolbar';
+export type { CstxFlagToolbarProps } from './FlagToolbar';
 export { DiffMetricCard, DiffObjectChangeSvg, DiffObjectChangeBadge } from './DiffWidgets';
 export type { DiffMetricCardProps } from './DiffWidgets';
 export {
@@ -10,5 +10,5 @@ export {
   getCstxCommitShortId,
   getCstxCommitThreatCount,
   getCstxCommitValue,
-} from './CstxCommitSelect';
-export type { CstxCommitSelectProps, CstxCommitSummary } from './CstxCommitSelect';
+} from './CommitSelect';
+export type { CstxCommitSelectProps, CstxCommitSummary } from './CommitSelect';

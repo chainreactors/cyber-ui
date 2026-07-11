@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/ui",
+  "name": "@cyber/ui",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/ui.cjs",
@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aspect/theme": "workspace:*",
+    "@cyber/theme": "workspace:*",
     "@radix-ui/react-dialog": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.0",
     "@radix-ui/react-popover": "^1.1.0",

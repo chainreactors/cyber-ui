@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/ioa",
+  "name": "@cyber/ioa",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/ioa.cjs",
@@ -18,10 +18,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aspect/theme": "workspace:*",
-    "@aspect/ui": "workspace:*",
-    "@aspect/markdown": "workspace:*",
-    "@aspect/viewer": "workspace:*",
+    "@cyber/theme": "workspace:*",
+    "@cyber/ui": "workspace:*",
+    "@cyber/markdown": "workspace:*",
+    "@cyber/viewer": "workspace:*",
     "dagre": "^0.8.5",
     "lucide-react": "^0.400.0"
   },

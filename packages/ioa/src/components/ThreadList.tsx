@@ -1,6 +1,6 @@
 import type { ForumThread, TaskFocusTarget } from '../types'
-import { cn } from '@aspect/theme'
-import { ScrollArea, Button, EmptyState, SkeletonList, Input } from '@aspect/ui'
+import { cn } from '@cyber/theme'
+import { ScrollArea, Button, EmptyState, SkeletonList, Input } from '@cyber/ui'
 import { AlertCircle, Inbox, RefreshCw, Search } from 'lucide-react'
 import { friendlyForumError } from './forum-utils'
 import { ThreadListItem } from './ThreadListItem'

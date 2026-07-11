@@ -1,4 +1,4 @@
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (

@@ -13,7 +13,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'react', 'react-dom', 'react/jsx-runtime',
-        '@aspect/theme', '@aspect/ui', '@aspect/markdown', '@aspect/viewer',
+        '@cyber/theme', '@cyber/ui', '@cyber/markdown', '@cyber/viewer',
         '@xyflow/react',
         'dagre',
       ],

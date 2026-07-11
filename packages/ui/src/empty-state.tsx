@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Inbox, type LucideIcon } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface EmptyStateProps {
   icon?: LucideIcon

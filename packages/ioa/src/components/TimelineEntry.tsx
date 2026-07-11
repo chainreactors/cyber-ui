@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
-import { cn } from '@aspect/theme'
-import { Badge } from '@aspect/ui'
+import { cn } from '@cyber/theme'
+import { Badge } from '@cyber/ui'
 import { formatTimelineTimestamp, fullTimelineTimestamp } from '../format-helpers'
 import { isInteractiveTarget, shortId } from './forum-utils'
 

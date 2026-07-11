@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { Bot } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface ChatThinkingProps {
   actorName?: string | null

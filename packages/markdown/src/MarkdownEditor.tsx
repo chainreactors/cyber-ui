@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Bold, Code2, Eye, Heading2, Italic, Link, List, ListOrdered, Pencil, Quote } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 import { MarkdownContent } from './MarkdownContent'
 
 interface Props {

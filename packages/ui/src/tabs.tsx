@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as TabsPrimitive from '@radix-ui/react-tabs'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 const Tabs = TabsPrimitive.Root
 

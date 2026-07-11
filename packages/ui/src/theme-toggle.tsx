@@ -1,6 +1,6 @@
 import { Moon, Sun } from 'lucide-react'
 import { Button } from './button'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface ThemeToggleProps {
   isDark: boolean

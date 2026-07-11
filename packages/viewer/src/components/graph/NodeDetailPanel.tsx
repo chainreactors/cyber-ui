@@ -5,7 +5,7 @@ import { X, GitBranch, Brain, AlertCircle, Route } from 'lucide-react'
 import type { APGNodeData } from '../../lib/event-reducer'
 import { useResolvedTheme } from '../../lib/use-resolved-theme'
 import { formatTokenCount, formatTokenUsageLong } from '../../lib/token-usage'
-import { MarkdownContent } from '@aspect/markdown'
+import { MarkdownContent } from '@cyber/markdown'
 import LoadingPlaceholder from '../shared/LoadingPlaceholder'
 import PromptContent from '../shared/PromptContent'
 

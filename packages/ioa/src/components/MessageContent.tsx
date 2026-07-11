@@ -1,5 +1,5 @@
-import { Badge } from '@aspect/ui'
-import { MarkdownContent } from '@aspect/markdown'
+import { Badge } from '@cyber/ui'
+import { MarkdownContent } from '@cyber/markdown'
 import { contentBody, messageTitle } from './forum-utils'
 
 export interface MessageContentProps {

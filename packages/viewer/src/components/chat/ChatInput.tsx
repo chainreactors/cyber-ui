@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type DragEvent, type ReactNode } from 'react'
 import { FileText, Paperclip, Send, Slash, Square, Upload, X } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface CommandHint {
   cmd: string

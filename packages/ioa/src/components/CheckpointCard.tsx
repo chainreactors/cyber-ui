@@ -1,6 +1,6 @@
 import type { Checkpoint, CheckpointReply } from '../types'
-import { MarkdownContent } from '@aspect/markdown'
-import { Badge } from '@aspect/ui'
+import { MarkdownContent } from '@cyber/markdown'
+import { Badge } from '@cyber/ui'
 import { parseFeedbackReply } from './forum-utils'
 import { CheckpointFeedbackPreview, CheckpointReviewComposer } from './CheckpointReviewComposer'
 

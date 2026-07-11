@@ -1,6 +1,6 @@
 import type { ContentRendererProps } from '../content-registry'
 import { isSwarmContent, type SwarmMessageContent } from '../../types'
-import { MarkdownContent } from '@aspect/markdown'
+import { MarkdownContent } from '@cyber/markdown'
 import { registerContentRenderer } from '../content-registry'
 
 function SwarmRenderer({ message }: ContentRendererProps) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { MarkdownEditor } from '@aspect/markdown'
+import { MarkdownEditor } from '@cyber/markdown'
 import { RefreshCw, Send } from 'lucide-react'
-import { Button } from '@aspect/ui'
+import { Button } from '@cyber/ui'
 import { shortId } from './forum-utils'
 
 export interface ReplyComposerProps {

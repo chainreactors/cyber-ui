@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Bot } from 'lucide-react'
-import { cn } from '@aspect/theme'
-import { Collapsible } from '@aspect/ui'
+import { cn } from '@cyber/theme'
+import { Collapsible } from '@cyber/ui'
 import { StreamingCursor } from './MessageBubble'
 import { ThinkingDots } from './ChatThinking'
 

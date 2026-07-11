@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as PopoverPrimitive from '@radix-ui/react-popover'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 const Popover = PopoverPrimitive.Root
 const PopoverTrigger = PopoverPrimitive.Trigger

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, CheckCircle2, Loader2, Send } from 'lucide-react'
 import type { Checkpoint, CheckpointReply } from '../types'
 import { effectiveCheckpointOptions, isProjectedDefaultApproveOption } from '../checkpoint-helpers'
-import { MarkdownEditor, MarkdownContent } from '@aspect/markdown'
-import { Button } from '@aspect/ui'
-import { cn } from '@aspect/theme'
+import { MarkdownEditor, MarkdownContent } from '@cyber/markdown'
+import { Button } from '@cyber/ui'
+import { cn } from '@cyber/theme'
 
 export interface CheckpointReviewComposerProps {
   checkpoint: Checkpoint

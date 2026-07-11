@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/markdown",
+  "name": "@cyber/markdown",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/markdown.cjs",
@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aspect/theme": "workspace:*",
+    "@cyber/theme": "workspace:*",
     "lucide-react": "^0.400.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"

@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/theme",
+  "name": "@cyber/theme",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/theme.cjs",

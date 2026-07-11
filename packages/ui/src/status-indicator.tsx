@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 import { Badge } from './badge'
 
 export type StatusKind = 'idle' | 'running' | 'success' | 'error' | 'pending' | 'warning' | 'info' | 'online'

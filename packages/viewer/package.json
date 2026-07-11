@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/viewer",
+  "name": "@cyber/viewer",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/viewer.cjs",
@@ -19,9 +19,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aspect/theme": "workspace:*",
-    "@aspect/ui": "workspace:*",
-    "@aspect/markdown": "workspace:*",
+    "@cyber/theme": "workspace:*",
+    "@cyber/ui": "workspace:*",
+    "@cyber/markdown": "workspace:*",
     "react-syntax-highlighter": "^16.1.0",
     "lucide-react": "^0.400.0"
   },

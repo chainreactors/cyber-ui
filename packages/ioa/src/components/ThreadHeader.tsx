@@ -1,5 +1,5 @@
 import type { ForumThread, TaskFocusTarget } from '../types'
-import { Badge, Button } from '@aspect/ui'
+import { Badge, Button } from '@cyber/ui'
 import { ArrowLeft, ArrowUpRight, Clock3, GitBranch } from 'lucide-react'
 import { formatDate } from '../format-helpers'
 import { threadLabels } from './forum-utils'

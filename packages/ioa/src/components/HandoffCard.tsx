@@ -1,4 +1,4 @@
-import { MarkdownContent } from '@aspect/markdown'
+import { MarkdownContent } from '@cyber/markdown'
 
 export interface HandoffCardProps {
   title?: string

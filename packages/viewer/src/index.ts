@@ -43,7 +43,7 @@ export { default as AssistantResponse } from './components/chat/AssistantRespons
 export { default as ChatInput } from './components/chat/ChatInput'
 export { ChatPanel } from './components/chat/ChatPanel'
 export { default as LiveAPGNode } from './components/graph/LiveAPGNode'
-export { MarkdownContent } from '@aspect/markdown'
+export { MarkdownContent } from '@cyber/markdown'
 export { default as PromptContent } from './components/shared/PromptContent'
 
 // Layer 2 — Connected components (convenience, require providers)

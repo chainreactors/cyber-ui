@@ -10,8 +10,8 @@ import {
   Terminal,
   Wrench,
 } from 'lucide-react'
-import { cn } from '@aspect/theme'
-import { CodeBlock } from '@aspect/markdown'
+import { cn } from '@cyber/theme'
+import { CodeBlock } from '@cyber/markdown'
 import { stripAnsiControl, formatArgs, summarizeArgs } from '../../lib/tool-utils'
 
 export interface ToolCallDisplayProps {

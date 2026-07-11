@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg'

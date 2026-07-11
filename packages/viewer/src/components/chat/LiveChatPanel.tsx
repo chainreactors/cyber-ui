@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 import { useChatState } from '../../providers/useChatState'
 import { useAPGEvents } from '../../providers/APGWebSocketProvider'
 import type { ChatMessage } from '../../lib/event-reducer'

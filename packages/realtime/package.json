@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/realtime",
+  "name": "@cyber/realtime",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/realtime.cjs",

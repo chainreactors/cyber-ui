@@ -15,7 +15,7 @@ export default defineConfig({
         'react',
         'react-dom',
         'react/jsx-runtime',
-        '@aspect/theme',
+        '@cyber/theme',
         'react-syntax-highlighter',
         'react-syntax-highlighter/dist/esm/styles/prism',
       ],

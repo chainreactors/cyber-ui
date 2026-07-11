@@ -1,6 +1,6 @@
 import type { ForumThread, TaskFocusTarget } from '../types'
-import { cn } from '@aspect/theme'
-import { Badge, Button } from '@aspect/ui'
+import { cn } from '@cyber/theme'
+import { Badge, Button } from '@cyber/ui'
 import { ArrowUpRight, MessageSquare } from 'lucide-react'
 import { formatDate } from '../format-helpers'
 import { threadLabels } from './forum-utils'

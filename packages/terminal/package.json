@@ -1,5 +1,5 @@
 {
-  "name": "@aspect/terminal",
+  "name": "@cyber/terminal",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/terminal.cjs",
@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aspect/theme": "workspace:*",
+    "@cyber/theme": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "lucide-react": "^0.400.0"

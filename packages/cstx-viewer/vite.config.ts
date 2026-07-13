@@ -24,21 +24,23 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
   },
   build: {
-    outDir: 'dist',
+    outDir: process.env.CSTX_VIEWER_STANDALONE ? 'dist-standalone' : 'dist',
     assetsDir: 'assets',
     sourcemap: false,
     rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor-graphics': [
-            'sigma',
-            'graphology',
-            'graphology-layout',
-            'graphology-layout-forceatlas2',
-          ],
-          'vendor-charts': ['recharts'],
-        },
-      },
+      output: process.env.CSTX_VIEWER_STANDALONE
+        ? { inlineDynamicImports: true }
+        : {
+            manualChunks: {
+              'vendor-graphics': [
+                'sigma',
+                'graphology',
+                'graphology-layout',
+                'graphology-layout-forceatlas2',
+              ],
+              'vendor-charts': ['recharts'],
+            },
+          },
     },
     minify: 'terser',
     terserOptions: {

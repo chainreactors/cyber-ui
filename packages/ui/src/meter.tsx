@@ -1,4 +1,4 @@
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export type MeterTone = 'primary' | 'success' | 'warning' | 'caution' | 'destructive' | 'info'
 

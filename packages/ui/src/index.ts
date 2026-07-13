@@ -1,6 +1,24 @@
 export { Badge, badgeVariants, type BadgeProps } from './badge'
 export { Button, buttonVariants, type ButtonProps } from './button'
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './card'
+export { Checkbox, type CheckboxProps } from './checkbox'
+export {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuCheckboxItem,
+  ContextMenuRadioItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuGroup,
+  ContextMenuPortal,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuRadioGroup,
+} from './context-menu'
 export {
   Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger,
   DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
@@ -14,7 +32,7 @@ export {
 } from './dropdown-menu'
 export { EmptyState, type EmptyStateProps } from './empty-state'
 export { Input, type InputProps } from './input'
-export { Popover, PopoverTrigger, PopoverContent } from './popover'
+export { Popover, PopoverTrigger, PopoverClose, PopoverContent } from './popover'
 export { ScrollArea, ScrollBar } from './scroll-area'
 export {
   Select, SelectGroup, SelectValue, SelectTrigger, SelectContent,

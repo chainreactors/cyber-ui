@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export type StatTone = 'default' | 'primary' | 'success' | 'warning' | 'caution' | 'destructive' | 'muted'
 

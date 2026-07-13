@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@cyber/theme": "workspace:*",
+    "@radix-ui/react-context-menu": "^2.3.3",
     "@radix-ui/react-dialog": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.0",
     "@radix-ui/react-popover": "^1.1.0",

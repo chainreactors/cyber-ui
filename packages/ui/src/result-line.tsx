@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { AlertCircle, CheckCircle } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface ResultLineProps {
   /** `true` → success (check glyph + primary tint); `false` → failure (alert + destructive). */

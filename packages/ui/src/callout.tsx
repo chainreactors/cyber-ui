@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export type CalloutTone = 'info' | 'success' | 'warning' | 'destructive' | 'primary' | 'ai'
 

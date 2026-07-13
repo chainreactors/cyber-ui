@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean

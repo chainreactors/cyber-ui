@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface FieldProps {
   label: ReactNode

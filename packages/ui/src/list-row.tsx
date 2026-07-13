@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from '@aspect/theme'
+import { cn } from '@cyber/theme'
 
 export interface ListRowProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Selected state — soft-primary tint + `aria-pressed`. */

@@ -48,6 +48,9 @@ import { EmptyGuide } from './sub/EmptyGuide';
 import { ResizeHandle } from './sub/ResizeHandle';
 import { DiffBadge, DiffSummaryBar, getDiffRowClass } from './sub/DiffBadge';
 import { ExportButton } from './sub/ExportButton';
+import { FlagCell, FLAG_ICON_MAP, FLAG_COLOR_MAP, FLAG_DESCRIPTION_MAP } from './sub/FlagCell';
+import { Flag as FlagIcon } from 'lucide-react';
+import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
 import { useColumnResize } from './hooks/useColumnResize';
 import { parseSearchQuery, matchesFieldSearch } from './hooks/useFieldSearch';
 import { useUrlSlot } from './hooks/useUrlState';
@@ -287,6 +290,23 @@ function RowActionsCell({
   );
 }
 
+function RowFlagBadges({ row }: { row: Row }) {
+  const active = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row, opt.value));
+  if (active.length === 0) return null;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5 mr-1">
+      {active.map(f => {
+        const Icon = FLAG_ICON_MAP[f.key] ?? FlagIcon;
+        return (
+          <span key={f.key} title={FLAG_DESCRIPTION_MAP[f.key] ?? f.label}>
+            <Icon className="h-3 w-3" style={{ color: FLAG_COLOR_MAP[f.key] }} />
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 function buildColumns(
   configs: ColumnConfig[],
   sortingEnabled: boolean,
@@ -296,6 +316,7 @@ function buildColumns(
     enableExpanding?: boolean;
     enableRowSelection?: boolean;
     stickyFirstColumn?: boolean;
+    enableCstxFlags?: boolean;
     diffMode?: boolean;
     diffField?: string;
 
@@ -350,8 +371,11 @@ function buildColumns(
     });
   }
 
+  let isFirstDataCol = true;
   for (const col of configs) {
     if (col.hidden) continue;
+    const showFlagBadges = options?.enableCstxFlags && isFirstDataCol;
+    isFirstDataCol = false;
     cols.push({
       id: col.key,
       accessorKey: col.key,
@@ -382,21 +406,31 @@ function buildColumns(
       },
       cell: ({ getValue, row: tableRow }) => {
         const v = getValue();
+        let content: React.ReactNode;
         const renderName = col.render;
         if (renderName) {
           const renderer = renderers.get(renderName);
-          if (renderer) return renderer(v, tableRow.original, col.renderOptions as Record<string, unknown>);
+          if (renderer) content = renderer(v, tableRow.original, col.renderOptions as Record<string, unknown>);
         }
-        if (v == null) return <span className="text-slate-400">-</span>;
-        if (Array.isArray(v)) {
-          const listRenderer = renderers.get('list');
-          return listRenderer ? listRenderer(v, tableRow.original) : String(v);
+        if (content === undefined) {
+          if (v == null) content = <span className="text-slate-400">-</span>;
+          else if (Array.isArray(v)) {
+            const listRenderer = renderers.get('list');
+            content = listRenderer ? listRenderer(v, tableRow.original) : String(v);
+          }
+          else if (typeof v === 'object') {
+            const jsonRenderer = renderers.get('json');
+            content = jsonRenderer ? jsonRenderer(v, tableRow.original) : JSON.stringify(v);
+          }
+          else content = <span className="truncate">{String(v)}</span>;
         }
-        if (typeof v === 'object') {
-          const jsonRenderer = renderers.get('json');
-          return jsonRenderer ? jsonRenderer(v, tableRow.original) : JSON.stringify(v);
-        }
-        return <span className="truncate">{String(v)}</span>;
+        if (!showFlagBadges) return content;
+        return (
+          <span className="inline-flex items-center gap-0">
+            <RowFlagBadges row={tableRow.original} />
+            <span className="truncate">{content}</span>
+          </span>
+        );
       },
       size: col.width ? parseInt(String(col.width), 10) || undefined : undefined,
       meta: { align: col.align },
@@ -469,6 +503,24 @@ export function CSTXTable({
   const exportFilename = config.exportFilename as string | undefined;
   const exportRequiresSelection = config.exportRequiresSelection === true;
   const rowActions = (config.rowActions as TableActionConfig[] | undefined) ?? [];
+  const enableCstxFlags = config.enableCstxFlags === true;
+
+  const effectiveRowActions = useMemo(() => {
+    if (!enableCstxFlags) return rowActions;
+    const flagAction: TableActionConfig = {
+      id: '__cstxFlag',
+      label: 'Flag',
+      render: (row, rowId) => (
+        <FlagCell
+          row={row}
+          onToggle={(flag, active) =>
+            onAction?.('cstxFlagToggle', { rowId, row, flag: flag.key, flagValue: flag.value, active })
+          }
+        />
+      ),
+    };
+    return [flagAction, ...rowActions];
+  }, [enableCstxFlags, rowActions, onAction]);
 
   const urlStateKey = (config.urlStateKey as string) || null;
   const urlPrefix = urlStateKey ? `${urlStateKey}_` : null;
@@ -609,13 +661,14 @@ export function CSTXTable({
       enableExpanding,
       enableRowSelection,
       stickyFirstColumn,
+      enableCstxFlags,
       diffMode,
       diffField,
-      rowActions,
+      rowActions: effectiveRowActions,
       rowIdKey,
       onAction,
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, diffMode, diffField, rowActions, rowIdKey, onAction],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
@@ -641,7 +694,7 @@ export function CSTXTable({
   });
 
   // --- Grid template ---
-  const actionsColumnWidth = rowActions.length > 0 ? Math.max(44, rowActions.length * 28 + 8) : 0;
+  const actionsColumnWidth = effectiveRowActions.length > 0 ? Math.max(44, effectiveRowActions.length * 28 + 8) : 0;
 
   const baseGridTemplate = useMemo(() => {
     const parts: string[] = [];
@@ -894,16 +947,28 @@ export function CSTXTable({
       )}
 
       {/* ── Batch action bar (replaces toolbar when active) ── */}
-      {enableRowSelection && selectedCount > 0 && batchActions && (
+      {enableRowSelection && selectedCount > 0 && (batchActions || enableCstxFlags) && (
         <div className={cn(
-          'flex items-center gap-3 bg-blue-50/80 dark:bg-blue-900/15',
+          'flex items-center gap-3',
           compact ? 'px-3 py-1.5' : 'px-4 py-2',
-        )}>
-          <span className="text-xs font-medium text-blue-700 dark:text-blue-300 tabular-nums">
+        )} style={{ background: 'var(--c-accent-soft, rgba(59,130,246,0.08))' }}>
+          <span className="text-xs font-medium tabular-nums" style={{ color: 'var(--c-accent-fg, #60a5fa)' }}>
             {selectedCount} selected
           </span>
           <div className="flex items-center gap-1.5">
-            {batchActions.map((action) => (
+            {enableCstxFlags && (
+              <FlagCell
+                row={{}}
+                onToggle={(flag) => {
+                  onAction?.('batchFlagToggle', {
+                    flag: flag.key,
+                    flagValue: flag.value,
+                    selectedRows: selectedOriginalRows,
+                  });
+                }}
+              />
+            )}
+            {batchActions?.map((action) => (
               <button
                 key={action.id}
                 type="button"
@@ -977,14 +1042,18 @@ export function CSTXTable({
               {table.getHeaderGroups().map((hg) =>
                 hg.headers.map((header, headerIdx) => {
                   const isFirst = headerIdx === 0 && stickyFirstColumn;
+                  const isActions = header.column.id === '__actions';
+                  const isSticky = isFirst || isActions;
                   return (
                     <div
                       key={header.id}
                       className={cn(
                         'relative font-medium',
                         compact ? 'py-1.5 pr-1.5' : 'py-2 pr-2',
-                        isFirst && 'sticky left-0 z-10 bg-white dark:bg-slate-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
+                        isFirst && 'sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
+                        isActions && 'sticky right-0 z-10 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]',
                       )}
+                      style={isSticky ? { background: 'var(--c-surface, var(--color-surface, #fff))' } : undefined}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {enableColumnResize && headerIdx < hg.headers.length - 1 && !(header.column.columnDef.meta as Record<string, unknown>)?.fixed && (
@@ -1025,6 +1094,7 @@ export function CSTXTable({
                     {row.getVisibleCells().map((cell, cellIdx) => {
                       const isFirst = cellIdx === 0 && stickyFirstColumn;
                       const isSystemCol = cell.column.id.startsWith('__');
+                      const isActions = cell.column.id === '__actions';
                       const externalHref = isSystemCol ? null : asHttpUrl(cell.getValue());
                       return (
                         <div
@@ -1035,9 +1105,10 @@ export function CSTXTable({
                             compact ? 'py-1.5 pr-1.5' : 'py-2 pr-2',
                             !isSystemCol && (externalHref ? '!pr-10' : '!pr-6'),
                             (cell.column.columnDef.meta as Record<string, unknown>)?.align === 'right' && 'text-right',
-                            isFirst && 'sticky left-0 z-[1] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/40 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
-                            isFirst && isActive && 'bg-blue-50/60 dark:bg-blue-900/15',
+                            isFirst && 'sticky left-0 z-[1] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
+                            isActions && 'sticky right-0 z-[2] shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]',
                           )}
+                          style={(isFirst || isActions) ? { background: 'var(--c-surface, var(--color-surface, #fff))' } : undefined}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           {!isSystemCol && (

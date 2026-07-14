@@ -165,6 +165,10 @@ export type { CellRendererFn } from './lib/renderers';
 export type { ColumnConfig } from './components/table/columns';
 export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './components/table/columns';
 
+// Table sub-components
+export { FlagCell } from './components/table/sub/FlagCell';
+export type { FlagCellProps } from './components/table/sub/FlagCell';
+
 // Color Manager
 export {
   ColorManager,

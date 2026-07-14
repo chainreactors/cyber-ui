@@ -19,6 +19,8 @@ export { DiffBadge, DiffSummaryBar, getDiffRowClass } from './sub/DiffBadge';
 export type { DiffSummaryBarProps } from './sub/DiffBadge';
 export { ExportButton } from './sub/ExportButton';
 export type { ExportButtonProps } from './sub/ExportButton';
+export { FlagCell } from './sub/FlagCell';
+export type { FlagCellProps } from './sub/FlagCell';
 
 export { useColumnResize } from './hooks/useColumnResize';
 export { parseSearchQuery, matchesFieldSearch } from './hooks/useFieldSearch';

@@ -504,6 +504,7 @@ export function CSTXTable({
   const exportRequiresSelection = config.exportRequiresSelection === true;
   const rowActions = (config.rowActions as TableActionConfig[] | undefined) ?? [];
   const enableCstxFlags = config.enableCstxFlags === true;
+  const showRowCount = config.showRowCount !== false;
 
   const effectiveRowActions = useMemo(() => {
     if (!enableCstxFlags) return rowActions;
@@ -835,11 +836,13 @@ export function CSTXTable({
             {badge.value}
           </span>
         ))}
-        <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
-          {filteredByType.length !== rows.length
-            ? `${filteredByType.length} / ${rows.length}`
-            : rows.length > 0 ? String(rows.length) : ''}
-        </span>
+        {showRowCount && (
+          <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
+            {filteredByType.length !== rows.length
+              ? `${filteredByType.length} / ${rows.length}`
+              : rows.length > 0 ? String(rows.length) : ''}
+          </span>
+        )}
 
         {/* Center: inline search */}
         {enableSearch && (

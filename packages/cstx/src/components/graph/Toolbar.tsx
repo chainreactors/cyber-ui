@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn';
 
 export interface GraphToolbarProps {
     title: string;
+    titleVisible?: boolean;
     titleExtra?: React.ReactNode;
     children?: React.ReactNode;
     onToggleStatistics?: () => void;
@@ -18,6 +19,7 @@ export interface GraphToolbarProps {
 
 export function GraphToolbar({
     title,
+    titleVisible = true,
     titleExtra,
     children,
     onToggleStatistics,
@@ -34,7 +36,7 @@ export function GraphToolbar({
             <div className="px-3 py-2">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <h1 className="text-lg font-bold">{title}</h1>
+                        {titleVisible && <h1 className="text-lg font-bold">{title}</h1>}
                         {titleExtra}
                     </div>
                     <div className="flex items-center gap-2">

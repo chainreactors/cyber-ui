@@ -9,6 +9,7 @@ interface Breadcrumb {
 
 export function PageHeader({ config }: RuntimeComponentProps): React.JSX.Element {
   const title = config.title as string;
+  const titleVisible = config.titleVisible !== false;
   const subtitle = config.subtitle as string;
   const breadcrumbs = (config.breadcrumbs ?? []) as Breadcrumb[];
 
@@ -41,7 +42,9 @@ export function PageHeader({ config }: RuntimeComponentProps): React.JSX.Element
           ))}
         </nav>
       )}
-      <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+      {titleVisible && (
+        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+      )}
       {subtitle && (
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {subtitle}

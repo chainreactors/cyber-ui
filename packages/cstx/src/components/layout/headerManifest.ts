@@ -15,6 +15,12 @@ export const pageHeaderManifest: ComponentManifest = {
       required: true,
     },
     {
+      key: 'titleVisible',
+      label: 'Show page title',
+      type: 'boolean',
+      default: true,
+    },
+    {
       key: 'subtitle',
       label: 'Subtitle text',
       type: 'string',

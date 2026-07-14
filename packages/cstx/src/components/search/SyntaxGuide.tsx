@@ -65,7 +65,7 @@ export function SyntaxGuide({
                 className="relative z-10 grid max-h-[92vh] w-[min(96vw,84rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background shadow-lg"
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="flex items-start justify-between gap-3 border-b border-border bg-background/95 px-2 py-2 pr-2">
+                <div className="flex items-start justify-between gap-3 border-b border-border bg-background px-2 py-2 pr-2">
                     <div className="min-w-0">
                         <h2 id={DIALOG_TITLE_ID} className="text-xl font-semibold">{title ?? 'Search Syntax Reference'}</h2>
                         {description && (
@@ -84,7 +84,7 @@ export function SyntaxGuide({
                 </div>
 
                 <div className="grid min-h-0 lg:grid-cols-[17rem_minmax(0,1fr)]">
-                    <aside className="hidden min-h-0 border-r border-border bg-muted/25 p-2 lg:block">
+                    <aside className="hidden min-h-0 border-r border-border bg-muted p-2 lg:block">
                         <div className="mb-2 rounded-xl border border-border/60 bg-background p-2">
                             <p className="text-sm font-medium text-foreground">Quick Navigation</p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -119,7 +119,7 @@ export function SyntaxGuide({
 
                     <div className="min-h-0 overflow-y-auto bg-background">
                         <div className="space-y-2 px-2 py-2 sm:px-2 lg:px-2">
-                            <div className="grid gap-2 rounded-2xl border border-border/60 bg-muted/25 p-2 md:grid-cols-2">
+                            <div className="grid gap-2 rounded-2xl border border-border/60 bg-muted p-2 md:grid-cols-2">
                                 <div className="rounded-xl bg-background p-2 ring-1 ring-border/50">
                                     <p className="text-sm font-medium text-foreground">Auto Detection</p>
                                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -142,7 +142,7 @@ export function SyntaxGuide({
                                         id={`search-syntax-section-${index}`}
                                         className="scroll-mt-5 overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm"
                                     >
-                                        <div className="flex items-center gap-2 border-b border-border/60 bg-muted/20 px-2 py-2">
+                                        <div className="flex items-center gap-2 border-b border-border/60 bg-muted px-2 py-2">
                                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background shadow-sm">
                                                 <SectionIcon className={`h-5 w-5 ${section.color}`}/>
                                             </div>
@@ -160,11 +160,11 @@ export function SyntaxGuide({
                                                     key={item.syntax}
                                                     type="button"
                                                     onClick={() => onSelectSyntax?.(item.syntax)}
-                                                    className="group min-w-0 rounded-xl border border-border/55 bg-muted/20 p-2 text-left transition-colors hover:border-primary/45 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                    className="group min-w-0 rounded-xl border border-border/55 bg-muted p-2 text-left transition-colors hover:border-primary/45 hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                                     title="Click to insert into search"
                                                 >
                                                     <span className="flex min-w-0 items-start gap-2 rounded-lg border border-primary/25 bg-background px-2 py-2 shadow-sm transition-colors group-hover:border-primary/50">
-                                                        <span className="mt-0.5 shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide text-primary">
+                                                        <span className="mt-0.5 shrink-0 rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide text-primary">
                                                             CSTX
                                                         </span>
                                                         <code className="min-w-0 flex-1 break-words font-mono text-xs font-semibold leading-5 text-foreground">

@@ -282,6 +282,7 @@ export {
   FacetSidebar,
   ResultList,
   SyntaxGuide,
+  CSTX_SYNTAX_SECTIONS,
 } from './components/search';
 export type {
   NodeCardProps,

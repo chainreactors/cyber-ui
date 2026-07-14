@@ -1,24 +1,8 @@
-import { useState, type ComponentType, type CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Check, Copy } from 'lucide-react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { cn } from '@cyber/theme'
-
-declare const require: any
-
-/* ---------- optional syntax highlighting ---------- */
-
-let SyntaxHighlighter: ComponentType<any> | null = null
-let hlStyles: { dark?: Record<string, any>; light?: Record<string, any> } = {}
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  SyntaxHighlighter = require('react-syntax-highlighter').Prism
-  hlStyles = {
-    dark: require('react-syntax-highlighter/dist/esm/styles/prism').oneDark,
-    light: require('react-syntax-highlighter/dist/esm/styles/prism').oneLight,
-  }
-} catch {
-  // react-syntax-highlighter is an optional peer dependency
-}
 
 /* -------------------------------------------------- */
 
@@ -28,6 +12,7 @@ export interface CodeBlockProps {
   showLineNumbers?: boolean
   maxHeight?: number
   copyable?: boolean
+  isDark?: boolean
   className?: string
 }
 
@@ -51,6 +36,7 @@ export function CodeBlock({
   showLineNumbers = false,
   maxHeight,
   copyable = false,
+  isDark = false,
   className,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
@@ -63,11 +49,13 @@ export function CodeBlock({
   }
 
   const wrapClass = cn(
-    'group relative overflow-hidden rounded-md border border-border bg-muted/40',
+    isDark
+      ? 'group relative overflow-hidden rounded-lg border border-background/20 bg-background/10'
+      : 'group relative overflow-hidden rounded-lg border border-line bg-surface-2/80',
     className,
   )
 
-  const scrollClass = cn('overflow-auto', maxHeight && `max-h-[${maxHeight}px]`)
+  const scrollStyle: CSSProperties | undefined = maxHeight ? { maxHeight } : undefined
 
   return (
     <div className={wrapClass}>
@@ -76,18 +64,19 @@ export function CodeBlock({
         <button
           type="button"
           onClick={handleCopy}
-          className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded border border-border bg-card text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+          className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded border border-line bg-surface text-muted opacity-0 transition-opacity hover:text-fg group-hover:opacity-100"
           aria-label="Copy code"
         >
           {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
         </button>
       )}
 
-      <div className={scrollClass}>
-        {SyntaxHighlighter && language ? (
+      <div className="overflow-auto" style={scrollStyle}>
+        {language ? (
           <SyntaxHighlighter
             language={language}
-            style={hlStyles.dark}
+            style={isDark ? oneDark : oneLight}
+            PreTag="div"
             customStyle={hlCustomStyle}
             showLineNumbers={showLineNumbers}
             lineNumberStyle={lineNumStyle}
@@ -95,7 +84,7 @@ export function CodeBlock({
             {trimmed}
           </SyntaxHighlighter>
         ) : (
-          <pre className="p-3 font-mono text-xs leading-relaxed text-foreground">
+          <pre className={cn('p-3 font-mono text-xs leading-relaxed', isDark ? 'text-background' : 'text-fg')}>
             {trimmed}
           </pre>
         )}

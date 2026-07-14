@@ -1,9 +1,8 @@
-import { useMemo, type ComponentType, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@cyber/theme'
-
-declare const require: any
+import { CodeBlock } from './CodeBlock'
 
 interface Props {
   content: string
@@ -14,22 +13,6 @@ interface Props {
   /** Show anchor links on headings (hover to reveal) */
   headingAnchors?: boolean
   className?: string
-}
-
-/* ---------- optional syntax highlighting ---------- */
-
-let SyntaxHighlighter: ComponentType<any> | null = null
-let hlStyles: { dark?: Record<string, any>; light?: Record<string, any> } = {}
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  SyntaxHighlighter = require('react-syntax-highlighter').Prism
-  hlStyles = {
-    dark: require('react-syntax-highlighter/dist/esm/styles/prism').oneDark,
-    light: require('react-syntax-highlighter/dist/esm/styles/prism').oneLight,
-  }
-} catch {
-  // react-syntax-highlighter is an optional peer dependency
 }
 
 /* ---------- heading anchor helpers ---------- */
@@ -141,12 +124,14 @@ export function MarkdownContent({
   compact = false,
   muted = false,
   inverted = false,
+  isDark = false,
   headingAnchors = false,
   className,
 }: Props) {
   const headingSlugs = useMemo(() => new Map<string, number>(), [content])
 
   const components: Components = useMemo(() => {
+    const useDarkCode = inverted || isDark
     const headings = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).reduce(
       (acc, tag) => {
         acc[tag] = headingAnchors
@@ -188,10 +173,10 @@ export function MarkdownContent({
       blockquote: ({ children }) => (
         <blockquote
           className={cn(
-            'border-l-[3px] pl-2.5',
+            'border-l-2 pl-3',
             compact
-              ? 'my-1.5 border-primary'
-              : 'my-3 rounded-r-md border-border bg-muted/30 py-1.5 pr-3',
+              ? 'my-1.5 border-accent/45'
+              : 'my-3 rounded-r-lg border-accent/35 bg-accent-soft/35 py-2 pr-3',
             inverted ? 'text-muted' : 'text-muted-foreground',
           )}
         >
@@ -199,86 +184,59 @@ export function MarkdownContent({
         </blockquote>
       ),
       pre: ({ children }) => (
-        <pre
-          className={cn(
-            'overflow-x-auto rounded-md border border-border leading-relaxed',
-            compact ? 'my-1.5 bg-input p-2' : 'my-4 bg-muted/40 p-3',
-          )}
-        >
-          {children}
-        </pre>
+        <div className={compact ? 'my-1.5' : 'my-4'}>{children}</div>
       ),
       code: ({ className: codeClassName, children }) => {
         const langMatch = codeClassName?.match(/language-(\w+)/)
-        const isBlock = Boolean(codeClassName)
+        const codeStr = String(children).replace(/\n$/, '')
+        const isBlock = Boolean(codeClassName) || codeStr.includes('\n')
 
-        if (isBlock && SyntaxHighlighter && langMatch) {
-          const lang = langMatch[1]
-          const codeStr = String(children).replace(/\n$/, '')
+        if (isBlock) {
           return (
-            <SyntaxHighlighter
-              language={lang}
-              style={hlStyles.dark}
-              customStyle={{
-                margin: 0,
-                padding: 0,
-                fontSize: 'inherit',
-                background: 'transparent',
-                borderRadius: 0,
-              }}
-            >
-              {codeStr}
-            </SyntaxHighlighter>
+            <CodeBlock
+              code={codeStr}
+              language={langMatch?.[1]}
+              showLineNumbers={!compact}
+              copyable
+              isDark={useDarkCode}
+            />
           )
         }
 
         return (
-          <code
-            className={cn(
-              'font-mono',
-              compact ? 'text-caption' : 'text-xs',
-              isBlock
-                ? cn(
-                    'bg-transparent whitespace-pre',
-                    inverted ? 'text-background' : 'text-foreground',
-                  )
-                : cn(
-                    'rounded px-1 py-px break-words',
-                    inverted
-                      ? 'bg-background/20 text-background'
-                      : 'bg-muted text-foreground',
-                  ),
-            )}
-          >
+          <InlineCode inverted={inverted} compact={compact}>
             {children}
-          </code>
+          </InlineCode>
         )
       },
       table: ({ children }) => (
-        <div className={cn('overflow-x-auto', compact ? 'my-1.5' : 'my-4')}>
+        <div className={cn('overflow-x-auto rounded-lg border border-line bg-surface', compact ? 'my-1.5' : 'my-4')}>
           <table
-            className={cn('w-full border-collapse', compact ? 'text-caption' : 'text-sm')}
+            className={cn('w-full border-separate border-spacing-0', compact ? 'text-caption' : 'text-sm')}
           >
             {children}
           </table>
         </div>
       ),
+      tr: ({ children }) => (
+        <tr className="[&:last-child>td]:border-b-0">{children}</tr>
+      ),
       th: ({ children }) => (
-        <th className="border border-border bg-muted px-2 py-1.5 text-left">{children}</th>
+        <th className="border-b border-line bg-surface-2 px-3 py-2 text-left font-semibold text-muted">{children}</th>
       ),
       td: ({ children }) => (
-        <td className="border border-border px-2 py-1.5 align-top">{children}</td>
+        <td className="border-b border-line px-3 py-2 align-top">{children}</td>
       ),
       hr: () => (
-        <hr className={cn('border-none border-t border-border', compact ? 'my-2' : 'my-5')} />
+        <hr className={cn('border-none border-t border-line', compact ? 'my-2' : 'my-5')} />
       ),
     }
-  }, [compact, inverted, muted, headingAnchors, headingSlugs])
+  }, [compact, inverted, isDark, muted, headingAnchors, headingSlugs])
 
   return (
     <div
       className={cn(
-        'break-words',
+        'w-full max-w-none break-words',
         '[&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
         compact ? 'text-xs leading-relaxed' : 'text-sm leading-[1.65]',
         inverted ? 'text-background' : muted ? 'text-muted-foreground' : 'text-foreground',
@@ -289,5 +247,50 @@ export function MarkdownContent({
         {content || ''}
       </ReactMarkdown>
     </div>
+  )
+}
+
+/* ---------- inline code with click-to-copy ---------- */
+
+function InlineCode({
+  children,
+  inverted,
+  compact,
+}: {
+  children: ReactNode
+  inverted: boolean
+  compact: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const handleClick = () => {
+    const text = typeof children === 'string' ? children : nodeText(children)
+    if (!text) return
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  return (
+    <code
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
+      title={copied ? 'Copied!' : 'Click to copy'}
+      className={cn(
+        'font-mono cursor-pointer transition-colors',
+        compact ? 'text-caption' : 'text-xs',
+        'rounded border px-1.5 py-0.5 break-words text-[0.92em]',
+        copied
+          ? 'border-ok bg-ok-soft text-ok'
+          : inverted
+            ? 'border-background/20 bg-background/20 text-background hover:bg-background/30'
+            : 'border-line bg-surface-2 text-accent-fg hover:bg-surface-2/60',
+      )}
+    >
+      {children}
+    </code>
   )
 }

@@ -1,0 +1,16 @@
+{
+  "name": "@cyber/cstx-easm",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "dependencies": {
+    "@cyber/ui": "workspace:*",
+    "@cyber/theme": "workspace:*",
+    "lucide-react": "^0.510.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  }
+}

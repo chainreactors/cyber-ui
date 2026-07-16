@@ -3,23 +3,13 @@ import { generateTypeColorMap } from '@cyber/cstx';
 import type { CstxNode, CstxEdge } from '@cyber/cstx';
 import { GraphContainer } from '@cyber/graph';
 
-function stringField(row: Record<string, unknown>, keys: string[]): string | null {
-  for (const key of keys) {
-    const v = row[key];
-    if (typeof v === 'string' && v.trim()) return v.trim();
-    if (typeof v === 'number' && Number.isFinite(v)) return String(v);
-  }
-  return null;
-}
-
 function toGraphNodes(nodes: CstxNode[]): Record<string, unknown>[] {
   return nodes
     .map((node): Record<string, unknown> | null => {
-      const id = node.id ?? (node as any).cstx_id;
+      const id = node.id ?? node.cstx_id;
       if (!id) return null;
       const name = String(node.value ?? id);
-      const type = typeof node.type === 'string' ? node.type : 'unknown';
-      return { ...node, id, name, type };
+      return { ...node, id, name, type: node.type };
     })
     .filter((n): n is Record<string, unknown> => n !== null);
 }
@@ -33,9 +23,8 @@ function toGraphEdges(
       const source = edge.source_id;
       const target = edge.target_id;
       if (!source || !target || !nodeIds.has(source) || !nodeIds.has(target)) return null;
-      const type = typeof edge.relation_type === 'string' ? edge.relation_type : 'related';
-      const id = edge.id ?? `${source}:${type}:${target}:${index}`;
-      return { ...edge, id, source, target, type };
+      const id = edge.id ?? `${source}:${edge.relation_type}:${target}:${index}`;
+      return { ...edge, id, source, target, type: edge.relation_type };
     })
     .filter((e): e is Record<string, unknown> => e !== null);
 }

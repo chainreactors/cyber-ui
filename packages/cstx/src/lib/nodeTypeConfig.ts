@@ -14,6 +14,12 @@ import {
     FolderTree,
     FileText,
     Server,
+    ShieldCheck,
+    Database,
+    Route,
+    GitBranch,
+    KeyRound,
+    ShieldAlert,
 } from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 
@@ -108,7 +114,7 @@ export const NODE_TYPE_CONFIG: Record<string, NodeTypeConfig> = {
         primaryFields: ['country', 'asn_number', 'as_name', 'area', 'cdn_name', 'waf_name', 'cloud_name'],
         badges: ['cdn_name', 'waf_name', 'cloud_name'],
         stats: ['port_count', 'vuln_count', 'domain_count'],
-        relationshipTypes: ['domain', 'port', 'vulnerability', 'service'],
+        relationshipTypes: ['domain', 'port', 'vuln'],
     },
     domain: {
         icon: Globe,
@@ -129,28 +135,21 @@ export const NODE_TYPE_CONFIG: Record<string, NodeTypeConfig> = {
         primaryFields: ['title', 'status_code', 'content_type', 'server'],
         badges: ['status_code', 'content_type'],
         stats: [],
-        relationshipTypes: ['subdomain', 'app', 'service'],
+        relationshipTypes: ['subdomain', 'app'],
     },
     app: {
         icon: Activity,
         primaryFields: ['port', 'protocol', 'title', 'status_code', 'product', 'version'],
         badges: ['protocol', 'status_code', 'product'],
         stats: ['vuln_count'],
-        relationshipTypes: ['ip', 'port', 'vulnerability', 'framework'],
+        relationshipTypes: ['ip', 'port', 'vuln', 'framework'],
     },
     host: {
         icon: Server,
         primaryFields: ['hostname', 'domain_name', 'local_ips', 'gateway_ips', 'dns_servers'],
         badges: ['domain_role'],
         stats: ['ip_count', 'app_count', 'vuln_count'],
-        relationshipTypes: ['ip', 'domain', 'app', 'service'],
-    },
-    vulnerability: {
-        icon: Bug,
-        primaryFields: ['vuln_id', 'vuln_name', 'severity', 'cvss_score', 'cvssscore', 'cve', 'cve_id', 'vuln_type'],
-        badges: ['severity', 'cve'],
-        stats: ['affected_count'],
-        relationshipTypes: ['ip', 'app', 'port', 'url'],
+        relationshipTypes: ['ip', 'domain', 'app'],
     },
     vuln: {
         icon: Bug,
@@ -164,7 +163,7 @@ export const NODE_TYPE_CONFIG: Record<string, NodeTypeConfig> = {
         primaryFields: ['port', 'protocol', 'service', 'product', 'banner'],
         badges: ['protocol', 'service'],
         stats: [],
-        relationshipTypes: ['ip', 'service', 'vulnerability'],
+        relationshipTypes: ['ip', 'vuln'],
     },
     company: {
         icon: Building,
@@ -201,12 +200,47 @@ export const NODE_TYPE_CONFIG: Record<string, NodeTypeConfig> = {
         stats: ['domain_count'],
         relationshipTypes: ['company', 'domain'],
     },
-    service: {
-        icon: Server,
-        primaryFields: ['service', 'port', 'protocol', 'product', 'version'],
-        badges: ['protocol', 'product'],
-        stats: ['vuln_count'],
-        relationshipTypes: ['ip', 'port', 'vulnerability'],
+    certificate: {
+        icon: ShieldCheck,
+        primaryFields: ['fingerprint', 'issuer', 'subject', 'not_before', 'not_after'],
+        badges: [],
+        stats: [],
+        relationshipTypes: ['ip', 'domain', 'subdomain'],
+    },
+    bucket: {
+        icon: Database,
+        primaryFields: ['provider', 'name', 'region', 'endpoint', 'acl'],
+        badges: ['provider', 'acl'],
+        stats: ['object_count'],
+        relationshipTypes: ['domain', 'ip'],
+    },
+    endpoint: {
+        icon: Route,
+        primaryFields: ['url', 'method', 'path', 'status_code', 'content_type'],
+        badges: ['method', 'status_code'],
+        stats: [],
+        relationshipTypes: ['app', 'url'],
+    },
+    repository: {
+        icon: GitBranch,
+        primaryFields: ['provider', 'name', 'owner', 'description', 'stars'],
+        badges: ['provider'],
+        stats: ['stars'],
+        relationshipTypes: ['company', 'secret'],
+    },
+    secret: {
+        icon: KeyRound,
+        primaryFields: ['kind', 'detector', 'severity', 'file_path', 'verified'],
+        badges: ['severity', 'kind'],
+        stats: [],
+        relationshipTypes: ['repository', 'endpoint'],
+    },
+    sarif_vuln: {
+        icon: ShieldAlert,
+        primaryFields: ['vuln_id', 'title', 'level', 'kind', 'rule_id', 'baseline_state'],
+        badges: ['level', 'kind'],
+        stats: [],
+        relationshipTypes: ['app', 'endpoint'],
     },
 };
 
@@ -378,6 +412,44 @@ export const formatFieldLabel = (key: string): string => {
         asn_count: 'ASNs',
         app_count: 'Applications',
         asset_count: 'Assets',
+        // Certificate
+        fingerprint: 'Fingerprint',
+        serial: 'Serial',
+        issuer: 'Issuer',
+        subject: 'Subject',
+        not_before: 'Valid From',
+        not_after: 'Expires',
+        san: 'SAN',
+        // Bucket
+        provider: 'Provider',
+        region: 'Region',
+        endpoint: 'Endpoint',
+        acl: 'ACL',
+        object_count: 'Objects',
+        // Endpoint
+        method: 'Method',
+        path: 'Path',
+        parameters: 'Parameters',
+        // Repository
+        owner: 'Owner',
+        description: 'Description',
+        stars: 'Stars',
+        is_fork: 'Fork',
+        matched_dorks: 'Matched Dorks',
+        // Secret
+        kind: 'Kind',
+        detector: 'Detector',
+        redacted: 'Redacted',
+        file_path: 'File',
+        line: 'Line',
+        commit: 'Commit',
+        verified: 'Verified',
+        // SarifVuln
+        rule_id: 'Rule ID',
+        level: 'Level',
+        baseline_state: 'Baseline',
+        evidence: 'Evidence',
+        asset_cstx_id: 'Asset ID',
     };
     return labelMap[key] ?? key;
 };

@@ -8,11 +8,10 @@ const EXCLUDE_COLUMNS = [
 ];
 
 function flattenNode(node: CstxNode): Record<string, unknown> {
-  const model = node.model as Record<string, unknown> | undefined;
-  const extras = node.extras as Record<string, unknown> | undefined;
+  const { model, extras, __type__: _t, __node_type__: _nt, ...rest } = node;
   const modelFields = model && typeof model === 'object' ? { ...model } : {};
-  delete modelFields.__type__;
-  delete modelFields.__node_type__;
+  delete (modelFields as Record<string, unknown>).__type__;
+  delete (modelFields as Record<string, unknown>).__node_type__;
   const extrasFields = extras && typeof extras === 'object' ? { ...extras } : {};
   return {
     ...modelFields,
@@ -35,7 +34,7 @@ export function AssetsTab({ nodes }: AssetsTabProps) {
   const typeGroups = useMemo(() => {
     const groups: Record<string, CstxNode[]> = {};
     for (const node of nodes) {
-      const t = typeof node.type === 'string' ? node.type : 'unknown';
+      const t = node.type;
       (groups[t] ??= []).push(node);
     }
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);

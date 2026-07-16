@@ -5,9 +5,8 @@ import type { CstxEdge } from '@cyber/cstx';
 const EXCLUDE_COLUMNS = ['_raw', 'id', 'embedding', 'vector', 'semantic'];
 
 function flattenEdge(edge: CstxEdge): Record<string, unknown> {
-  const attrs = edge.attrs as Record<string, unknown> | undefined;
-  const attrFields = attrs && typeof attrs === 'object' ? { ...attrs } : {};
-  delete attrFields._cstx_diff;
+  const attrFields = edge.attrs ? { ...edge.attrs } : {};
+  delete (attrFields as Record<string, unknown>)._cstx_diff;
   return {
     ...attrFields,
     id: edge.id,
@@ -29,7 +28,7 @@ export function RelationsTab({ edges }: RelationsTabProps) {
   const typeGroups = useMemo(() => {
     const groups: Record<string, CstxEdge[]> = {};
     for (const edge of edges) {
-      const t = typeof edge.relation_type === 'string' ? edge.relation_type : 'unknown';
+      const t = edge.relation_type;
       (groups[t] ??= []).push(edge);
     }
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);

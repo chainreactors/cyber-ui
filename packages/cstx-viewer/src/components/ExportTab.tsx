@@ -28,14 +28,14 @@ export function ExportTab({ payload, stats, filename }: ExportTabProps) {
 
   const exportSnapshot = useCallback(() => {
     downloadJson(`${baseName}.snapshot.json`, {
-      nodes: payload.nodes, edges: payload.edges, types: (payload as any).types ?? {},
+      nodes: payload.nodes, edges: payload.edges, types: payload.types ?? {},
     });
   }, [payload, baseName]);
 
   const exportNodesCsv = useCallback(() => {
     const rows = payload.nodes.map(n => {
-      const model = n.model as Record<string, unknown> | undefined;
-      return { id: n.id, type: n.type, value: n.value, sources: (n.sources ?? []).join('; '), ...(model && typeof model === 'object' ? model : {}) };
+      const model = n.model ?? {};
+      return { id: n.id, type: n.type, value: n.value, sources: (n.sources ?? []).join('; '), ...model };
     });
     downloadText(`${baseName}-nodes.csv`, objectToCsvRows(rows as Record<string, unknown>[]), 'text/csv;charset=utf-8');
   }, [payload.nodes, baseName]);

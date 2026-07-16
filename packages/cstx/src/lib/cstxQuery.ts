@@ -9,19 +9,9 @@
 
 export const CSTX_NODE_TYPE_NAMES = new Set([
     '*',
-    'ip',
-    'domain',
-    'subdomain',
-    'certificate',
-    'url',
-    'app',
-    'vuln',
-    'company',
-    'icp',
-    'cidr',
-    'port',
-    'framework',
-    'bucket',
+    'ip', 'domain', 'subdomain', 'certificate', 'url', 'app', 'vuln',
+    'sarif_vuln', 'company', 'icp', 'cidr', 'port', 'framework',
+    'bucket', 'endpoint', 'host', 'repository', 'secret',
 ]);
 
 export const IPV4_LITERAL_RE = /^(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;

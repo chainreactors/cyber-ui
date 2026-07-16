@@ -55,11 +55,6 @@ export const NODE_TYPE_META: Record<string, NodeTypeMeta> = {
         labelZh: 'Port',
         description: 'Externally accessible network port on an IP',
     },
-    service: {
-        label: 'Service',
-        labelZh: 'Service',
-        description: 'Specific network service running on a port (SSH / HTTP / ...)',
-    },
     framework: {
         label: 'Framework',
         labelZh: 'Framework',
@@ -84,6 +79,36 @@ export const NODE_TYPE_META: Record<string, NodeTypeMeta> = {
         label: 'Project',
         labelZh: 'Project',
         description: 'Isolation boundary for assets and tasks',
+    },
+    certificate: {
+        label: 'Certificate',
+        labelZh: 'Certificate',
+        description: 'TLS/SSL X.509 certificate identified on an endpoint',
+    },
+    bucket: {
+        label: 'Bucket',
+        labelZh: 'Bucket',
+        description: 'Cloud object storage bucket (S3 / OSS / GCS)',
+    },
+    endpoint: {
+        label: 'Endpoint',
+        labelZh: 'Endpoint',
+        description: 'HTTP API endpoint discovered via crawling or source analysis',
+    },
+    repository: {
+        label: 'Repository',
+        labelZh: 'Repository',
+        description: 'Source code repository (GitHub / GitLab / Gitee)',
+    },
+    secret: {
+        label: 'Secret',
+        labelZh: 'Secret',
+        description: 'Leaked credential or API key found in source / config',
+    },
+    sarif_vuln: {
+        label: 'SARIF Vuln',
+        labelZh: 'SARIF Vuln',
+        description: 'SARIF v2.1.0 aligned vulnerability finding with lifecycle management',
     },
 };
 

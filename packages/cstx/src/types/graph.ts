@@ -1,9 +1,9 @@
 import type React from 'react';
 
-export interface CstxNode {
+export interface CstxNodeBase {
     id?: string | null;
     cstx_id?: string | null;
-    type?: string;
+    type: string;
     value?: string | null;
     model?: Record<string, unknown>;
     extras?: Record<string, unknown>;
@@ -14,11 +14,9 @@ export interface CstxNode {
     updated_time?: string | number;
     created_time?: string | number;
     status?: string;
-    protocol?: string;
-    port?: string | number;
-    ip?: string;
-    domain?: string;
-    data_source?: string;
+}
+
+export interface CstxNode extends CstxNodeBase {
     [key: string]: unknown;
 }
 
@@ -83,29 +81,4 @@ export interface LayoutConfig {
     icon: React.ElementType;
     name: string;
     description?: string;
-}
-
-export interface AssetNode {
-    id: string;
-    name: string;
-    type: string;
-    value?: string;
-    sources: string[];
-    _raw: CstxNode;
-    [key: string]: unknown;
-}
-
-export interface AssetRelationship {
-    id?: string;
-    source: string;
-    target: string;
-    type: string;
-    sources?: string[];
-    _raw: CstxEdge;
-    [key: string]: unknown;
-}
-
-export interface AssetGraphData {
-    nodes: AssetNode[];
-    relationships: AssetRelationship[];
 }

@@ -82,11 +82,11 @@ export const getSeverityColor = (severity: string): string => {
 };
 
 export const getBorderAccent = (node: any): string => {
-    if (node.type === 'vulnerability' && node.attributes?.severity?.toLowerCase() === 'critical') {
+    if (node.type === 'vuln' && node.attributes?.severity?.toLowerCase() === 'critical') {
         return 'border-l-4 border-l-red-500';
     }
 
-    if (node.type === 'vulnerability' && node.attributes?.severity?.toLowerCase() === 'high') {
+    if (node.type === 'vuln' && node.attributes?.severity?.toLowerCase() === 'high') {
         return 'border-l-4 border-l-orange-500';
     }
 
@@ -159,7 +159,7 @@ export const parseRelationships = (node: any): Array<{type: string; count: numbe
         relationships.push({type: 'port', count: attributes.connected_ports.length});
     }
     if (attributes.connected_vulnerabilities && Array.isArray(attributes.connected_vulnerabilities)) {
-        relationships.push({type: 'vulnerability', count: attributes.connected_vulnerabilities.length});
+        relationships.push({type: 'vuln', count: attributes.connected_vulnerabilities.length});
     }
 
     return relationships;
@@ -171,11 +171,20 @@ export const getRelationshipIcon = (relType: string): string => {
         domain: '\u{1F517}',
         subdomain: '\u{1F517}',
         port: '\u{1F50C}',
-        vulnerability: '\u{1F41B}',
-        service: '⚙️',
+        vuln: '\u{1F41B}',
+        sarif_vuln: '\u{1F41B}',
         app: '\u{1F4F1}',
         company: '\u{1F3E2}',
         framework: '\u{1F527}',
+        cidr: '\u{1F310}',
+        url: '\u{1F517}',
+        certificate: '\u{1F512}',
+        icp: '\u{1F4C4}',
+        bucket: '\u{1F4E6}',
+        endpoint: '\u{1F6A9}',
+        host: '\u{1F5A5}',
+        repository: '\u{1F4C2}',
+        secret: '\u{1F511}',
     };
     return iconMap[relType] ?? '→';
 };
@@ -188,18 +197,28 @@ export const formatAbsoluteDate = (timestamp: TimeDisplayValue): string => {
     return formatTimeValue(timestamp, '');
 };
 
+const TYPE_COLORS: Record<string, string> = {
+    ip: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300',
+    domain: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300',
+    subdomain: 'bg-teal-100 text-teal-700 border-teal-300 dark:bg-teal-950 dark:text-teal-300',
+    url: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950 dark:text-purple-300',
+    app: 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300',
+    vuln: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-300',
+    sarif_vuln: 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950 dark:text-rose-300',
+    port: 'bg-cyan-100 text-cyan-700 border-cyan-300 dark:bg-cyan-950 dark:text-cyan-300',
+    company: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300',
+    framework: 'bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300',
+    cidr: 'bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-950 dark:text-sky-300',
+    certificate: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300',
+    icp: 'bg-lime-100 text-lime-700 border-lime-300 dark:bg-lime-950 dark:text-lime-300',
+    bucket: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300 dark:bg-fuchsia-950 dark:text-fuchsia-300',
+    endpoint: 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950 dark:text-orange-300',
+    host: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-950 dark:text-slate-300',
+    repository: 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-300',
+    secret: 'bg-stone-100 text-stone-700 border-stone-300 dark:bg-stone-950 dark:text-stone-300',
+};
+
 export const getTypeColor = (type: string): string => {
-    const colorMap: Record<string, string> = {
-        ip: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300',
-        domain: 'bg-green-100 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300',
-        subdomain: 'bg-teal-100 text-teal-700 border-teal-300 dark:bg-teal-950 dark:text-teal-300',
-        url: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950 dark:text-purple-300',
-        app: 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300',
-        vulnerability: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-300',
-        port: 'bg-cyan-100 text-cyan-700 border-cyan-300 dark:bg-cyan-950 dark:text-cyan-300',
-        company: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300',
-        service: 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-300',
-        framework: 'bg-pink-100 text-pink-700 border-pink-300 dark:bg-pink-950 dark:text-pink-300',
-    };
-    return colorMap[type] ?? 'bg-gray-100 text-gray-700 border-gray-300';
+    if (type === 'vulnerability') return TYPE_COLORS.vuln;
+    return TYPE_COLORS[type] ?? 'bg-gray-100 text-gray-700 border-gray-300';
 };

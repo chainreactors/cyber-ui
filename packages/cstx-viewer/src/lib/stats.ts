@@ -1,5 +1,10 @@
 import type { CstxNode, CstxEdge } from '@cyber/cstx';
 
+function modelField(node: CstxNode, field: string): unknown {
+  const m = node.model;
+  return m && typeof m === 'object' ? (m as Record<string, unknown>)[field] : undefined;
+}
+
 export interface TopNode {
   id: string;
   type: string;
@@ -61,20 +66,6 @@ const SEVERITY_INT_MAP: Record<number, string> = {
   0: 'unknown', 1: 'info', 2: 'low', 3: 'medium', 4: 'high', 5: 'critical',
 };
 
-function getModelField(node: CstxNode, field: string): unknown {
-  const model = node.model as Record<string, unknown> | undefined;
-  if (model && typeof model === 'object') return model[field] ?? undefined;
-  return undefined;
-}
-
-function nodeType(node: CstxNode): string {
-  return typeof node.type === 'string' ? node.type : 'unknown';
-}
-
-function edgeType(edge: CstxEdge): string {
-  return typeof edge.relation_type === 'string' ? edge.relation_type : 'unknown';
-}
-
 function normalizeSeverity(value: unknown): string {
   if (value == null) return 'unknown';
   if (typeof value === 'number') return SEVERITY_INT_MAP[value] ?? 'unknown';
@@ -105,8 +96,8 @@ export function computeStats(
   edges: CstxEdge[],
   topN = 10,
 ): GraphStats {
-  const nodeTypeCounts = countBy(nodes, nodeType);
-  const relTypeCounts = countBy(edges, edgeType);
+  const nodeTypeCounts = countBy(nodes, n => n.type);
+  const relTypeCounts = countBy(edges, e => e.relation_type);
 
   const sourceCounts: Record<string, number> = {};
   for (const node of nodes) {
@@ -128,15 +119,15 @@ export function computeStats(
     .map(([id, degree]) => {
       const node = nodeIndex.get(id);
       if (!node) return null;
-      return { id, type: nodeType(node), value: String(node.value ?? ''), degree };
+      return { id, type: node.type, value: String(node.value ?? ''), degree };
     })
     .filter((n): n is TopNode => n !== null);
 
-  const domainIds = new Set(nodes.filter(n => nodeType(n) === 'domain').map(n => n.id));
+  const domainIds = new Set(nodes.filter(n => n.type === 'domain').map(n => n.id));
   const subdomainRels = new Set(['has-subdomain', 'has_subdomain']);
   const domainCounts: Record<string, number> = {};
   for (const edge of edges) {
-    if (subdomainRels.has(edgeType(edge)) && domainIds.has(edge.source_id)) {
+    if (subdomainRels.has(edge.relation_type) && domainIds.has(edge.source_id)) {
       domainCounts[edge.source_id] = (domainCounts[edge.source_id] || 0) + 1;
     }
   }
@@ -149,30 +140,29 @@ export function computeStats(
 
   const portCounts: Record<string, number> = {};
   for (const node of nodes) {
-    if (nodeType(node) !== 'port') continue;
-    let portVal = getModelField(node, 'port');
+    if (node.type !== 'port') continue;
+    let portVal = modelField(node, 'port') as string | undefined;
     if (!portVal && node.value && String(node.value).includes(':')) {
       portVal = String(node.value).split(':').pop();
     }
     if (portVal != null) {
-      const key = String(portVal);
-      portCounts[key] = (portCounts[key] || 0) + 1;
+      portCounts[portVal] = (portCounts[portVal] || 0) + 1;
     }
   }
   const topPorts: TopPort[] = topEntries(portCounts, topN)
     .map(([port, count]) => ({ port, count }));
 
-  const ipNodes = nodes.filter(n => nodeType(n) === 'ip');
+  const ipNodes = nodes.filter(n => n.type === 'ip');
   const ipCoverage: IpCoverage = {
     total: ipNodes.length,
-    with_cdn: ipNodes.filter(n => getModelField(n, 'cdn_name')).length,
-    with_waf: ipNodes.filter(n => getModelField(n, 'waf_name')).length,
-    with_cloud: ipNodes.filter(n => getModelField(n, 'cloud_name')).length,
+    with_cdn: ipNodes.filter(n => modelField(n, 'cdn_name')).length,
+    with_waf: ipNodes.filter(n => modelField(n, 'waf_name')).length,
+    with_cloud: ipNodes.filter(n => modelField(n, 'cloud_name')).length,
   };
 
-  const vulnNodes = nodes.filter(n => nodeType(n) === 'vuln');
+  const vulnNodes = nodes.filter(n => n.type === 'vuln');
   const vulnIds = new Set(vulnNodes.map(n => n.id));
-  const severityCounts = countBy(vulnNodes, n => normalizeSeverity(getModelField(n, 'severity')));
+  const severityCounts = countBy(vulnNodes, n => normalizeSeverity(modelField(n, 'severity')));
 
   const affectedIds = new Set<string>();
   for (const edge of edges) {
@@ -180,7 +170,7 @@ export function computeStats(
     else if (vulnIds.has(edge.target_id) && edge.source_id) affectedIds.add(edge.source_id);
   }
   const affectedAssets = [...affectedIds].map(id => nodeIndex.get(id)).filter(Boolean) as CstxNode[];
-  const affectedTypeCounts = countBy(affectedAssets, nodeType);
+  const affectedTypeCounts = countBy(affectedAssets, n => n.type);
 
   const topVulns: TopVuln[] = topEntries(degreeMap, topN * 2)
     .filter(([id]) => vulnIds.has(id))
@@ -191,7 +181,7 @@ export function computeStats(
       return {
         id,
         name: String(node.value ?? ''),
-        severity: normalizeSeverity(getModelField(node, 'severity')),
+        severity: normalizeSeverity(modelField(node, 'severity')),
         degree,
       };
     })

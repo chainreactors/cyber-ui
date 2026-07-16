@@ -18,7 +18,7 @@ export type SearchFilterPresetFallback = {
     query: string;
 };
 
-const FINGERPRINT_TYPE_FILTERS = ['app', 'service', 'framework'];
+const FINGERPRINT_TYPE_FILTERS = ['app', 'framework'];
 const FOCUS_FINGERPRINT_TYPE_FILTERS = ['framework'];
 const VULNERABILITY_TYPE_FILTERS = ['vuln'];
 
@@ -60,7 +60,7 @@ export const SEARCH_FILTER_PRESET_FALLBACKS: SearchFilterPresetFallback[] = [
         presetKey: 'search.fingerprints',
         name: 'Fingerprints',
         description: 'Prioritizes fingerprint results worth reviewing first; key assets are ranked higher.',
-        query: 'type=="app" || type=="service" || type=="framework"',
+        query: 'type=="app" || type=="framework"',
     },
     {
         presetKey: 'search.focus_fingerprints',

@@ -184,7 +184,7 @@ export function SearchInput({
           )}
         />
         <input
-          ref={inputRef}
+          ref={inputRef as React.Ref<HTMLInputElement>}
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}

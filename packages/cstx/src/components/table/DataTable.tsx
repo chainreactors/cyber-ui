@@ -871,8 +871,60 @@ export function CSTXTable({
         )}
         {!enableSearch && <div className="flex-1" />}
 
-        {/* Right: action buttons */}
+        {/* Right: action buttons + selection actions */}
         <div className="flex shrink-0 items-center gap-1">
+          {enableRowSelection && selectedCount > 0 && (
+            <>
+              <span className="text-[11px] font-medium tabular-nums" style={{ color: 'var(--c-accent-fg, #60a5fa)' }}>
+                {selectedCount} selected
+              </span>
+              {enableCstxFlags && (
+                <FlagCell
+                  row={{}}
+                  onToggle={(flag) => {
+                    onAction?.('batchFlagToggle', {
+                      flag: flag.key,
+                      flagValue: flag.value,
+                      selectedRows: selectedOriginalRows,
+                    });
+                  }}
+                />
+              )}
+              {batchActions?.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  onClick={() => {
+                    const selectedIds = selectedOriginalRows.map((row, index) => resolveRowId(row, rowIdKey, index));
+                    onAction?.('batchAction', {
+                      action: action.id,
+                      selectedIds,
+                      selectedRows: selectedOriginalRows,
+                    });
+                  }}
+                  disabled={action.disabled || (action.requiresSelection !== false && selectedCount === 0)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40',
+                    actionButtonClass(action.variant),
+                  )}
+                >
+                  {(() => {
+                    const Icon = resolveIcon(action.icon);
+                    return Icon ? <Icon className="h-3 w-3" /> : null;
+                  })()}
+                  {action.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setRowSelection({})}
+                className="text-[11px] text-blue-500 hover:text-blue-700 dark:text-blue-400"
+              >
+                Clear
+              </button>
+              <span className="mx-0.5 h-4 w-px bg-slate-200 dark:bg-slate-700" />
+            </>
+          )}
           {hasTypeFilter && (
             <button
               type="button"
@@ -949,64 +1001,6 @@ export function CSTXTable({
         </div>
       )}
 
-      {/* ── Batch action bar (replaces toolbar when active) ── */}
-      {enableRowSelection && selectedCount > 0 && (batchActions || enableCstxFlags) && (
-        <div className={cn(
-          'flex items-center gap-3',
-          compact ? 'px-3 py-1.5' : 'px-4 py-2',
-        )} style={{ background: 'var(--c-accent-soft, rgba(59,130,246,0.08))' }}>
-          <span className="text-xs font-medium tabular-nums" style={{ color: 'var(--c-accent-fg, #60a5fa)' }}>
-            {selectedCount} selected
-          </span>
-          <div className="flex items-center gap-1.5">
-            {enableCstxFlags && (
-              <FlagCell
-                row={{}}
-                onToggle={(flag) => {
-                  onAction?.('batchFlagToggle', {
-                    flag: flag.key,
-                    flagValue: flag.value,
-                    selectedRows: selectedOriginalRows,
-                  });
-                }}
-              />
-            )}
-            {batchActions?.map((action) => (
-              <button
-                key={action.id}
-                type="button"
-                onClick={() => {
-                  const selectedIds = selectedOriginalRows.map((row, index) => resolveRowId(row, rowIdKey, index));
-                  onAction?.('batchAction', {
-                    action: action.id,
-                    selectedIds,
-                    selectedRows: selectedOriginalRows,
-                  });
-                }}
-                disabled={action.disabled || (action.requiresSelection !== false && selectedCount === 0)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40',
-                  actionButtonClass(action.variant),
-                )}
-              >
-                {(() => {
-                  const Icon = resolveIcon(action.icon);
-                  return Icon ? <Icon className="h-3 w-3" /> : null;
-                })()}
-                {action.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={() => setRowSelection({})}
-            className="text-[11px] text-blue-500 hover:text-blue-700 dark:text-blue-400"
-          >
-            Clear
-          </button>
-        </div>
-      )}
 
       {/* ── Diff summary (compact inline) ── */}
       {diffMode && !isLoading && filteredByType.length > 0 && (

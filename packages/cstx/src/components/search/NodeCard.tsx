@@ -196,7 +196,7 @@ const LineagePopover = ({groups}: {groups: LineageGroup[]}) => {
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     className="flex items-center gap-1 rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary flex-shrink-0"
                     title="View asset lineage: related tasks / flows / workers / projects"
                 >
@@ -208,7 +208,7 @@ const LineagePopover = ({groups}: {groups: LineageGroup[]}) => {
             <PopoverContent
                 align="end"
                 className="w-72 p-0"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
                 <div className="border-b border-border/60 px-2 py-2">
                     <div className="text-xs font-medium text-foreground">Asset Lineage</div>
@@ -450,7 +450,7 @@ export const NodeCard = React.memo(function NodeCard({
                                     onCheckedChange={handleCheckboxChange}
                                     data-checkbox
                                     className="flex-shrink-0"
-                                    onClick={(e) => e.stopPropagation()}
+                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                 />
                             )}
                             <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 self-start mt-0.5"/>
@@ -470,7 +470,7 @@ export const NodeCard = React.memo(function NodeCard({
                                                     variant="outline"
                                                     className="text-[9px] h-3 px-1 py-0 font-normal opacity-55 cursor-help gap-0.5"
                                                     title={fingerprintSourceTitle(src)}
-                                                    onClick={(e) => e.stopPropagation()}
+                                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                                 >
                                                     <Fingerprint className="w-2 h-2"/>
                                                     {fingerprintSourceLabel(src)}
@@ -481,7 +481,7 @@ export const NodeCard = React.memo(function NodeCard({
                                                     variant="outline"
                                                     className="text-[9px] h-3 px-1 py-0 font-normal cursor-pointer opacity-55 hover:opacity-100 hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
                                                     title={`Open capability: ${src}`}
-                                                    onClick={(e) => handleSourceClick(src, e)}
+                                                    onClick={(e: React.MouseEvent) => handleSourceClick(src, e)}
                                                 >
                                                     {src}
                                                 </Badge>
@@ -552,7 +552,7 @@ export const NodeCard = React.memo(function NodeCard({
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            onClick={(e) => e.stopPropagation()}
+                                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                             disabled={cstxFlagUpdating}
                                             className={`h-6 flex-shrink-0 gap-0.5 rounded px-1.5 transition-colors disabled:opacity-50 ${
                                                 activeFlagLabels.length > 0
@@ -577,7 +577,7 @@ export const NodeCard = React.memo(function NodeCard({
                                             return (
                                                 <DropdownMenuItem
                                                     key={option.key}
-                                                    onClick={(e) => {
+                                                    onClick={(e: React.MouseEvent) => {
                                                         e.stopPropagation();
                                                         onToggleCstxFlag(node, option);
                                                     }}

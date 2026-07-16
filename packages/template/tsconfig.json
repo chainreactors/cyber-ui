@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@cyber/theme": ["../theme/src/index.ts"],
+      "@cyber/ui": ["../ui/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

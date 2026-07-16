@@ -1,0 +1,42 @@
+{
+  "name": "@cyber/template",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/template.cjs",
+  "module": "./dist/template.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/template.js",
+      "require": "./dist/template.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@cyber/theme": "workspace:*",
+    "@cyber/ui": "workspace:*",
+    "@radix-ui/react-collapsible": "^1.1.12",
+    "js-yaml": "^4.1.0",
+    "lucide-react": "^0.400.0",
+    "monaco-editor": "^0.55.1",
+    "yaml": "^2.4.2"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/js-yaml": "^4.0.9",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.0.0"
+  }
+}

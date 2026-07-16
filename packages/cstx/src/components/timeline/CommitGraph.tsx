@@ -282,7 +282,7 @@ const HistoryRow: React.FC<HistoryRowProps> = ({
                             size="sm"
                             variant="ghost"
                             className="ml-auto h-5 shrink-0 px-1.5 text-[10px] text-slate-400 opacity-0 group-hover:opacity-100"
-                            onClick={(e) => { e.stopPropagation(); onPreview(commit.hash); }}
+                            onClick={(e: React.MouseEvent) => { e.stopPropagation(); onPreview(commit.hash); }}
                         >
                             <Search className="mr-0.5 h-3 w-3"/>
                             Preview

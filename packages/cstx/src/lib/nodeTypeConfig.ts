@@ -417,8 +417,6 @@ export const formatFieldLabel = (key: string): string => {
         serial: 'Serial',
         issuer: 'Issuer',
         subject: 'Subject',
-        not_before: 'Valid From',
-        not_after: 'Expires',
         san: 'SAN',
         // Bucket
         provider: 'Provider',

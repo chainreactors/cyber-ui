@@ -77,7 +77,7 @@ export function buildSCOModel(nodes: SCONode[], duration = ''): SCOResultModel {
   }
 }
 
-function urlToPortKey(url: Url): string | undefined {
+function urlToPortKey(url: WithJoinKeys<Url>): string | undefined {
   if (url._ip && url._port) return `${url._ip}:${url._port}`
   if (url.ip && url.port != null) return `${url.ip}:${url.port}`
   try {

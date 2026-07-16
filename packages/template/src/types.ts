@@ -119,6 +119,31 @@ export interface ResultCardProps {
   onRescan?: (poc: CyberHubPocTemplate) => void
 }
 
+export interface CyberHubFingerprintTemplate {
+  id?: string | number
+  name?: string
+  protocol?: string
+  source?: string
+  status?: string
+  tags?: string[]
+  author?: string
+  match_count?: number
+  description?: string
+  raw_content?: string
+  raw_content_draft?: string
+  is_focus?: boolean
+  alias?: {
+    vendor?: string
+    product?: string
+    category?: string
+    type?: string
+    sic?: string
+    pocs?: unknown[]
+  }
+  created_at?: Date | string | number | null
+  updated_at?: Date | string | number | null
+}
+
 export interface CyberHubPocTemplateViewerProps {
   poc: CyberHubPocTemplate
   result?: ScanResultData

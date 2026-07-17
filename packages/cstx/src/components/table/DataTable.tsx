@@ -67,7 +67,12 @@ interface TableActionConfig {
   render?: (row: Row, rowId: string) => React.ReactNode;
 }
 
-const DEFAULT_COLUMN_WIDTH_PX = 160;
+// Minimum reserved width per width-less column. This is only a floor: when the
+// container is wider than the column sum, columns are 1fr and expand to fill, so
+// lowering it never shrinks a table that already fits — it only lets a many-column
+// table (e.g. the 8-column asset list) fit a laptop viewport instead of forcing a
+// horizontal scrollbar. 160 was too generous for short cells like port/scheme.
+const DEFAULT_COLUMN_WIDTH_PX = 128;
 const DEFAULT_COMMON_BADGE_KEYS = ['type'];
 const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100, 500];
 
@@ -95,6 +100,14 @@ function estimateColumnWidth(width: string | undefined): number {
   if (pxMatch) return Number(pxMatch[1]);
   const numeric = parseInt(width, 10);
   return Number.isFinite(numeric) ? numeric : DEFAULT_COLUMN_WIDTH_PX;
+}
+
+// The width a column may compress to before the table scrolls horizontally — half its
+// preferred width, floored at 64px. Columns render at their preferred size (via fr weights)
+// when there's room and only shrink toward this floor when the viewport is tight, so a table
+// of short cells fits instead of forcing a scrollbar at the summed preferred widths.
+function columnFloorWidth(width: string | undefined): number {
+  return Math.max(64, Math.round(estimateColumnWidth(width) * 0.5));
 }
 
 function resolveIcon(name: string | undefined): LucideIcon | null {
@@ -201,6 +214,43 @@ function RowControlCell({ row, table }: {
   );
 }
 
+/**
+ * Copy `text` to the clipboard, resolving to whether it actually succeeded.
+ * The async Clipboard API only exists in a secure context (https / localhost);
+ * this table is frequently served over plain http on a bare IP, where
+ * `navigator.clipboard` is undefined — so fall back to a hidden-textarea
+ * execCommand copy. The textarea is parented inside an open dialog when there
+ * is one, so a focus-trapped modal doesn't swallow the selection.
+ */
+async function writeClipboard(text: string): Promise<boolean> {
+  if (!text) return false;
+  const secure = typeof window !== 'undefined' && window.isSecureContext;
+  if (secure && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      /* fall through to the execCommand path */
+    }
+  }
+  if (typeof document === 'undefined') return false;
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
+  const host = (document.activeElement?.closest("[role='dialog']") as HTMLElement | null) ?? document.body;
+  host.appendChild(textarea);
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  textarea.remove();
+  return ok;
+}
+
 function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: string) => void }) {
   const [copied, setCopied] = useState(false);
   const text = value != null ? String(value) : '';
@@ -210,14 +260,21 @@ function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: stri
     <button
       type="button"
       className={cn(
-        'absolute right-0.5 top-1/2 -translate-y-1/2 rounded p-0.5 opacity-0 transition-all group-hover:opacity-100',
+        'absolute right-0.5 top-1/2 -translate-y-1/2 rounded p-0.5 opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100',
         copied
           ? 'text-green-500'
           : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300',
       )}
-      onClick={(e) => {
+      onClick={async (e) => {
         e.stopPropagation();
+        // Own the clipboard write here instead of delegating it to the host's
+        // onAction handler — consumers that never wired up 'cellClick' (all of
+        // Cairn's tables) previously got a button that flashed a checkmark
+        // without copying anything. Still emit the event so hosts can react
+        // (e.g. a toast); the copy no longer depends on them doing so.
+        const ok = await writeClipboard(text);
         onCopy(text);
+        if (!ok) return;
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
@@ -234,7 +291,7 @@ function CellOpenLinkButton({ href }: { href: string | null }) {
   return (
     <button
       type="button"
-      className="absolute right-5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-600 group-hover:opacity-100 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+      className="absolute right-5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-600 group-hover:opacity-100 focus-visible:opacity-100 dark:hover:bg-slate-700 dark:hover:text-slate-300"
       onClick={(event) => {
         event.stopPropagation();
         window.open(href, '_blank', 'noopener,noreferrer');
@@ -383,7 +440,10 @@ function buildColumns(
         const canSort = sortingEnabled && col.sortable !== false;
         if (!canSort) {
           return (
-            <span className={col.align === 'right' ? 'ml-auto' : ''}>
+            <span
+              className={cn('block min-w-0 truncate', col.align === 'right' && 'ml-auto')}
+              title={col.title ?? col.key}
+            >
               {col.title ?? col.key}
             </span>
           );
@@ -394,12 +454,14 @@ function buildColumns(
           <button
             type="button"
             className={cn(
-              'flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100',
+              'flex min-w-0 max-w-full items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100',
               col.align === 'right' && 'ml-auto',
             )}
             onClick={column.getToggleSortingHandler()}
           >
-            {col.title ?? col.key}
+            <span className="min-w-0 truncate" title={col.title ?? col.key}>
+              {col.title ?? col.key}
+            </span>
             <SortIcon className={cn('shrink-0 opacity-50', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
           </button>
         );
@@ -413,7 +475,7 @@ function buildColumns(
           if (renderer) content = renderer(v, tableRow.original, col.renderOptions as Record<string, unknown>);
         }
         if (content === undefined) {
-          if (v == null) content = <span className="text-slate-400">-</span>;
+          if (v == null) content = <span className="text-[var(--c-faint,#94a3b8)]">-</span>;
           else if (Array.isArray(v)) {
             const listRenderer = renderers.get('list');
             content = listRenderer ? listRenderer(v, tableRow.original) : String(v);
@@ -422,13 +484,20 @@ function buildColumns(
             const jsonRenderer = renderers.get('json');
             content = jsonRenderer ? jsonRenderer(v, tableRow.original) : JSON.stringify(v);
           }
-          else content = <span className="truncate">{String(v)}</span>;
+          else {
+            const text = String(v);
+            content = (
+              <span className="block min-w-0 max-w-full truncate" title={text}>
+                {text}
+              </span>
+            );
+          }
         }
         if (!showFlagBadges) return content;
         return (
-          <span className="inline-flex items-center gap-0">
+          <span className="flex min-w-0 max-w-full items-center gap-0">
             <RowFlagBadges row={tableRow.original} />
-            <span className="truncate">{content}</span>
+            <span className="min-w-0 flex-1 overflow-hidden">{content}</span>
           </span>
         );
       },
@@ -506,6 +575,17 @@ export function CSTXTable({
   const enableCstxFlags = config.enableCstxFlags === true;
   const showRowCount = config.showRowCount !== false;
 
+  // Optional localization. `columnLabels` overrides inferred/explicit header titles by key;
+  // `i18n` supplies UI-chrome strings (pagination, selection, empty state). Both are plain
+  // string maps supplied by the host app; every string falls back to English when absent, so
+  // callers that pass nothing keep the current behaviour.
+  const columnLabels = useMemo(() => asRecord(config.columnLabels), [config.columnLabels]);
+  const i18n = useMemo(() => asRecord(config.i18n), [config.i18n]);
+  const tr = useCallback(
+    (key: string, fallback: string) => (typeof i18n[key] === 'string' ? (i18n[key] as string) : fallback),
+    [i18n],
+  );
+
   const effectiveRowActions = useMemo(() => {
     if (!enableCstxFlags) return rowActions;
     const flagAction: TableActionConfig = {
@@ -573,8 +653,12 @@ export function CSTXTable({
       ? explicitColumns
       : inferColumns(rows, { includeMeta: columnSelectorEnabled });
     const afterExclude = columnsExclude ? applyExclusions(cols, columnsExclude) : cols;
-    return applyExclusions(afterExclude, commonBadges.map((b) => b.key));
-  }, [explicitColumns, rows, columnsExclude, columnSelectorEnabled, commonBadges]);
+    const scoped = applyExclusions(afterExclude, commonBadges.map((b) => b.key));
+    return scoped.map((c) => {
+      const label = columnLabels[c.key];
+      return typeof label === 'string' && label ? { ...c, title: label } : c;
+    });
+  }, [explicitColumns, rows, columnsExclude, columnSelectorEnabled, commonBadges, columnLabels]);
 
   const metaKeySet = useMemo(() => {
     const keys = new Set(allColumns.filter((c) => isMetaKey(c.key)).map((c) => c.key));
@@ -703,7 +787,14 @@ export function CSTXTable({
     if (diffMode) parts.push('90px');
     if (enableExpanding) parts.push('32px');
     for (const col of visibleColumns) {
-      parts.push(col.width ?? '1fr');
+      if (!col.width) { parts.push('minmax(0,1fr)'); continue; }
+      // Treat the inferred width as a *preferred* size, not a fixed track: an fr weight
+      // (∝ preferred px) lets columns fill the container and grow on wide viewports, while a
+      // per-column floor lets them compress before a horizontal scrollbar appears. Fixed px
+      // tracks summed past the viewport, forcing a scrollbar even when the short cell values
+      // would have fit. No spaces inside minmax() — getAdjustedGridTemplate() splits the
+      // template on whitespace to remap per-column resize widths.
+      parts.push(`minmax(${columnFloorWidth(col.width)}px,${(estimateColumnWidth(col.width) / 100).toFixed(2)}fr)`);
     }
     if (actionsColumnWidth > 0) parts.push(`${actionsColumnWidth}px`);
     return parts.join(' ');
@@ -724,7 +815,7 @@ export function CSTXTable({
     : baseGridTemplate;
 
   const tableMinWidth = visibleColumns.reduce(
-    (total, col) => total + estimateColumnWidth(col.width), 32,
+    (total, col) => total + columnFloorWidth(col.width), 32,
   ) + (enableRowSelection ? 72 : 0) + (diffMode ? 90 : 0) + (enableExpanding ? 32 : 0) + actionsColumnWidth;
 
   const tableGridStyle: React.CSSProperties = {
@@ -815,7 +906,7 @@ export function CSTXTable({
   const hasTypeFilter = typeFilterKey && typeValues.length > 1;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-lg border border-[var(--c-line,#e2e8f0)] bg-[var(--c-surface,#fff)] dark:border-[var(--c-line,#334155)] dark:bg-[var(--c-surface,#0f172a)]">
       {/* ── Unified toolbar: title + search + actions in one row ── */}
       <div className={cn(
         'flex items-center gap-2',
@@ -831,13 +922,13 @@ export function CSTXTable({
           <span
             key={badge.key}
             title={`${badge.label}: ${badge.value}`}
-            className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+            className="shrink-0 rounded bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--c-muted,#475569)] dark:bg-[var(--c-surface-2,#1e293b)] dark:text-[var(--c-muted,#94a3b8)]"
           >
             {badge.value}
           </span>
         ))}
         {showRowCount && (
-          <span className="shrink-0 text-[11px] tabular-nums text-slate-400">
+          <span className="shrink-0 text-[11px] tabular-nums text-[var(--c-faint,#94a3b8)]">
             {filteredByType.length !== rows.length
               ? `${filteredByType.length} / ${rows.length}`
               : rows.length > 0 ? String(rows.length) : ''}
@@ -876,7 +967,7 @@ export function CSTXTable({
           {enableRowSelection && selectedCount > 0 && (
             <>
               <span className="text-[11px] font-medium tabular-nums" style={{ color: 'var(--c-accent-fg, #60a5fa)' }}>
-                {selectedCount} selected
+                {tr('selected', '{n} selected').replace('{n}', String(selectedCount))}
               </span>
               {enableCstxFlags && (
                 <FlagCell
@@ -920,7 +1011,7 @@ export function CSTXTable({
                 onClick={() => setRowSelection({})}
                 className="text-[11px] text-blue-500 hover:text-blue-700 dark:text-blue-400"
               >
-                Clear
+                {tr('clear', 'Clear')}
               </button>
               <span className="mx-0.5 h-4 w-px bg-slate-200 dark:bg-slate-700" />
             </>
@@ -936,7 +1027,7 @@ export function CSTXTable({
                   : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800',
               )}
             >
-              Filter
+              {tr('filter', 'Filter')}
               {showFilterChips && (
                 <span className="rounded-full bg-blue-100 px-1.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-800 dark:text-blue-300">
                   {typeFilter.size}
@@ -950,6 +1041,7 @@ export function CSTXTable({
               metaKeys={metaKeySet}
               isVisible={isColumnVisible}
               onToggle={toggleColumnVisibility}
+              metadataLabel={tr('metadata', 'Metadata')}
               compact
             />
           )}
@@ -996,7 +1088,7 @@ export function CSTXTable({
             onClick={() => setTypeFilter(new Set())}
             className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
           >
-            Clear all
+            {tr('clearAll', 'Clear all')}
           </button>
         </div>
       )}
@@ -1025,13 +1117,22 @@ export function CSTXTable({
             compact={compact}
             onClearSearch={() => setGlobalFilter('')}
             onClearTypeFilter={() => setTypeFilter(new Set())}
+            labels={{
+              noMatch: tr('noMatch', 'No matching results'),
+              noMatchHint: tr('noMatchHint', 'Try adjusting your search query or clearing filters.'),
+              noTypeMatch: tr('noTypeMatch', 'No items match selected types'),
+              noTypeMatchHint: tr('noTypeMatchHint', 'Try selecting different types or clearing the filter.'),
+              emptyHint: tr('emptyHint', 'This table has no records to display.'),
+              clearSearch: tr('clearSearch', 'Clear search'),
+              clearFilters: tr('clearFilters', 'Clear filters'),
+            }}
           />
         ) : (
           <>
             {/* Column headers — low-profile, no uppercase, no heavy bg */}
             <div
               className={cn(
-                'grid border-b border-slate-150 text-slate-500 dark:border-slate-700/80 dark:text-slate-500',
+                'grid border-b border-[var(--c-line,#e2e8f0)] text-[var(--c-faint,#64748b)] dark:border-[var(--c-line,#334155cc)] dark:text-[var(--c-faint,#64748b)]',
                 compact ? 'px-3 text-[11px]' : 'px-4 text-[12px]',
               )}
               style={tableGridStyle}
@@ -1045,7 +1146,7 @@ export function CSTXTable({
                     <div
                       key={header.id}
                       className={cn(
-                        'relative font-medium',
+                        'relative min-w-0 font-medium',
                         compact ? 'py-1.5 pr-1.5' : 'py-2 pr-2',
                         isFirst && 'sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
                         isActions && 'sticky right-0 z-10 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]',
@@ -1074,14 +1175,14 @@ export function CSTXTable({
                 <React.Fragment key={row.id}>
                   <div
                     className={cn(
-                      'group grid border-b border-slate-100/80 last:border-b-0 dark:border-slate-800/60',
+                      'group grid border-b border-[var(--c-line,rgba(241,245,249,0.8))] last:border-b-0 dark:border-[var(--c-line,rgba(30,41,59,0.6))]',
                       compact ? 'px-3 text-xs' : 'px-4 text-sm',
-                      'text-slate-700 dark:text-slate-300',
+                      'text-[var(--c-fg,#334155)] dark:text-[var(--c-fg,#cbd5e1)]',
                       onAction
-                        ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                        : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30',
-                      isActive && 'bg-blue-50/60 dark:bg-blue-900/15',
-                      row.getIsSelected() && 'bg-blue-50/40 dark:bg-blue-900/10',
+                        ? 'cursor-pointer hover:bg-[var(--c-surface-2,#f8fafc)] dark:hover:bg-[var(--c-surface-2,rgba(30,41,59,0.4))]'
+                        : 'hover:bg-[var(--c-surface-2,rgba(248,250,252,0.5))] dark:hover:bg-[var(--c-surface-2,rgba(30,41,59,0.3))]',
+                      isActive && 'bg-[var(--c-accent-soft,rgba(239,246,255,0.6))] dark:bg-[var(--c-accent-soft,rgba(30,58,138,0.15))]',
+                      row.getIsSelected() && 'bg-[var(--c-accent-soft,rgba(239,246,255,0.4))] dark:bg-[var(--c-accent-soft,rgba(30,58,138,0.1))]',
                       diffRowClass,
                     )}
                     style={tableGridStyle}
@@ -1097,7 +1198,7 @@ export function CSTXTable({
                         <div
                           key={cell.id}
                           className={cn(
-                            'relative',
+                            'relative min-w-0',
                             !isSystemCol && 'overflow-hidden',
                             compact ? 'py-1.5 pr-1.5' : 'py-2 pr-2',
                             !isSystemCol && (externalHref ? '!pr-10' : '!pr-6'),
@@ -1166,6 +1267,11 @@ export function CSTXTable({
           serverPage={serverPage}
           serverPageCount={serverPageCount}
           onServerPageChange={handleServerPageChange}
+          labels={{
+            rangeOf: tr('rangeOf', '{start}-{end} of {total}'),
+            perPage: tr('perPage', '{n} / page'),
+            emptyRows: tr('emptyRows', '0 rows'),
+          }}
         />
       )}
     </div>

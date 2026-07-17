@@ -96,6 +96,8 @@ const PREFERRED_FRONT_KEY_ORDER = [
   'domain',
   'url',
   'port',
+  'app_id',
+  'scheme',
   'protocol',
   'service',
   'value',
@@ -176,15 +178,47 @@ function inferColumnWidth(key: string, values: unknown[]): string {
   const normalizedKey = key.toLowerCase();
 
   if (
+    normalizedKey === 'app_id' ||
+    normalizedKey === 'appid' ||
+    normalizedKey === 'application_id'
+  ) {
+    return '260px';
+  }
+  if (
     normalizedKey === 'name' ||
     normalizedKey === 'title' ||
     normalizedKey === 'value' ||
     normalizedKey === 'url'
   ) {
-    return '260px';
+    // Flexible primary column: keeps a 260px floor but absorbs horizontal slack
+    // so a table with few columns fills its container instead of leaving a dead
+    // gap on the right. No space after the comma — useColumnResize splits the
+    // grid template on whitespace. estimateColumnWidth reads the 260px floor.
+    return 'minmax(260px,1fr)';
   }
   if (normalizedKey === 'sources' || normalizedKey.endsWith('_sources')) {
     return '180px';
+  }
+  // Host / domain columns hold variable-length text, so let them share the
+  // horizontal slack with the primary column (rather than pinning a long
+  // hostname to a fixed 160px and pushing the dead space to the table edge).
+  if (
+    normalizedKey === 'host' ||
+    normalizedKey === 'hostname' ||
+    normalizedKey === 'domain' ||
+    normalizedKey === 'fqdn'
+  ) {
+    return 'minmax(160px,1fr)';
+  }
+  if (normalizedKey === 'port' || normalizedKey.endsWith('_port')) {
+    return '96px';
+  }
+  if (
+    normalizedKey === 'scheme' ||
+    normalizedKey === 'protocol' ||
+    normalizedKey.endsWith('_protocol')
+  ) {
+    return '96px';
   }
   if (normalizedKey === 'type' || normalizedKey.endsWith('_type')) {
     return '120px';

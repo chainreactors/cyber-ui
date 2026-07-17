@@ -64,11 +64,14 @@ export function CstxFlagToolbar({
               disabled={disabled}
               onClick={() => handleFlagToggle(option.value)}
               className={cn(
-                'inline-flex items-center rounded-md border text-xs font-medium transition-colors',
-                compact ? 'h-6 px-1.5 text-[11px]' : 'h-7 px-2',
+                'inline-flex items-center rounded-md border font-medium transition-colors',
+                compact ? 'h-6 px-1.5 text-[11px]' : 'h-7 px-2 text-xs',
+                // Cairn tokens (this toolbar renders only inside the Cairn app).
+                // Inactive chips were text-slate-400/500 (~2.8:1 on the dark
+                // surface) — the readability complaint. Muted foreground clears 7:1.
                 active
-                  ? 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'border-slate-200 bg-slate-50 text-slate-400 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500',
+                  ? 'border-accent/40 bg-accent-soft text-accent-fg hover:border-accent/60'
+                  : 'border-line bg-surface-2 text-muted hover:border-line-strong hover:bg-raise hover:text-fg',
                 disabled && 'cursor-not-allowed opacity-50',
               )}
             >
@@ -80,16 +83,16 @@ export function CstxFlagToolbar({
 
       {showStats && typeof total === 'number' && (
         <div className="flex min-w-0 items-center gap-1">
-          <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+          <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-surface-2 px-1.5 text-[10px] font-medium text-muted">
             {visible ?? 0}/{total}
           </span>
           {typeof hidden === 'number' && hidden > 0 && (
-            <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-slate-200 px-1.5 text-[10px] text-slate-500 dark:border-slate-700">
+            <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-line px-1.5 text-[10px] text-faint">
               hidden {hidden}
             </span>
           )}
           {typeof flagged === 'number' && flagged > 0 && (
-            <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-slate-200 px-1.5 text-[10px] text-slate-500 dark:border-slate-700">
+            <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-line px-1.5 text-[10px] text-faint">
               flagged {flagged}
             </span>
           )}

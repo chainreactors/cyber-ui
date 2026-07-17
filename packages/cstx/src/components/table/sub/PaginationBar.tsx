@@ -28,6 +28,12 @@ export interface PaginationBarProps {
   pageSize: number;
   pageSizeOptions?: number[];
   onPageSizeChange?: (size: number) => void;
+  // optional localization; placeholders {start} {end} {total} {n} are substituted
+  labels?: {
+    rangeOf?: string;
+    perPage?: string;
+    emptyRows?: string;
+  };
 }
 
 function formatNumber(n: number): string {
@@ -52,6 +58,7 @@ export function PaginationBar({
   pageSize,
   pageSizeOptions,
   onPageSizeChange,
+  labels,
 }: PaginationBarProps) {
   const [jumpValue, setJumpValue] = useState('');
 
@@ -93,34 +100,37 @@ export function PaginationBar({
   const rangeEnd = Math.min((currentPage + 1) * pageSize, total);
 
   const navBtnClass = cn(
-    'rounded p-1 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-30',
+    'rounded p-1 hover:bg-[var(--c-surface-2,#f1f5f9)] dark:hover:bg-[var(--c-surface-2,#1e293b)] disabled:pointer-events-none disabled:opacity-30',
   );
 
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-t border-slate-100 text-[11px] text-slate-400 dark:border-slate-800/60 dark:text-slate-500',
+        'flex items-center justify-between border-t border-[var(--c-line,#f1f5f9)] text-[11px] text-[var(--c-faint,#94a3b8)] dark:border-[var(--c-line,#1e293b99)] dark:text-[var(--c-faint,#64748b)]',
         compact ? 'px-3 py-1.5' : 'px-4 py-1.5',
       )}
     >
       <div className="flex items-center gap-2">
         <span className="tabular-nums">
           {total > 0
-            ? `${formatNumber(rangeStart)}-${formatNumber(rangeEnd)} of ${formatNumber(total)}`
-            : '0 rows'}
+            ? (labels?.rangeOf ?? '{start}-{end} of {total}')
+                .replace('{start}', formatNumber(rangeStart))
+                .replace('{end}', formatNumber(rangeEnd))
+                .replace('{total}', formatNumber(total))
+            : (labels?.emptyRows ?? '0 rows')}
         </span>
         {pageSizeOptions && pageSizeOptions.length > 1 && onPageSizeChange && (
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
             className={cn(
-              'rounded border border-slate-200 bg-transparent px-1.5 py-0.5 text-xs tabular-nums',
-              'dark:border-slate-600',
+              'rounded border border-[var(--c-line,#e2e8f0)] bg-transparent px-1.5 py-0.5 text-xs tabular-nums',
+              'dark:border-[var(--c-line,#475569)]',
             )}
           >
             {pageSizeOptions.map((size) => (
               <option key={size} value={size}>
-                {size} / page
+                {(labels?.perPage ?? '{n} / page').replace('{n}', String(size))}
               </option>
             ))}
           </select>
@@ -144,11 +154,11 @@ export function PaginationBar({
           onBlur={handleJumpSubmit}
           placeholder={String(currentPage + 1)}
           className={cn(
-            'w-10 rounded border border-slate-200 bg-transparent px-1 py-0.5 text-center text-xs tabular-nums',
-            'dark:border-slate-600',
+            'w-10 rounded border border-[var(--c-line,#e2e8f0)] bg-transparent px-1 py-0.5 text-center text-xs tabular-nums',
+            'dark:border-[var(--c-line,#475569)]',
           )}
         />
-        <span className="px-0.5 tabular-nums text-slate-400">/ {totalPages}</span>
+        <span className="px-0.5 tabular-nums text-[var(--c-faint,#94a3b8)]">/ {totalPages}</span>
 
         <button type="button" className={navBtnClass} onClick={handleNext} disabled={!hasNext}>
           <ChevronRight className="h-4 w-4" />

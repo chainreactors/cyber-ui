@@ -2,6 +2,16 @@ import React from 'react';
 import { Search, Filter, Database } from 'lucide-react';
 import { cn } from '../../../lib/cn';
 
+export interface EmptyGuideLabels {
+  noMatch?: string;
+  noMatchHint?: string;
+  noTypeMatch?: string;
+  noTypeMatchHint?: string;
+  emptyHint?: string;
+  clearSearch?: string;
+  clearFilters?: string;
+}
+
 export interface EmptyGuideProps {
   totalRows: number;
   hasSearch: boolean;
@@ -10,6 +20,7 @@ export interface EmptyGuideProps {
   compact?: boolean;
   onClearSearch?: () => void;
   onClearTypeFilter?: () => void;
+  labels?: EmptyGuideLabels;
 }
 
 export function EmptyGuide({
@@ -20,6 +31,7 @@ export function EmptyGuide({
   compact,
   onClearSearch,
   onClearTypeFilter,
+  labels,
 }: EmptyGuideProps) {
   const isFilteredEmpty = totalRows > 0;
 
@@ -28,20 +40,20 @@ export function EmptyGuide({
     : Database;
 
   const title = isFilteredEmpty
-    ? (hasSearch ? 'No matching results' : 'No items match selected types')
+    ? (hasSearch ? (labels?.noMatch ?? 'No matching results') : (labels?.noTypeMatch ?? 'No items match selected types'))
     : (emptyText || 'No data');
 
   const description = isFilteredEmpty
     ? (hasSearch
-        ? 'Try adjusting your search query or clearing filters.'
-        : 'Try selecting different types or clearing the filter.')
-    : 'This table has no records to display.';
+        ? (labels?.noMatchHint ?? 'Try adjusting your search query or clearing filters.')
+        : (labels?.noTypeMatchHint ?? 'Try selecting different types or clearing the filter.'))
+    : (labels?.emptyHint ?? 'This table has no records to display.');
 
   const clearAction = isFilteredEmpty
     ? (hasSearch ? onClearSearch : onClearTypeFilter)
     : undefined;
 
-  const clearLabel = hasSearch ? 'Clear search' : 'Clear filters';
+  const clearLabel = hasSearch ? (labels?.clearSearch ?? 'Clear search') : (labels?.clearFilters ?? 'Clear filters');
 
   return (
     <div className={cn(

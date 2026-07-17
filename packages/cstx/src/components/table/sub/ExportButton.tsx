@@ -30,8 +30,8 @@ export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'] }: E
         className={cn(
           'flex items-center gap-1.5 rounded-md border text-xs font-medium transition-colors',
           compact ? 'h-7 px-2' : 'h-8 px-2.5',
-          'border-slate-200 text-slate-600 hover:bg-slate-50',
-          'dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800',
+          'border-[var(--c-line,#e2e8f0)] text-[var(--c-muted,#475569)] hover:bg-[var(--c-surface-2,#f8fafc)]',
+          'dark:border-[var(--c-line,#475569)] dark:text-[var(--c-muted,#94a3b8)] dark:hover:bg-[var(--c-surface-2,#1e293b)]',
         )}
       >
         <Download className="h-3.5 w-3.5" />
@@ -48,23 +48,23 @@ export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'] }: E
         className={cn(
           'flex items-center gap-1.5 rounded-md border text-xs font-medium transition-colors',
           compact ? 'h-7 px-2' : 'h-8 px-2.5',
-          'border-slate-200 text-slate-600 hover:bg-slate-50',
-          'dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800',
-          open && 'bg-slate-100 dark:bg-slate-800',
+          'border-[var(--c-line,#e2e8f0)] text-[var(--c-muted,#475569)] hover:bg-[var(--c-surface-2,#f8fafc)]',
+          'dark:border-[var(--c-line,#475569)] dark:text-[var(--c-muted,#94a3b8)] dark:hover:bg-[var(--c-surface-2,#1e293b)]',
+          open && 'bg-[var(--c-surface-2,#f1f5f9)] dark:bg-[var(--c-surface-2,#1e293b)]',
         )}
       >
         <Download className="h-3.5 w-3.5" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+        <div className="absolute right-0 top-full z-50 mt-1 w-40 overflow-hidden rounded-lg border border-[var(--c-line,#e2e8f0)] bg-[var(--c-raise,#fff)] shadow-lg dark:border-[var(--c-line,#334155)] dark:bg-[var(--c-raise,#0f172a)]">
           <div className="p-1">
             {formats.map((fmt) => (
               <button
                 key={fmt}
                 type="button"
                 onClick={() => { onExport(fmt as 'xlsx' | 'csv' | 'report'); setOpen(false); }}
-                className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-[var(--c-fg,#334155)] hover:bg-[var(--c-surface-2,#f8fafc)] dark:text-[var(--c-fg,#cbd5e1)] dark:hover:bg-[var(--c-surface-2,#1e293b)]"
               >
                 {FORMAT_LABELS[fmt] ?? fmt}
               </button>

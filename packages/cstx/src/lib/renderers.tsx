@@ -50,9 +50,14 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
-  registry.register('text', (v) => (
-    <span className="truncate">{String(v ?? '-')}</span>
-  ));
+  registry.register('text', (v) => {
+    const text = String(v ?? '-');
+    return (
+      <span className="block min-w-0 max-w-full truncate" title={text}>
+        {text}
+      </span>
+    );
+  });
 
   registry.register('badge', (v, _row, opts) => {
     if (v == null) return <span className="text-slate-400">-</span>;
@@ -98,13 +103,13 @@ export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
       : typeof v === 'string'
         ? v.split(',').map((s) => s.trim()).filter(Boolean)
         : [];
-    if (items.length === 0) return <span className="text-slate-400">-</span>;
+    if (items.length === 0) return <span className="text-[var(--c-faint,#94a3b8)]">-</span>;
     return (
       <span className="flex flex-wrap gap-1">
         {items.map((item, i) => (
           <span
             key={i}
-            className="inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-xs dark:bg-slate-800"
+            className="inline-flex rounded border border-[var(--c-line,#e2e8f0)] bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-xs text-[var(--c-muted,#475569)]"
           >
             {item}
           </span>
@@ -117,7 +122,7 @@ export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
     if (!v) return <span className="text-slate-400">-</span>;
     const href = String(v);
     return (
-      <span className="truncate text-slate-700 dark:text-slate-300" title={href}>
+      <span className="block min-w-0 max-w-full truncate text-slate-700 dark:text-slate-300" title={href}>
         {href}
       </span>
     );
@@ -157,7 +162,7 @@ export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
     if (!Array.isArray(v) || v.length === 0)
       return <span className="text-slate-400">-</span>;
     return (
-      <span className="truncate" title={v.join(', ')}>
+      <span className="block min-w-0 max-w-full truncate" title={v.join(', ')}>
         {v.length <= 3 ? v.join(', ') : `${v.slice(0, 3).join(', ')} +${v.length - 3}`}
       </span>
     );

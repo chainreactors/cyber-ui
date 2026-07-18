@@ -164,8 +164,8 @@ export type { ColumnConfig } from './components/table/columns';
 export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './components/table/columns';
 
 // Table sub-components
-export { FlagCell } from './components/table/sub/FlagCell';
-export type { FlagCellProps } from './components/table/sub/FlagCell';
+export { FlagCell, BatchFlagMenu } from './components/table/sub/FlagCell';
+export type { FlagCellProps, BatchFlagMenuProps, BatchFlagMode } from './components/table/sub/FlagCell';
 
 // Color Manager
 export {
@@ -209,7 +209,8 @@ export {
   CSTX_FLAG_OPTIONS, normalizeCstxFlagFilterMode, normalizeCstxFlagMask,
   getCstxFlagFilterMasks, getCstxFlags, matchesCstxFlagFilter, filterNodesByCstxFlags,
   getCstxNodeId, filterEdgesByVisibleNodes, isFalsePositive, hasCstxFlag,
-  getCstxFlagActionLabel, getCstxFlagActionToast, shouldHideByCstxExcludeMask,
+  getCstxFlagActionLabel, getCstxFlagAddLabel, getCstxFlagRemoveLabel,
+  getCstxFlagActionToast, shouldHideByCstxExcludeMask,
   getCstxNodeLookupId, applyCstxFlagUpdateToItem, countCstxFlagFilter,
 } from './lib/cstxFlags';
 export type { CstxFlagFilterMode, CstxFlagFilterState, CstxFlagOption } from './lib/cstxFlags';

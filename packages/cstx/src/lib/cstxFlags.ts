@@ -115,8 +115,11 @@ export const hasCstxFlag = (item: unknown, flagValue: number): boolean => (
     (getCstxFlags(item) & normalizeCstxFlagMask(flagValue)) !== 0
 );
 
+export const getCstxFlagAddLabel = (option: CstxFlagOption): string => `标记为${option.label}`;
+export const getCstxFlagRemoveLabel = (option: CstxFlagOption): string => `取消${option.label}标记`;
+
 export const getCstxFlagActionLabel = (item: unknown, option: CstxFlagOption): string => (
-    hasCstxFlag(item, option.value) ? `取消${option.label}标记` : `标记为${option.label}`
+    hasCstxFlag(item, option.value) ? getCstxFlagRemoveLabel(option) : getCstxFlagAddLabel(option)
 );
 
 export const getCstxFlagActionToast = (option: CstxFlagOption, active: boolean): string => (

@@ -48,7 +48,7 @@ import { EmptyGuide } from './sub/EmptyGuide';
 import { ResizeHandle } from './sub/ResizeHandle';
 import { DiffBadge, DiffSummaryBar, getDiffRowClass } from './sub/DiffBadge';
 import { ExportButton } from './sub/ExportButton';
-import { FlagCell, FLAG_ICON_MAP, FLAG_COLOR_MAP, FLAG_DESCRIPTION_MAP } from './sub/FlagCell';
+import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, FLAG_DESCRIPTION_MAP } from './sub/FlagCell';
 import { Flag as FlagIcon } from 'lucide-react';
 import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
 import { useColumnResize } from './hooks/useColumnResize';
@@ -970,12 +970,12 @@ export function CSTXTable({
                 {tr('selected', '{n} selected').replace('{n}', String(selectedCount))}
               </span>
               {enableCstxFlags && (
-                <FlagCell
-                  row={{}}
-                  onToggle={(flag) => {
+                <BatchFlagMenu
+                  onApply={(flag, mode) => {
                     onAction?.('batchFlagToggle', {
                       flag: flag.key,
                       flagValue: flag.value,
+                      mode,
                       selectedRows: selectedOriginalRows,
                     });
                   }}

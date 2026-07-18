@@ -16,6 +16,8 @@ import {
   CSTX_FLAG_OPTIONS,
   hasCstxFlag,
   getCstxFlagActionLabel,
+  getCstxFlagAddLabel,
+  getCstxFlagRemoveLabel,
   type CstxFlagOption,
 } from '../../../lib/cstxFlags';
 
@@ -116,6 +118,82 @@ export function FlagCell({ row, onToggle }: FlagCellProps) {
             </DropdownMenuItem>
           );
         })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export type BatchFlagMode = 'add' | 'remove';
+
+export interface BatchFlagMenuProps {
+  onApply: (flag: CstxFlagOption, mode: BatchFlagMode) => void;
+  disabled?: boolean;
+}
+
+/**
+ * Batch flag menu for a multi-row selection. Unlike the per-row {@link FlagCell},
+ * a selection has no single "active" state to toggle against, so add and remove are
+ * offered as two explicit groups — otherwise the only reachable batch action is
+ * "add", leaving no way to clear a flag from many rows at once.
+ */
+export function BatchFlagMenu({ onApply, disabled }: BatchFlagMenuProps) {
+  const groups: { mode: BatchFlagMode; label: string; makeLabel: (o: CstxFlagOption) => string }[] = [
+    { mode: 'add', label: '添加标记', makeLabel: getCstxFlagAddLabel },
+    { mode: 'remove', label: '移除标记', makeLabel: getCstxFlagRemoveLabel },
+  ];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          className="flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40"
+          style={{
+            background: 'var(--c-raise, #1d2a3d)',
+            borderColor: 'var(--c-line, rgba(150,178,224,0.15))',
+            color: 'var(--c-faint, #8293b2)',
+          }}
+          title="批量标记 / 取消标记"
+        >
+          <Flag className="h-3 w-3" />
+          <span>标记</span>
+          <ChevronDown className="h-2.5 w-2.5 opacity-40" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="z-[100] min-w-44"
+        style={{
+          background: 'hsl(var(--popover, 0 0% 100%))',
+          borderColor: 'var(--c-line, rgba(150,178,224,0.15))',
+        }}
+      >
+        {groups.map((group, gi) => (
+          <React.Fragment key={group.mode}>
+            {gi > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="text-xs" style={{ color: 'var(--c-faint)' }}>
+              {group.label}
+            </DropdownMenuLabel>
+            {CSTX_FLAG_OPTIONS.map(option => {
+              const Icon = FLAG_ICON_MAP[option.key] ?? Flag;
+              return (
+                <DropdownMenuItem
+                  key={option.key}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    onApply(option, group.mode);
+                  }}
+                  className="gap-2 cursor-pointer"
+                  title={FLAG_DESCRIPTION_MAP[option.key]}
+                >
+                  <Icon className="h-3.5 w-3.5" style={{ color: FLAG_COLOR_MAP[option.key] }} />
+                  <span className="flex-1">{group.makeLabel(option)}</span>
+                </DropdownMenuItem>
+              );
+            })}
+          </React.Fragment>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

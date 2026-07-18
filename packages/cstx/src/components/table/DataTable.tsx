@@ -1181,8 +1181,8 @@ export function CSTXTable({
                       onAction
                         ? 'cursor-pointer hover:bg-[var(--c-surface-2,#f8fafc)] dark:hover:bg-[var(--c-surface-2,rgba(30,41,59,0.4))]'
                         : 'hover:bg-[var(--c-surface-2,rgba(248,250,252,0.5))] dark:hover:bg-[var(--c-surface-2,rgba(30,41,59,0.3))]',
-                      isActive && 'bg-[var(--c-accent-soft,rgba(239,246,255,0.6))] dark:bg-[var(--c-accent-soft,rgba(30,58,138,0.15))]',
-                      row.getIsSelected() && 'bg-[var(--c-accent-soft,rgba(239,246,255,0.4))] dark:bg-[var(--c-accent-soft,rgba(30,58,138,0.1))]',
+                      isActive && 'bg-[var(--c-row-highlight,var(--c-accent-soft,rgba(239,246,255,0.6)))] dark:bg-[var(--c-row-highlight,var(--c-accent-soft,rgba(30,58,138,0.15)))]',
+                      row.getIsSelected() && 'bg-[var(--c-row-highlight,var(--c-accent-soft,rgba(239,246,255,0.4)))] dark:bg-[var(--c-row-highlight,var(--c-accent-soft,rgba(30,58,138,0.1)))]',
                       diffRowClass,
                     )}
                     style={tableGridStyle}
@@ -1206,7 +1206,21 @@ export function CSTXTable({
                             isFirst && 'sticky left-0 z-[1] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
                             isActions && 'sticky right-0 z-[2] shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]',
                           )}
-                          style={(isFirst || isActions) ? { background: 'var(--c-surface, var(--color-surface, #fff))' } : undefined}
+                          style={
+                            isFirst || isActions
+                              ? {
+                                  // Sticky cells need an opaque base so scrolled content can't
+                                  // bleed through. When the row is selected/active, layer the same
+                                  // row-highlight tint the row carries over that base, so the
+                                  // highlight reads as one continuous band instead of leaving the
+                                  // sticky checkbox/actions columns white.
+                                  background:
+                                    row.getIsSelected() || isActive
+                                      ? 'linear-gradient(var(--c-row-highlight, var(--c-accent-soft)), var(--c-row-highlight, var(--c-accent-soft))), var(--c-surface, var(--color-surface, #fff))'
+                                      : 'var(--c-surface, var(--color-surface, #fff))',
+                                }
+                              : undefined
+                          }
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           {!isSystemCol && (

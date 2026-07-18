@@ -37,6 +37,7 @@ export { default as ExecutionTimeline } from './components/graph/ExecutionTimeli
 export { default as StaticGraphView } from './components/graph/StaticGraphView'
 export { default as NodeDetailPanel } from './components/graph/NodeDetailPanel'
 export { default as MessageBubble, StreamingCursor } from './components/chat/MessageBubble'
+export { AgentVoiceCard } from './components/chat/AgentVoiceCard'
 export { default as ToolCallDisplay, CodeCallDisplay, BlockingOutputDisplay, OutputSection } from './components/chat/ToolCallDisplay'
 export { default as ChatThinking, ThinkingDots } from './components/chat/ChatThinking'
 export { default as AssistantResponse } from './components/chat/AssistantResponse'
@@ -67,12 +68,13 @@ export type { ExecutionGraphViewProps } from './components/ExecutionGraphView'
 export type { TokenUsageSummary } from './lib/token-usage'
 
 // Types — components
-export type { MessageBubbleProps } from './components/chat/MessageBubble'
+export type { MessageBubbleProps, MessageBubbleVariant } from './components/chat/MessageBubble'
+export type { AgentVoiceCardProps } from './components/chat/AgentVoiceCard'
 export type { ChatThinkingProps } from './components/chat/ChatThinking'
 export type { AssistantResponseProps } from './components/chat/AssistantResponse'
 export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
 export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
-export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode, InputDecorator } from './components/chat/ChatInput'
+export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode, Mentionable, MentionPopupApi } from './components/chat/ChatInput'
 export type { ChatPanelProps, ChatPanelTimelineProps, ChatPanelInputProps, ChatPanelHeaderProps } from './components/chat/ChatPanel'
 export type { ChatSessionState, ChatSessionActions, ChatSessionContextValue } from './providers/ChatSessionProvider'
 export type {
@@ -83,7 +85,8 @@ export type {
 } from './components/chat/timeline-registry'
 
 // Types — protocol & data
-export type { APGEvent } from './types/protocol'
+export type { APGEvent, AOPWireEvent, WireEvent } from './types/protocol'
+export { isAgentEvent, eventType, eventTimestamp, eventAgent } from './types/protocol'
 export type {
   TimelineItem,
   TimelineItemBase,

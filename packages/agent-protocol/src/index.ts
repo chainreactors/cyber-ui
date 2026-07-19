@@ -1,4 +1,3 @@
-export { AOP_VERSION } from './types'
 export type {
   AOPEvent,
   AOPEventType,

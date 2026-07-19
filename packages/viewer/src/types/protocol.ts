@@ -1,8 +1,8 @@
 /**
- * Wire protocol — supports both legacy APGEvent and AOP v1 formats natively.
+ * Wire protocol — supports both APGEvent and AOP formats natively.
  *
  * Legacy APGEvent: {"event_type": "TextPartEvent", "timestamp": "...", "data": {...}}
- * AOP v1:          {"v": 1, "type": "text", "ts": "...", "agent": "...", "data": {...}}
+ * AOP:             {"type": "text", "ts": "...", "agent": "...", "data": {...}}
  *
  * Consumers (reducers, adapters) should check both `event_type` and `type` fields
  * to handle both formats without a normalization pass.
@@ -17,9 +17,8 @@ export interface APGEvent {
   data: Record<string, unknown>
 }
 
-/** AOP v1 event format (universal agent output protocol). */
+/** AOP event format (universal agent output protocol). */
 export interface AOPWireEvent {
-  v: number
   type: string
   ts: string
   session_id: string

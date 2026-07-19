@@ -105,7 +105,7 @@ export type {
   ErrorData as AOPErrorData,
   StatusData,
 } from '@cyber/agent-protocol'
-export { AOP_VERSION, isAOPEvent } from '@cyber/agent-protocol'
+export { isAOPEvent } from '@cyber/agent-protocol'
 export { isAgentEvent, eventType, eventTimestamp, eventAgent } from './types/protocol'
 export type {
   TimelineItem,

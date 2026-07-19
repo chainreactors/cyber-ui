@@ -11,8 +11,82 @@ import {
   Wrench,
 } from 'lucide-react'
 import { cn } from '@cyber/theme'
-import { CodeBlock } from '@cyber/markdown'
+import { CodeBlock, MarkdownContent } from '@cyber/markdown'
 import { stripAnsiControl, formatArgs, summarizeArgs } from '../../lib/tool-utils'
+
+const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
+  bat: 'batch', c: 'c', cc: 'cpp', cfg: 'ini', conf: 'ini', cpp: 'cpp',
+  cs: 'csharp', css: 'css', dockerfile: 'dockerfile', env: 'bash', go: 'go',
+  graphql: 'graphql', h: 'c', hpp: 'cpp', html: 'html', ini: 'ini', java: 'java',
+  js: 'javascript', json: 'json', jsonl: 'json', jsx: 'jsx', kt: 'kotlin',
+  lua: 'lua', mjs: 'javascript', php: 'php', proto: 'protobuf', ps1: 'powershell',
+  py: 'python', rb: 'ruby', rs: 'rust', sh: 'bash', sql: 'sql', svelte: 'svelte',
+  swift: 'swift', toml: 'toml', ts: 'typescript', tsx: 'tsx', vue: 'vue',
+  xml: 'xml', yaml: 'yaml', yml: 'yaml', zig: 'zig',
+}
+
+type ReadResultFormat = { kind: 'markdown' } | { kind: 'code'; language: string } | { kind: 'text' }
+
+function readPath(toolName: string, toolArgs: string): string | undefined {
+  if (toolName.trim().toLowerCase() !== 'read') return undefined
+  try {
+    const args = JSON.parse(toolArgs) as Record<string, unknown>
+    for (const key of ['path', 'file_path', 'filename']) {
+      if (typeof args[key] === 'string' && args[key]) return args[key]
+    }
+  } catch {
+    // A malformed/legacy argument string simply falls back to plain text.
+  }
+  return undefined
+}
+
+function readResultFormat(toolName: string, toolArgs: string): ReadResultFormat {
+  const path = readPath(toolName, toolArgs)
+  if (!path) return { kind: 'text' }
+  const cleanPath = path.split(/[?#]/, 1)[0].toLowerCase()
+  const fileName = cleanPath.split(/[\\/]/).pop() || ''
+  const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.') + 1) : fileName
+  if (extension === 'md' || extension === 'mdx' || extension === 'markdown') {
+    return { kind: 'markdown' }
+  }
+  const language = CODE_LANGUAGE_BY_EXTENSION[extension]
+  return language ? { kind: 'code', language } : { kind: 'text' }
+}
+
+function ToolResultContent({
+  result,
+  toolName,
+  toolArgs,
+}: {
+  result: string
+  toolName: string
+  toolArgs: string
+}) {
+  const format = readResultFormat(toolName, toolArgs)
+  if (format.kind === 'markdown') {
+    return (
+      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card/40 px-3 py-2">
+        <MarkdownContent content={result} compact />
+      </div>
+    )
+  }
+  if (format.kind === 'code') {
+    return (
+      <CodeBlock
+        code={result}
+        language={format.language}
+        showLineNumbers
+        maxHeight={320}
+        className="rounded-md"
+      />
+    )
+  }
+  return (
+    <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
+      {result}
+    </pre>
+  )
+}
 
 export interface ToolCallDisplayProps {
   toolName: string
@@ -99,9 +173,7 @@ export default function ToolCallDisplay({
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   Result
                 </div>
-                <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
-                  {displayResult}
-                </pre>
+                <ToolResultContent result={displayResult} toolName={toolName} toolArgs={toolArgs} />
               </div>
             )}
           </div>

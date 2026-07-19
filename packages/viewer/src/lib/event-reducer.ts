@@ -380,7 +380,7 @@ export function reduceChatState(events: WireEvent[]): ChatState {
         } else if (d.delta) {
           const last = state.messages[state.messages.length - 1]
           if (last && last.kind === 'assistant' && last.agentName === agent) {
-            last.content = content
+            last.content += content
           } else {
             state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName: agent, content, timestamp: ts })
           }

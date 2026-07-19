@@ -7,6 +7,7 @@
 
 import type {
   AOPEvent,
+  AOPData,
   AOPEventType,
   SessionStartData,
   SessionEndData,
@@ -27,7 +28,7 @@ interface EventEnvelope {
   ext?: Record<string, Record<string, unknown>>
 }
 
-function makeEvent<T>(type: AOPEventType, env: EventEnvelope, data: T): AOPEvent<T> {
+function makeEvent<T extends AOPData>(type: AOPEventType, env: EventEnvelope, data: T): AOPEvent<T> {
   return {
     v: AOP_VERSION,
     type,

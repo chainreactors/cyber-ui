@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cyber/agent-protocol": "workspace:*",
     "@cyber/theme": "workspace:*",
     "@cyber/ui": "workspace:*",
     "@cyber/markdown": "workspace:*",

@@ -75,7 +75,7 @@ export interface TextData {
   content: string
   /** Role: "assistant" (default) or "user". */
   role?: string
-  /** true = streaming delta (cumulative text so far), false/absent = complete message. */
+  /** true = append-only streaming fragment, false/absent = complete message. */
   delta?: boolean
 }
 

@@ -67,6 +67,7 @@ function ChatPanelErrorBar({ children, className }: ChatPanelErrorBarProps) {
 
 export interface ChatPanelTimelineProps {
   className?: string
+  contentClassName?: string
   emptyState?: React.ReactNode
   renderItem?: (item: TimelineItem) => React.ReactNode | undefined | null
   autoScroll?: boolean
@@ -74,29 +75,48 @@ export interface ChatPanelTimelineProps {
   renderSideNote?: (item: TimelineItem) => React.ReactNode | null
   stickyScroll?: boolean
   memoItems?: boolean
+  scrollResetKey?: string | null
 }
 
 function ChatPanelTimeline({
-  className, emptyState, renderItem, autoScroll = true,
+  className, contentClassName, emptyState, renderItem, autoScroll = true,
   renderMark, renderSideNote, stickyScroll, memoItems,
+  scrollResetKey,
 }: ChatPanelTimelineProps) {
   const { timeline, domainContext, overrides, variant } = useContext(ChatPanelContext)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const stuckRef = useRef(true)
-  const prevLenRef = useRef(0)
+  const scrollFrameRef = useRef<number | null>(null)
+  const scrollBehaviorRef = useRef<ScrollBehavior>('smooth')
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    bottomRef.current?.scrollIntoView({ behavior })
+    if (behavior === 'instant' || scrollBehaviorRef.current !== 'instant') {
+      scrollBehaviorRef.current = behavior
+    }
+    if (scrollFrameRef.current !== null) return
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null
+      bottomRef.current?.scrollIntoView({ behavior: scrollBehaviorRef.current })
+      scrollBehaviorRef.current = 'smooth'
+    })
   }, [])
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current)
+  }, [])
+
+  useLayoutEffect(() => {
+    stuckRef.current = true
+    scrollToBottom('instant')
+  }, [scrollResetKey, scrollToBottom])
 
   useEffect(() => {
     if (!autoScroll && !stickyScroll) return
     if (stickyScroll && !stuckRef.current) return
-    const isNewSession = timeline.length < prevLenRef.current
-    prevLenRef.current = timeline.length
-    scrollToBottom(isNewSession ? 'instant' : 'smooth')
-  }, [timeline.length, autoScroll, stickyScroll, scrollToBottom])
+    scrollToBottom('smooth')
+  }, [timeline, autoScroll, stickyScroll, scrollToBottom])
 
   useEffect(() => {
     if (!stickyScroll) return
@@ -117,6 +137,7 @@ function ChatPanelTimeline({
       if (stuckRef.current) scrollToBottom('instant')
     })
     observer.observe(el)
+    if (contentRef.current) observer.observe(contentRef.current)
     return () => observer.disconnect()
   }, [stickyScroll, scrollToBottom])
 
@@ -141,7 +162,7 @@ function ChatPanelTimeline({
         )
       )}
 
-      <div className={cn('flex flex-col gap-3', hasRail && 'grid gap-x-2 gap-y-3')}
+      <div ref={contentRef} className={cn('flex flex-col gap-3', hasRail && 'grid gap-x-2 gap-y-3', contentClassName)}
         style={hasRail ? { gridTemplateColumns: 'auto 1fr auto' } : undefined}>
         {timeline.map(item => (
           <Fragment key={item.id}>
@@ -163,7 +184,7 @@ function ChatPanelTimeline({
 const MemoTimelineEntry = memo(
   ({ item, render }: { item: TimelineItem; render: (item: TimelineItem) => React.ReactNode }) =>
     <>{render(item)}</>,
-  (prev, next) => prev.item === next.item,
+  (prev, next) => prev.item === next.item && prev.render === next.render,
 )
 MemoTimelineEntry.displayName = 'MemoTimelineEntry'
 

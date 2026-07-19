@@ -68,6 +68,7 @@ export function reduceAOPToTimeline(
   const items: TimelineItem[] = []
   const seen = new Set<string>()
   const activeMessages = new Map<string, MessageTimelineItem>()
+  const activeThinking = new Map<string, string>()
   const lastMessages = new Map<string, MessageTimelineItem>()
   const toolCalls = new Map<string, ToolCallTimelineItem>()
 
@@ -77,6 +78,27 @@ export function reduceAOPToTimeline(
     const message = activeMessages.get(key)
     if (message) message.streaming = false
     activeMessages.delete(key)
+  }
+  const closeThinking = (key: string) => {
+    const id = activeThinking.get(key)
+    if (!id) return
+    const index = items.findIndex((item) => item.id === id)
+    if (index >= 0) items.splice(index, 1)
+    activeThinking.delete(key)
+  }
+  const openThinking = (event: AOPEvent, index: number, key: string, timestamp: number) => {
+    if (activeThinking.has(key)) return
+    const item: MessageTimelineItem = {
+      id: eventId(event, index, ':thinking'),
+      kind: 'message',
+      timestamp,
+      actorName: event.agent,
+      role: 'thinking',
+      content: '',
+      streaming: true,
+    }
+    items.push(item)
+    activeThinking.set(key, item.id)
   }
 
   events.forEach((event, index) => {
@@ -93,6 +115,7 @@ export function reduceAOPToTimeline(
     switch (event.type) {
       case 'session.start':
         closeMessage(key)
+        closeThinking(key)
         items.push({
           id: eventId(event, index, ':start'),
           kind: 'divider',
@@ -105,6 +128,7 @@ export function reduceAOPToTimeline(
 
       case 'session.end': {
         closeMessage(key)
+        closeThinking(key)
         const data = event.data as Record<string, unknown>
         const failed = data.stop === 'error' || Boolean(data.error)
         items.push({
@@ -120,15 +144,18 @@ export function reduceAOPToTimeline(
 
       case 'turn.start':
         closeMessage(key)
+        openThinking(event, index, key, timestamp)
         break
 
       case 'turn.end':
         closeMessage(key)
+        closeThinking(key)
         break
 
       case 'text': {
         const data = event.data as TextData
         if (!data.content) break
+        closeThinking(key)
         const role = data.role === 'user' || data.role === 'system' ? data.role : 'assistant'
 
         if (role !== 'assistant') {
@@ -170,6 +197,7 @@ export function reduceAOPToTimeline(
 
       case 'tool.call': {
         closeMessage(key)
+        closeThinking(key)
         const data = event.data as ToolCallData
         if (!data.tool_call_id) break
         const item: ToolCallTimelineItem = {
@@ -190,6 +218,7 @@ export function reduceAOPToTimeline(
       }
 
       case 'tool.result': {
+        closeThinking(key)
         const data = event.data as ToolResultData
         if (!data.tool_call_id) break
         let item = toolCalls.get(toolKey(event, data.tool_call_id))
@@ -224,6 +253,7 @@ export function reduceAOPToTimeline(
 
       case 'error': {
         closeMessage(key)
+        closeThinking(key)
         const data = event.data as Record<string, unknown>
         const message: MessageTimelineItem = {
           id: eventId(event, index, ':error'),
@@ -236,6 +266,13 @@ export function reduceAOPToTimeline(
           metadata: { code: data.code, retryable: data.retryable },
         }
         items.push(message)
+        break
+      }
+
+      case 'status': {
+        const data = event.data as Record<string, unknown>
+        if (data.state === 'thinking') openThinking(event, index, key, timestamp)
+        else closeThinking(key)
         break
       }
     }

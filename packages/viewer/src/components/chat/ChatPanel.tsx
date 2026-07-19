@@ -220,7 +220,7 @@ function renderTimelineItem(
       if (item.role === 'thinking') {
         return (
           <ChatThinking actorName={item.actorName} variant={variant}>
-            <MarkdownContent content={item.content} compact />
+            {item.content ? <MarkdownContent content={item.content} compact /> : undefined}
           </ChatThinking>
         )
       }

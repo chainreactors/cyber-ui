@@ -1,4 +1,5 @@
-import type { CSTXDelta, CstxChangeKind, CstxFieldChange, CstxHistoryEntry } from '../types/graph';
+import type { CstxChangeKind, CstxFieldChange, CstxHistoryEntry } from '../types/graph';
+import type {CSTXDelta} from '../types/transport.gen';
 import { formatShortTimeValue, toDisplayDate, type TimeDisplayValue } from './timeDisplay';
 
 export interface CstxLifecycle {

@@ -20,6 +20,7 @@ import {
   getCstxFlagRemoveLabel,
   type CstxFlagOption,
 } from '../../../lib/cstxFlags';
+import type {CSTXNode} from '../../../types/transport.gen';
 
 type Row = Record<string, unknown>;
 
@@ -56,7 +57,8 @@ export interface FlagCellProps {
 }
 
 export function FlagCell({ row, onToggle }: FlagCellProps) {
-  const activeFlags = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row, opt.value));
+  const node = row as unknown as CSTXNode;
+  const activeFlags = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(node, opt.value));
   const hasFlags = activeFlags.length > 0;
 
   return (
@@ -100,7 +102,7 @@ export function FlagCell({ row, onToggle }: FlagCellProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {CSTX_FLAG_OPTIONS.map(option => {
-          const active = hasCstxFlag(row, option.value);
+          const active = hasCstxFlag(node, option.value);
           const Icon = FLAG_ICON_MAP[option.key] ?? Flag;
           return (
             <DropdownMenuItem
@@ -113,7 +115,7 @@ export function FlagCell({ row, onToggle }: FlagCellProps) {
               title={FLAG_DESCRIPTION_MAP[option.key]}
             >
               <Icon className="h-3.5 w-3.5" style={{ color: FLAG_COLOR_MAP[option.key] }} />
-              <span className="flex-1">{getCstxFlagActionLabel(row, option)}</span>
+              <span className="flex-1">{getCstxFlagActionLabel(node, option)}</span>
               {active && <span className="h-1.5 w-1.5 rounded-full" style={{ background: FLAG_COLOR_MAP[option.key] }} />}
             </DropdownMenuItem>
           );

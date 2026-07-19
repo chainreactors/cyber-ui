@@ -54,6 +54,7 @@ import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
 import { useColumnResize } from './hooks/useColumnResize';
 import { parseSearchQuery, matchesFieldSearch } from './hooks/useFieldSearch';
 import { useUrlSlot } from './hooks/useUrlState';
+import type {CSTXNode} from '../../types/transport.gen';
 
 type Row = Record<string, unknown>;
 type TableActionVariant = 'default' | 'danger' | 'secondary';
@@ -348,7 +349,7 @@ function RowActionsCell({
 }
 
 function RowFlagBadges({ row }: { row: Row }) {
-  const active = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row, opt.value));
+  const active = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row as unknown as CSTXNode, opt.value));
   if (active.length === 0) return null;
   return (
     <span className="inline-flex shrink-0 items-center gap-0.5 mr-1">

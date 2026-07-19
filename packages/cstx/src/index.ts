@@ -1,4 +1,12 @@
 // Types
+export type { CSTXNode, CSTXEdge, CSTXSnapshot, CSTXDelta, CSTXStat } from './types/transport.gen';
+export {
+  CSTXGraph,
+  getCSTXNodeLabel,
+  getCSTXNodeField,
+  getCSTXEdgeField,
+} from './lib/CSTXGraph';
+
 export type {
   JsonPrimitive,
   JsonValue,
@@ -14,15 +22,6 @@ export type {
   PerspectiveConfig,
   DataResult,
   UseDataQuery,
-  CstxNode,
-  CstxNodeBase,
-  CstxEdge,
-  CstxGraphPayload,
-  AssetNode,
-  AssetRelationship,
-  AssetGraphData,
-  CSTXDelta,
-  CSTXStat,
   CstxChangeKind,
   CstxFieldChange,
   CstxHistoryEntry,
@@ -254,14 +253,8 @@ export {
 
 // Snapshot / envelope helpers
 export {
-  emptySnapshot,
-  unwrapSnapshot,
   mergeSnapshots,
-  extractGraphPayloadFromEnvelope,
-  processBackendResponse,
-  parseCstxApiResult,
 } from './lib/snapshot';
-export type { CstxApiResultEnvelope } from './lib/snapshot';
 
 // CSTX query DSL utilities
 export {

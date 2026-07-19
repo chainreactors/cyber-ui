@@ -1,5 +1,5 @@
 import { asRecord } from './coerce';
-import { getStableNodeLookupId } from './nodeLookup';
+import type {CSTXEdge, CSTXNode} from '../types/transport.gen';
 
 export const CSTX_FLAGS = {
     HONEYPOT: 1 << 0,
@@ -66,13 +66,13 @@ export const getCstxFlagFilterMasks = (state: CstxFlagFilterState): {excludeMask
     return {excludeMask: normalized.mask, includeMask: 0};
 };
 
-export const getCstxFlags = (item: unknown): number => {
-    const rec = asRecord(item);
-    return toMask(rec.cstx_flags) ?? 0;
+export const getCstxFlags = (value: unknown): number => {
+    const record = asRecord(value);
+    return toMask(asRecord(record.extras).cstx_flags) ?? toMask(record.cstx_flags) ?? 0;
 };
 
-export const matchesCstxFlagFilter = (item: unknown, state: CstxFlagFilterState): boolean => {
-    const flags = getCstxFlags(item);
+export const matchesCstxFlagFilter = (node: CSTXNode, state: CstxFlagFilterState): boolean => {
+    const flags = getCstxFlags(node);
     if (state.mode === 'all') return true;
     if (state.mode === 'flagged') {
         const mask = normalizeCstxFlagMask(state.mask);
@@ -82,82 +82,48 @@ export const matchesCstxFlagFilter = (item: unknown, state: CstxFlagFilterState)
     return excludeMask > 0 ? (flags & excludeMask) === 0 : true;
 };
 
-export const filterNodesByCstxFlags = <T>(items: T[], state: CstxFlagFilterState): T[] => {
+export const filterNodesByCstxFlags = <T extends CSTXNode>(items: T[], state: CstxFlagFilterState): T[] => {
     if (state.mode === 'all') return items;
     return items.filter(item => matchesCstxFlagFilter(item, state));
 };
 
-export const getCstxNodeId = (item: unknown): string | null => {
-    const rec = asRecord(item);
-    const rawId = rec.cstx_id ?? rec.id;
-    if (rawId === null || rawId === undefined) return null;
-    const value = String(rawId).trim();
-    return value || null;
-};
+export const getCstxNodeId = (node: CSTXNode): string => node.id;
 
-export const filterEdgesByVisibleNodes = <T>(edges: T[], visibleNodeIds: Set<string>): T[] => (
-    edges.filter(edge => {
-        const rec = asRecord(edge);
-        const rawSource = rec.source ?? rec.source_id;
-        const rawTarget = rec.target ?? rec.target_id;
-        if (rawSource === null || rawSource === undefined || rawTarget === null || rawTarget === undefined) {
-            return false;
-        }
-        return visibleNodeIds.has(String(rawSource)) && visibleNodeIds.has(String(rawTarget));
-    })
+export const filterEdgesByVisibleNodes = <T extends CSTXEdge>(edges: T[], visibleNodeIds: Set<string>): T[] => (
+    edges.filter((edge) => visibleNodeIds.has(edge.source_id) && visibleNodeIds.has(edge.target_id))
 );
 
-export const isFalsePositive = (item: unknown): boolean => (
-    (getCstxFlags(item) & CSTX_FLAGS.FALSE_POSITIVE) !== 0
+export const isFalsePositive = (node: CSTXNode): boolean => (
+    (getCstxFlags(node) & CSTX_FLAGS.FALSE_POSITIVE) !== 0
 );
 
-export const hasCstxFlag = (item: unknown, flagValue: number): boolean => (
-    (getCstxFlags(item) & normalizeCstxFlagMask(flagValue)) !== 0
+export const hasCstxFlag = (node: CSTXNode, flagValue: number): boolean => (
+    (getCstxFlags(node) & normalizeCstxFlagMask(flagValue)) !== 0
 );
 
 export const getCstxFlagAddLabel = (option: CstxFlagOption): string => `标记为${option.label}`;
 export const getCstxFlagRemoveLabel = (option: CstxFlagOption): string => `取消${option.label}标记`;
 
-export const getCstxFlagActionLabel = (item: unknown, option: CstxFlagOption): string => (
-    hasCstxFlag(item, option.value) ? getCstxFlagRemoveLabel(option) : getCstxFlagAddLabel(option)
+export const getCstxFlagActionLabel = (node: CSTXNode, option: CstxFlagOption): string => (
+    hasCstxFlag(node, option.value) ? getCstxFlagRemoveLabel(option) : getCstxFlagAddLabel(option)
 );
 
 export const getCstxFlagActionToast = (option: CstxFlagOption, active: boolean): string => (
     active ? `已标记为${option.label}` : `已取消${option.label}标记`
 );
 
-export const shouldHideByCstxExcludeMask = (item: unknown, excludeMask = DEFAULT_CSTX_EXCLUDE_MASK): boolean => (
-    (getCstxFlags(item) & normalizeCstxFlagMask(excludeMask)) !== 0
+export const shouldHideByCstxExcludeMask = (node: CSTXNode, excludeMask = DEFAULT_CSTX_EXCLUDE_MASK): boolean => (
+    (getCstxFlags(node) & normalizeCstxFlagMask(excludeMask)) !== 0
 );
 
-export const getCstxNodeLookupId = (item: unknown): string | null => {
-    const rec = asRecord(item);
-    const stableId = getStableNodeLookupId(rec);
-    if (stableId) return stableId;
+export const getCstxNodeLookupId = (node: CSTXNode): string => node.id;
 
-    const raw = rec._raw ? asRecord(rec._raw) : null;
-    return getStableNodeLookupId(raw) || null;
-};
+const withUpdatedCstxFlags = <T extends CSTXNode>(node: T, cstxFlags: number): T => ({
+    ...node,
+    extras: {...node.extras, cstx_flags: cstxFlags},
+});
 
-const withUpdatedCstxFlags = <T>(item: T, cstxFlags: number): T => {
-    if (item === null || typeof item !== 'object' || Array.isArray(item)) return item;
-    const rec = item as Record<string, unknown>;
-    const next = {
-        ...rec,
-        cstx_flags: cstxFlags,
-    } as Record<string, unknown>;
-    const attrs = asRecord(rec.attributes);
-    if (Object.keys(attrs).length > 0) {
-        next.attributes = Object.fromEntries(
-            Object.entries(attrs).filter(([key]) => key !== 'cstx_flags'),
-        );
-    }
-    return {
-        ...next,
-    } as T;
-};
-
-export const applyCstxFlagUpdateToItem = <T>(item: T, updated: unknown): T => {
+export const applyCstxFlagUpdateToItem = <T extends CSTXNode>(item: T, updated: unknown): T => {
     const rec = asRecord(updated);
     const explicitFlags = toMask(rec.cstx_flags);
     if (explicitFlags !== null) {
@@ -171,11 +137,10 @@ export const applyCstxFlagUpdateToItem = <T>(item: T, updated: unknown): T => {
         return withUpdatedCstxFlags(item, Math.max(0, nextFlags));
     }
 
-    const nextFlags = getCstxFlags(updated);
-    return withUpdatedCstxFlags(item, nextFlags);
+    throw new Error('CSTX flag update response is missing cstx_flags and masks');
 };
 
-export const countCstxFlagFilter = (items: unknown[], state: CstxFlagFilterState) => {
+export const countCstxFlagFilter = (items: CSTXNode[], state: CstxFlagFilterState) => {
     const total = items.length;
     const visible = filterNodesByCstxFlags(items, state).length;
     return {

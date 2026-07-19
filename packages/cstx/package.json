@@ -16,7 +16,8 @@
   "files": ["dist"],
   "scripts": {
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@cyber/ui": "workspace:*",
@@ -24,6 +25,7 @@
     "chroma-js": "^3.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "graphology": "^0.26.0",
     "lucide-react": "^0.510.0",
     "tailwind-merge": "^3.3.0"
   },
@@ -39,6 +41,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^6.0.0",
-    "vite-plugin-dts": "^4.0.0"
+    "vite-plugin-dts": "^4.0.0",
+    "vitest": "^4.0.18"
   }
 }

@@ -73,7 +73,6 @@ const EXCLUDED_KEYS = new Set([
   '_id',
   '_rev',
   '_key',
-  '_raw',
   'attributes',
   'extras',
   'task_ids',

@@ -55,7 +55,7 @@ function mergeUsage(
 }
 
 /**
- * Reduce raw AOP v1 events directly into cyber-ui timeline items.
+ * Reduce raw AOP events directly into cyber-ui timeline items.
  *
  * Input order is authoritative. Sequence numbers are used for duplicate
  * suppression, not global sorting, because several AOP sessions may be merged
@@ -80,7 +80,7 @@ export function reduceAOPToTimeline(
   }
 
   events.forEach((event, index) => {
-    if (event.v !== 1 || !event.type || !event.session_id) return
+    if (!event.type || !event.session_id) return
     if (event.seq !== undefined) {
       const key = `${event.session_id}:${event.seq}`
       if (seen.has(key)) return

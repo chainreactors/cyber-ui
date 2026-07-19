@@ -1,5 +1,5 @@
 /**
- * Agent Output Protocol (AOP) v1
+ * Agent Output Protocol (AOP)
  *
  * A language-neutral JSONL event protocol for AI coding agents.
  * Every agent (aiscan, codex, claude-code, …) outputs these events;
@@ -13,8 +13,6 @@
 // ── Envelope ────────────────────────────────────────────────────
 
 export interface AOPEvent<T extends AOPData = AOPData> {
-  /** Protocol version. Currently 1. */
-  v: 1
   /** Event type — dot-separated hierarchy. */
   type: AOPEventType
   /** RFC 3339 timestamp with nanosecond precision. */
@@ -165,7 +163,3 @@ export type UsageEvent = AOPEvent<UsageData> & { type: 'usage' }
 export type TurnStartEvent = AOPEvent<TurnStartData> & { type: 'turn.start' }
 export type TurnEndEvent = AOPEvent<TurnEndData> & { type: 'turn.end' }
 export type ErrorEvent = AOPEvent<ErrorData> & { type: 'error' }
-
-// ── Protocol version ────────────────────────────────────────────
-
-export const AOP_VERSION = 1

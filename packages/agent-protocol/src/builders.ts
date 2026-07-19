@@ -19,7 +19,6 @@ import type {
   TurnEndData,
   ErrorData,
 } from './types'
-import { AOP_VERSION } from './types'
 
 interface EventEnvelope {
   agent: string
@@ -30,7 +29,6 @@ interface EventEnvelope {
 
 function makeEvent<T extends AOPData>(type: AOPEventType, env: EventEnvelope, data: T): AOPEvent<T> {
   return {
-    v: AOP_VERSION,
     type,
     ts: new Date().toISOString(),
     session_id: env.session_id,

@@ -3,7 +3,6 @@
  */
 
 import type { AOPEvent } from './types'
-import { AOP_VERSION } from './types'
 
 /**
  * Parse a single JSONL line into an AOPEvent, or null if invalid.
@@ -26,7 +25,6 @@ export function isAOPEvent(obj: unknown): obj is AOPEvent {
   if (typeof obj !== 'object' || obj === null) return false
   const e = obj as Record<string, unknown>
   return (
-    e.v === AOP_VERSION &&
     typeof e.type === 'string' &&
     typeof e.ts === 'string' &&
     typeof e.session_id === 'string' &&

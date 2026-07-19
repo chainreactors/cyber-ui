@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type DragEvent, type ReactNode } from 'react'
-import { ArrowUp, AtSign, FileText, Paperclip, Slash, Square, Upload, X } from 'lucide-react'
+import { AtSign, FileText, Paperclip, Send, Slash, Square, Upload, X } from 'lucide-react'
 import { cn } from '@cyber/theme'
 function formatBytes(bytes: number): string { if (bytes < 1024) return bytes + "B"; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + "KB"; return (bytes / 1048576).toFixed(1) + "MB" }
 
@@ -335,30 +335,15 @@ export default function ChatInput({
       )}
 
       <div className="px-3 py-2 md:px-4 md:py-3">
-        {/* The composer WELL — one lifted surface (bg-card + shadow-lifted) that
-            holds the Goal strip, the attachment chips and the input row, so
-            file-upload and Goal read as *parts of* the composer instead of
-            detached cards stacked above it. overflow-hidden clips each section to
-            the rounded corners; the focus ring now lives on the well. */}
-        <div
-          className={cn(
-            'overflow-hidden rounded-[1.75rem] border border-border/70 bg-card shadow-lifted transition-all duration-200',
-            'focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15',
-            dragOver && 'border-primary ring-2 ring-primary/25',
-          )}
-        >
-          {/* Goal / expandable strip — the host (ChatPanel) passes its Goal
-              config here; divided from the input area but on the same surface. */}
-          {topSlot && (
-            <div className="border-b border-border/60 animate-in fade-in slide-in-from-top-1 duration-200">
-              {topSlot}
-            </div>
-          )}
+        {topSlot && (
+          <div className="mb-2 overflow-hidden rounded-lg border border-border/60 bg-card/60 animate-in fade-in slide-in-from-bottom-1 duration-200">
+            {topSlot}
+          </div>
+        )}
 
-          {/* attachment chips — the upload's staged files, inside the well */}
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 px-3 pt-3">
-              {attachments.map((a, i) => (
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {attachments.map((a, i) => (
               <span
                 key={`${a.file.name}-${i}`}
                 className={cn(
@@ -396,12 +381,30 @@ export default function ChatInput({
           </div>
         )}
 
-          {/* Codex-style composer — the text field owns the full width up top,
-              and every control lives on a dedicated action bar beneath it, so the
-              prompt reads as a roomy writing surface rather than a line crowded by
-              buttons. Every feature (slash commands, @-mentions, paste/drag, the
-              Goal toggle, attachments with CTX/UP, pause) is unchanged — only the
-              layout moved. */}
+        <div className="flex items-end gap-2 rounded-lg border border-border/70 bg-card/40 p-1 transition-shadow duration-150 focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20">
+          {leading && <div className="shrink-0">{leading}</div>}
+
+          {enableAttachments && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => { if (e.target.files?.length) { addFiles(e.target.files); e.target.value = '' } }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                aria-label="Attach files"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+            </>
+          )}
+
           <textarea
             ref={textareaRef}
             rows={1}
@@ -415,65 +418,29 @@ export default function ChatInput({
             disabled={disabled}
             placeholder={placeholder || defaultPlaceholder}
             className={cn(
-              // Borderless & transparent: the textarea dissolves into the well —
-              // the pill owns the border, fill and focus ring. A ~2-line floor
-              // (min-h) gives the empty composer real presence; it auto-grows to a
-              // cap (max-h) then scrolls. text-[15px] = a comfortable compose size.
-              'block max-h-[200px] min-h-[2.5rem] w-full resize-none overflow-y-auto border-0 bg-transparent px-4 pt-2.5 pb-1 text-[15px] leading-relaxed text-foreground md:min-h-[3.25rem] md:pt-3.5',
-              'placeholder:text-muted-foreground/60',
+              'min-h-9 max-h-[120px] flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-sm leading-5 text-foreground',
+              'placeholder:text-muted-foreground',
               'focus:outline-none focus:ring-0',
               'disabled:cursor-not-allowed disabled:opacity-50',
               inputClassName,
             )}
           />
 
-          {/* action bar — left cluster: tools (Goal toggle) + attach; right: send/pause */}
-          <div className="flex items-center justify-between gap-2 px-2.5 pb-2 pt-0.5 md:pb-2.5">
-            <div className="flex min-w-0 items-center gap-1">
-              {leading}
-
-              {/* attachment button */}
-              {enableAttachments && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => { if (e.target.files?.length) { addFiles(e.target.files); e.target.value = '' } }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={disabled}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50 md:h-10 md:w-10"
-                    aria-label="Attach files"
-                  >
-                    <Paperclip className="h-[18px] w-[18px]" />
-                  </button>
-                </>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={canPause ? onPause : handleSend}
-              disabled={canPause ? false : !canSend}
-              className={cn(
-                // Codex send = filled circle + up-arrow. Neutral when idle so an
-                // empty composer reads as "nothing to send" rather than a live blue.
-                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-150 md:h-10 md:w-10',
-                canPause
-                  ? 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90'
-                  : canSend
-                    ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
-                    : 'bg-muted text-muted-foreground/50',
-              )}
-              aria-label={canPause ? 'Pause response' : 'Send message'}
-            >
-              {canPause ? <Square className="h-4 w-4 fill-current" /> : <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.5} />}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={canPause ? onPause : handleSend}
+            disabled={canPause ? false : !canSend}
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-50',
+              canPause
+                ? 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90'
+                : 'bg-primary text-primary-foreground',
+              !canPause && canSend && 'shadow-sm hover:bg-primary/90',
+            )}
+            aria-label={canPause ? 'Pause response' : 'Send message'}
+          >
+            {canPause ? <Square className="h-4 w-4 fill-current" /> : <Send className="h-4 w-4" />}
+          </button>
         </div>
       </div>
     </div>

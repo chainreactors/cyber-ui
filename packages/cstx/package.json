@@ -7,9 +7,9 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/cstx.js",
-      "require": "./dist/cstx.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/cstx.cjs"
     },
     "./style.css": "./dist/style.css"
   },

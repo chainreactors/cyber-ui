@@ -3,7 +3,7 @@ import type React from 'react';
 export interface CstxNodeBase {
     id?: string | null;
     cstx_id?: string | null;
-    type: string;
+    type?: string;
     value?: string | null;
     model?: Record<string, unknown>;
     extras?: Record<string, unknown>;
@@ -34,6 +34,31 @@ export interface CstxGraphPayload {
     nodes: CstxNode[];
     edges: CstxEdge[];
     types?: Record<string, unknown>;
+}
+
+export interface AssetNode {
+    id: string;
+    name: string;
+    type: string;
+    value?: string;
+    sources: string[];
+    _raw: CstxNode;
+    [key: string]: unknown;
+}
+
+export interface AssetRelationship {
+    id?: string;
+    source: string;
+    target: string;
+    type: string;
+    sources?: string[];
+    _raw: CstxEdge;
+    [key: string]: unknown;
+}
+
+export interface AssetGraphData {
+    nodes: AssetNode[];
+    relationships: AssetRelationship[];
 }
 
 export interface CSTXDelta {

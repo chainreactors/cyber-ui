@@ -14,7 +14,7 @@
 
 export interface AOPEvent<T extends AOPData = AOPData> {
   /** Protocol version. Currently 1. */
-  v: number
+  v: 1
   /** Event type — dot-separated hierarchy. */
   type: AOPEventType
   /** RFC 3339 timestamp with nanosecond precision. */

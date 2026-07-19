@@ -12,11 +12,8 @@ export function parseLine(line: string): AOPEvent | null {
   const trimmed = line.trim()
   if (!trimmed || trimmed[0] !== '{') return null
   try {
-    const obj = JSON.parse(trimmed)
-    if (typeof obj !== 'object' || obj === null) return null
-    if (typeof obj.type !== 'string' || typeof obj.ts !== 'string') return null
-    if (obj.v !== undefined && obj.v > AOP_VERSION) return null
-    return obj as AOPEvent
+    const obj: unknown = JSON.parse(trimmed)
+    return isAOPEvent(obj) ? obj : null
   } catch {
     return null
   }
@@ -29,6 +26,7 @@ export function isAOPEvent(obj: unknown): obj is AOPEvent {
   if (typeof obj !== 'object' || obj === null) return false
   const e = obj as Record<string, unknown>
   return (
+    e.v === AOP_VERSION &&
     typeof e.type === 'string' &&
     typeof e.ts === 'string' &&
     typeof e.session_id === 'string' &&

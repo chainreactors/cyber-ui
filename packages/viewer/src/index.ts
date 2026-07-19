@@ -22,6 +22,7 @@ export {
   summarizeArgs,
 } from './lib/tool-utils'
 export { chatMessagesToTimeline } from './lib/timeline-adapter'
+export { reduceAOPToTimeline } from './lib/aop-reducer'
 
 // Layer 0.5 — Timeline renderer registry
 export {
@@ -43,6 +44,7 @@ export { default as ChatThinking, ThinkingDots } from './components/chat/ChatThi
 export { default as AssistantResponse } from './components/chat/AssistantResponse'
 export { default as ChatInput } from './components/chat/ChatInput'
 export { ChatPanel } from './components/chat/ChatPanel'
+export { AOPChatPanel } from './components/chat/AOPChatPanel'
 export { default as LiveAPGNode } from './components/graph/LiveAPGNode'
 export { MarkdownContent } from '@cyber/markdown'
 export { default as PromptContent } from './components/shared/PromptContent'
@@ -86,6 +88,24 @@ export type {
 
 // Types — protocol & data
 export type { APGEvent, AOPWireEvent, WireEvent } from './types/protocol'
+export type { ReduceAOPOptions } from './lib/aop-reducer'
+export type { AOPChatPanelProps } from './components/chat/AOPChatPanel'
+export type {
+  AOPEvent,
+  AOPEventType,
+  AOPData,
+  SessionStartData,
+  SessionEndData,
+  TextData,
+  ToolCallData,
+  ToolResultData,
+  UsageData,
+  TurnStartData,
+  TurnEndData,
+  ErrorData as AOPErrorData,
+  StatusData,
+} from '@cyber/agent-protocol'
+export { AOP_VERSION, isAOPEvent } from '@cyber/agent-protocol'
 export { isAgentEvent, eventType, eventTimestamp, eventAgent } from './types/protocol'
 export type {
   TimelineItem,

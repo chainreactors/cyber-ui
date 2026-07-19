@@ -28,9 +28,14 @@ export function chatMessagesToTimeline(messages: ChatMessage[]): TimelineItem[] 
         },
       } satisfies ToolCallTimelineItem)
     } else if (msg.kind === 'tool-return') {
-      const existing = items.findLast(
-        (it) => it.kind === 'tool_call' && it.toolCall.id === msg.toolCallId,
-      ) as ToolCallTimelineItem | undefined
+      let existing: ToolCallTimelineItem | undefined
+      for (let index = items.length - 1; index >= 0; index -= 1) {
+        const item = items[index]
+        if (item.kind === 'tool_call' && item.toolCall.id === msg.toolCallId) {
+          existing = item
+          break
+        }
+      }
       if (existing) {
         existing.toolCall.result = msg.content
         existing.toolCall.pending = false

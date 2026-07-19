@@ -343,5 +343,23 @@ export type {
   CstxReportPreview,
 } from './lib/reportTemplates';
 
+// Import analyzer
+export {
+  analyzeImportFile,
+  buildImportEntry,
+  formatFileSize,
+  inferRawFormat,
+  requiresArtifactType,
+  IMPORT_DETECTION_LABELS,
+} from './lib/importAnalyzer';
+export type {
+  ImportDetectionKind,
+  ImportValidationStatus,
+  ImportFileEntry,
+  ArtifactOption,
+} from './lib/importAnalyzer';
+export { CstxImportDialog } from './components/import';
+export type { CstxImportDialogProps, CstxImportDialogLabels } from './components/import';
+
 // Utilities
 export { cn } from './lib/cn';

@@ -166,12 +166,11 @@ function ChatPanelTimeline({
         style={hasRail ? { gridTemplateColumns: 'auto 1fr auto' } : undefined}>
         {timeline.map(item => (
           <Fragment key={item.id}>
-            {renderMark && <div className="flex items-start pt-1">{renderMark(item)}</div>}
+            {hasRail && <div className="flex items-start pt-1">{renderMark?.(item)}</div>}
             <div className="min-w-0">
               <ItemWrapper item={item} render={renderOne} />
             </div>
-            {renderSideNote && <div className="flex items-start pt-1">{renderSideNote(item)}</div>}
-            {!hasRail && null}
+            {hasRail && <div className="flex items-start pt-1">{renderSideNote?.(item)}</div>}
           </Fragment>
         ))}
       </div>
@@ -197,7 +196,7 @@ function PassthroughEntry({ item, render }: { item: TimelineItem; render: (item:
 export interface ChatPanelInputProps extends ChatInputProps { className?: string }
 
 function ChatPanelInput({ className, ...inputProps }: ChatPanelInputProps) {
-  return <div className={cn('shrink-0', className)}><ChatInputComponent {...inputProps} /></div>
+  return <ChatInputComponent className={cn('shrink-0', className)} {...inputProps} />
 }
 
 // ── Compound assignments ──

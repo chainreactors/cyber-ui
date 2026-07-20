@@ -33,7 +33,7 @@ function stringify(value: unknown): string {
 
 function eventId(event: AOPEvent, index: number, suffix = ''): string {
   const position = event.seq === undefined ? index : event.seq
-  return `aop:${event.session_id}:${position}${suffix}`
+  return `aop:${event.session_id}:${event.agent}:${position}${suffix}`
 }
 
 function mergeUsage(
@@ -68,22 +68,26 @@ export function reduceAOPToTimeline(
   const items: TimelineItem[] = []
   const seen = new Set<string>()
   const activeMessages = new Map<string, MessageTimelineItem>()
-  const activeThinking = new Map<string, string>()
+  const activeThinking = new Map<string, MessageTimelineItem>()
   const lastMessages = new Map<string, MessageTimelineItem>()
   const toolCalls = new Map<string, ToolCallTimelineItem>()
 
   const streamKey = (event: AOPEvent) => `${event.session_id}:${event.agent}`
-  const toolKey = (event: AOPEvent, callId: string) => `${event.session_id}:${callId}`
+  const toolKey = (event: AOPEvent, callId: string) => `${event.session_id}:${event.agent}:${callId}`
   const closeMessage = (key: string) => {
     const message = activeMessages.get(key)
     if (message) message.streaming = false
     activeMessages.delete(key)
   }
   const closeThinking = (key: string) => {
-    const id = activeThinking.get(key)
-    if (!id) return
-    const index = items.findIndex((item) => item.id === id)
-    if (index >= 0) items.splice(index, 1)
+    const message = activeThinking.get(key)
+    if (!message) return
+    if (message.content) {
+      message.streaming = false
+    } else {
+      const index = items.findIndex((item) => item.id === message.id)
+      if (index >= 0) items.splice(index, 1)
+    }
     activeThinking.delete(key)
   }
   const openThinking = (event: AOPEvent, index: number, key: string, timestamp: number) => {
@@ -98,13 +102,13 @@ export function reduceAOPToTimeline(
       streaming: true,
     }
     items.push(item)
-    activeThinking.set(key, item.id)
+    activeThinking.set(key, item)
   }
 
   events.forEach((event, index) => {
     if (!event.type || !event.session_id) return
     if (event.seq !== undefined) {
-      const key = `${event.session_id}:${event.seq}`
+      const key = `${event.session_id}:${event.agent}:${event.seq}`
       if (seen.has(key)) return
       seen.add(key)
     }
@@ -155,8 +159,32 @@ export function reduceAOPToTimeline(
       case 'text': {
         const data = event.data as TextData
         if (!data.content) break
-        closeThinking(key)
         const role = data.role === 'user' || data.role === 'system' ? data.role : 'assistant'
+
+        if (data.channel === 'reasoning') {
+          closeMessage(key)
+          let message = activeThinking.get(key)
+          if (!message) {
+            message = {
+              id: eventId(event, index, ':reasoning'),
+              kind: 'message',
+              timestamp,
+              actorName: event.agent,
+              role: 'thinking',
+              content: '',
+              streaming: Boolean(data.delta),
+              metadata: event.ext ? { ext: event.ext } : undefined,
+            }
+            items.push(message)
+            activeThinking.set(key, message)
+          }
+          message.content = data.delta ? message.content + data.content : data.content
+          message.streaming = Boolean(data.delta)
+          if (!data.delta) activeThinking.delete(key)
+          break
+        }
+
+        closeThinking(key)
 
         if (role !== 'assistant') {
           closeMessage(key)
@@ -168,6 +196,7 @@ export function reduceAOPToTimeline(
             role,
             content: data.content,
             streaming: false,
+            metadata: event.ext ? { ext: event.ext } : undefined,
           }
           items.push(message)
           lastMessages.set(key, message)
@@ -184,6 +213,7 @@ export function reduceAOPToTimeline(
             role: 'assistant',
             content: '',
             streaming: Boolean(data.delta),
+            metadata: event.ext ? { ext: event.ext } : undefined,
           }
           items.push(message)
           activeMessages.set(key, message)
@@ -275,6 +305,16 @@ export function reduceAOPToTimeline(
         else closeThinking(key)
         break
       }
+
+      default:
+        items.push({
+          id: eventId(event, index, ':extension'),
+          kind: 'extension',
+          timestamp,
+          actorName: event.agent,
+          extensionType: event.type,
+          data: event.data as Record<string, unknown>,
+        })
     }
   })
 

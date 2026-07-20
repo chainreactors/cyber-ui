@@ -5,7 +5,7 @@
  * Every agent (aiscan, codex, claude-code, …) outputs these events;
  * every orchestrator (aide, cairn, …) consumes them without per-agent translation.
  *
- * Envelope:  { v, type, ts, session_id, agent, seq?, data, ext? }
+ * Envelope:  { type, ts, session_id, agent, seq?, data, ext? }
  * Core:      6 event types cover all agent interactions
  * Extension: ext.<agent_name>.* carries agent-specific data
  */
@@ -75,6 +75,8 @@ export interface TextData {
   role?: string
   /** true = append-only streaming fragment, false/absent = complete message. */
   delta?: boolean
+  /** Output channel. Missing means normal assistant output. */
+  channel?: 'output' | 'reasoning'
 }
 
 export interface ToolCallData {

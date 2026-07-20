@@ -21,7 +21,6 @@ export {
   formatArgs,
   summarizeArgs,
 } from './lib/tool-utils'
-export { chatMessagesToTimeline } from './lib/timeline-adapter'
 export { reduceAOPToTimeline } from './lib/aop-reducer'
 
 // Layer 0.5 — Timeline renderer registry
@@ -87,7 +86,7 @@ export type {
 } from './components/chat/timeline-registry'
 
 // Types — protocol & data
-export type { APGEvent, AOPWireEvent, WireEvent } from './types/protocol'
+export type { APGEvent, WireEvent } from './types/protocol'
 export type { ReduceAOPOptions } from './lib/aop-reducer'
 export type { AOPChatPanelProps } from './components/chat/AOPChatPanel'
 export type {

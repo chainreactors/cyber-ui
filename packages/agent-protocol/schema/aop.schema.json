@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/aop.schema.json",
+  "title": "Agent Output Protocol Event",
+  "type": "object",
+  "required": ["type", "ts", "session_id", "agent", "data"],
+  "properties": {
+    "type": { "type": "string", "minLength": 1 },
+    "ts": { "type": "string", "format": "date-time" },
+    "session_id": { "type": "string", "minLength": 1 },
+    "agent": { "type": "string", "minLength": 1 },
+    "seq": { "type": "integer", "minimum": 1 },
+    "data": { "type": "object" },
+    "ext": {
+      "type": "object",
+      "additionalProperties": { "type": "object" }
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "text" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["content"],
+            "properties": {
+              "content": { "type": "string" },
+              "role": { "type": "string" },
+              "delta": { "type": "boolean" },
+              "channel": { "enum": ["output", "reasoning"] }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "tool.call" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["tool_call_id", "tool_name", "args"],
+            "properties": {
+              "tool_call_id": { "type": "string", "minLength": 1 },
+              "tool_name": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "tool.result" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["tool_call_id", "content"],
+            "properties": {
+              "tool_call_id": { "type": "string", "minLength": 1 },
+              "tool_name": { "type": "string" },
+              "is_error": { "type": "boolean" },
+              "duration_ms": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  ]
+}

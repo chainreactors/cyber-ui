@@ -238,7 +238,8 @@ export function reduceGraphState(events: WireEvent[]): GraphState {
 }
 
 // =====================================================================
-// Chat reducer — natively supports both APGEvent and AOP formats
+// Legacy platform chat reducer. AOP agent output is reduced exclusively by
+// reduceAOPToTimeline in aop-reducer.ts.
 // =====================================================================
 
 interface MessagePart {
@@ -349,7 +350,7 @@ export function reduceChatState(events: WireEvent[]): ChatState {
     const agent = eventAgent(evt)
 
     switch (t) {
-      // ── User prompt (legacy + AOP) ──
+      // ── User prompt ──
       case 'ConversationTurnStartEvent': {
         const rawPrompt = d.user_prompt as string
         state.messages.push({ id: `msg-${msgIdx++}`, kind: 'user', agentName: agent, content: rawPrompt.includes('<prompt>') ? xmlPromptToMarkdown(rawPrompt) : rawPrompt, timestamp: ts })
@@ -371,30 +372,6 @@ export function reduceChatState(events: WireEvent[]): ChatState {
         }
         break
       }
-      case 'text': {
-        const content = d.content as string
-        if (!content) break
-        const role = (d.role as string) || 'assistant'
-        if (role === 'user') {
-          state.messages.push({ id: `msg-${msgIdx++}`, kind: 'user', agentName: agent, content, timestamp: ts })
-        } else if (d.delta) {
-          const last = state.messages[state.messages.length - 1]
-          if (last && last.kind === 'assistant' && last.agentName === agent) {
-            last.content += content
-          } else {
-            state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName: agent, content, timestamp: ts })
-          }
-        } else {
-          let replaced = false
-          for (let i = state.messages.length - 1; i >= 0; i--) {
-            const m = state.messages[i]
-            if (m.kind === 'assistant' && m.agentName === agent) { m.content = content; delete m._rawJson; replaced = true; break }
-            if (m.kind === 'user') break
-          }
-          if (!replaced) state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName: agent, content, timestamp: ts })
-        }
-        break
-      }
 
       // ── Tool call ──
       case 'ToolCallPartEvent': {
@@ -405,20 +382,6 @@ export function reduceChatState(events: WireEvent[]): ChatState {
         state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-call', agentName: agent, content: JSON.stringify(args, null, 2), toolName: d.tool_name as string, args, toolCallId: tcId, timestamp: ts, rawContent: args })
         break
       }
-      case 'tool.call': {
-        const tcId = (d.tool_call_id as string) ?? ''
-        seenToolCallIds.add(tcId)
-        const toolName = (d.tool_name as string) ?? ''
-        if (tcId && toolName) toolNames.set(tcId, toolName)
-        let args: Record<string, unknown>
-        if (typeof d.args === 'string') {
-          args = parseJsonSafe(d.args as string)
-        } else {
-          args = (d.args as Record<string, unknown>) ?? {}
-        }
-        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-call', agentName: agent, content: JSON.stringify(args, null, 2), toolName, args, toolCallId: tcId, timestamp: ts, rawContent: args })
-        break
-      }
 
       // ── Tool result ──
       case 'ToolReturnPartEvent': {
@@ -426,14 +389,6 @@ export function reduceChatState(events: WireEvent[]): ChatState {
         seenToolCallIds.add(tcId)
         const { text, rawContent } = normalizeToolReturnContent(d.content)
         state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-return', agentName: agent, content: text, toolName: (d.tool_name as string) || (tcId ? toolNames.get(tcId) ?? '' : ''), toolCallId: tcId, timestamp: ts, rawContent })
-        break
-      }
-      case 'tool.result': {
-        const tcId = (d.tool_call_id as string) ?? ''
-        seenToolCallIds.add(tcId)
-        const { text, rawContent } = normalizeToolReturnContent(d.content)
-        const toolName = (d.tool_name as string) || (tcId ? toolNames.get(tcId) ?? '' : '')
-        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-return', agentName: agent, content: text, toolName, toolCallId: tcId, timestamp: ts, rawContent })
         break
       }
 
@@ -452,7 +407,7 @@ export function reduceChatState(events: WireEvent[]): ChatState {
 }
 
 // =====================================================================
-// Timeline reducer — natively supports both formats
+// Platform execution timeline reducer.
 // =====================================================================
 
 export function reduceTimeline(events: WireEvent[]): TimelineEntry[] {

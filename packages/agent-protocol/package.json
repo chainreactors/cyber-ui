@@ -8,7 +8,8 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
-    }
+    },
+    "./schema/aop.schema.json": "./schema/aop.schema.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

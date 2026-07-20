@@ -1,12 +1,14 @@
 /**
- * Wire protocol — supports both APGEvent and AOP formats natively.
+ * Wire protocol for platform events and canonical AOP events.
  *
  * Legacy APGEvent: {"event_type": "TextPartEvent", "timestamp": "...", "data": {...}}
  * AOP:             {"type": "text", "ts": "...", "agent": "...", "data": {...}}
  *
- * Consumers (reducers, adapters) should check both `event_type` and `type` fields
- * to handle both formats without a normalization pass.
+ * Agent output is reduced only by the AOP reducer. Platform reducers may inspect
+ * both event shapes where AOP usage accounting is relevant to a graph.
  */
+
+import type { AOPEvent } from '@cyber/agent-protocol'
 
 /** Legacy APG event format (aide's Python EventRecord). */
 export interface APGEvent {
@@ -17,19 +19,8 @@ export interface APGEvent {
   data: Record<string, unknown>
 }
 
-/** AOP event format (universal agent output protocol). */
-export interface AOPWireEvent {
-  type: string
-  ts: string
-  session_id: string
-  agent: string
-  seq?: number
-  data: Record<string, unknown>
-  ext?: Record<string, Record<string, unknown>>
-}
-
 /** Either format — used as input to reducers that handle both. */
-export type WireEvent = APGEvent | AOPWireEvent
+export type WireEvent = APGEvent | AOPEvent<Record<string, unknown>>
 
 /** Detect the wire format of a raw event object. */
 export function eventType(evt: WireEvent): string {
@@ -60,13 +51,8 @@ const LEGACY_AGENT_EVENTS = new Set([
   'ModelResponseCompleteEvent', 'SystemPromptPartEvent', 'UserPromptPartEvent',
   'TextPartEvent', 'ToolCallPartEvent', 'ToolReturnPartEvent',
 ])
-const AOP_AGENT_TYPES = new Set([
-  'session.start', 'session.end', 'text', 'tool.call', 'tool.result',
-  'usage', 'turn.start', 'turn.end',
-])
-
-/** Check whether an event belongs to the "agent" category (both formats). */
+/** Check whether a legacy platform event belongs to the agent category. */
 export function isAgentEvent(evt: WireEvent): boolean {
   const t = eventType(evt)
-  return LEGACY_AGENT_EVENTS.has(t) || AOP_AGENT_TYPES.has(t)
+  return LEGACY_AGENT_EVENTS.has(t)
 }

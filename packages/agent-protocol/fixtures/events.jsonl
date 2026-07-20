@@ -1,0 +1,5 @@
+{"type":"session.start","ts":"2026-07-19T00:00:00Z","session_id":"session-1","agent":"aiscan","seq":1,"data":{"model":"test"}}
+{"type":"text","ts":"2026-07-19T00:00:01Z","session_id":"session-1","agent":"aiscan","seq":2,"data":{"content":"inspect ","role":"assistant","delta":true,"channel":"reasoning"}}
+{"type":"text","ts":"2026-07-19T00:00:02Z","session_id":"session-1","agent":"aiscan","seq":3,"data":{"content":"inspect target","role":"assistant","channel":"reasoning"}}
+{"type":"text","ts":"2026-07-19T00:00:03Z","session_id":"session-1","agent":"aiscan","seq":4,"data":{"content":"done","role":"assistant"},"ext":{"aiscan":{"nested":{"preserved":true}}}}
+{"type":"future.event","ts":"2026-07-19T00:00:04Z","session_id":"session-1","agent":"aiscan","seq":5,"data":{"nested":{"value":1}}}

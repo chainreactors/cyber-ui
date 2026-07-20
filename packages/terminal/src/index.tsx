@@ -7,13 +7,41 @@ import { cn } from '@cyber/theme'
 
 export type TerminalStatus = 'connecting' | 'connected' | 'closed' | 'error'
 
-export interface TerminalMessage {
-  type: string
-  task_id?: string
+export type PTYFrameType =
+  | 'open'
+  | 'opened'
+  | 'attach'
+  | 'attached'
+  | 'input'
+  | 'output'
+  | 'resize'
+  | 'detach'
+  | 'detached'
+  | 'kill'
+  | 'list'
+  | 'sessions'
+  | 'closed'
+  | 'error'
+
+export interface PTYFrame {
+  type: PTYFrameType
   stream_id?: string
+  session_id?: string
+  kind?: string
+  name?: string
+  command?: string
+  args?: string[]
   data?: string
-  data_b64?: string
-  payload?: unknown
+  cols?: number
+  rows?: number
+  bytes?: number
+  offset?: number
+  singleton?: boolean
+  error?: string
+  state?: string
+  exit_code?: number
+  session?: PTYSession
+  sessions?: PTYSession[]
 }
 
 export interface PTYSession {
@@ -245,36 +273,35 @@ export function DetailRow({ label, mono, value }: { label: string; mono?: boolea
   )
 }
 
-export function parseTerminalMessage(value: string): TerminalMessage | null {
+export function parsePTYFrame(value: string): PTYFrame | null {
   try {
     const parsed = JSON.parse(value)
-    return parsed && typeof parsed === 'object' && typeof parsed.type === 'string' ? parsed : null
+    return parsed && typeof parsed === 'object' && isPTYFrameType(parsed.type) ? parsed as PTYFrame : null
   } catch {
     return null
   }
 }
 
-export function writeTerminalData(terminal: XTerm, msg: TerminalMessage) {
-  terminal.write(messageData(msg))
+export function encodeTerminalData(value: string): string {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
 }
 
-export function sessionPayload(msg: TerminalMessage): PTYSession[] {
-  const payload = payloadObject(msg)
-  const sessions = Array.isArray(payload.sessions) ? payload.sessions : []
+export function writeTerminalData(terminal: XTerm, frame: PTYFrame) {
+  terminal.write(frameData(frame))
+}
+
+export function sessionsFromFrame(frame: PTYFrame): PTYSession[] {
+  const sessions = Array.isArray(frame.sessions) ? frame.sessions : []
   return sessions.map(normalizeSession).filter((session): session is PTYSession => !!session)
 }
 
-export function sessionFromPayload(msg: TerminalMessage): PTYSession | null {
-  const payload = payloadObject(msg)
-  const session = normalizeSession(payload.session)
+export function sessionFromFrame(frame: PTYFrame): PTYSession | null {
+  const session = normalizeSession(frame.session)
   if (session) return session
-  return normalizeSession(payload)
-}
-
-export function stringPayload(msg: TerminalMessage, key: string): string {
-  const payload = payloadObject(msg)
-  const value = payload[key]
-  return typeof value === 'string' ? value : ''
+  return normalizeSession(frame)
 }
 
 export function mergeSession(items: PTYSession[], session: PTYSession): PTYSession[] {
@@ -401,19 +428,6 @@ function stateTextColor(state?: string): string {
   }
 }
 
-function payloadObject(msg: TerminalMessage): Record<string, unknown> {
-  if (!msg.payload) return {}
-  if (typeof msg.payload === 'string') {
-    try {
-      const parsed = JSON.parse(msg.payload)
-      return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {}
-    } catch {
-      return {}
-    }
-  }
-  return typeof msg.payload === 'object' ? msg.payload as Record<string, unknown> : {}
-}
-
 function normalizeSession(value: unknown): PTYSession | null {
   if (!value || typeof value !== 'object') return null
   const record = value as Record<string, unknown>
@@ -437,17 +451,22 @@ function normalizeSession(value: unknown): PTYSession | null {
   }
 }
 
-function messageData(msg: TerminalMessage): string {
-  if (msg.data_b64) {
-    try {
-      const binary = atob(msg.data_b64)
-      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
-      return new TextDecoder().decode(bytes)
-    } catch {
-      return ''
-    }
+function frameData(frame: PTYFrame): string {
+  if (!frame.data) return ''
+  try {
+    const binary = atob(frame.data)
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+    return new TextDecoder().decode(bytes)
+  } catch {
+    return ''
   }
-  return msg.data || ''
+}
+
+function isPTYFrameType(value: unknown): value is PTYFrameType {
+  return typeof value === 'string' && [
+    'open', 'opened', 'attach', 'attached', 'input', 'output', 'resize',
+    'detach', 'detached', 'kill', 'list', 'sessions', 'closed', 'error',
+  ].includes(value)
 }
 
 function stringValue(value: unknown): string | undefined {

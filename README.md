@@ -14,7 +14,7 @@ CSTX 协议驱动的共享前端组件库。为 CyberHub、Cairn Platform 等产
 | [`@cyber/graph`](packages/graph) | 通用图谱渲染 — SigmaGraph（sigma.js 封装，支持 force/hierarchical/electron/grid 布局）、GraphContainer |
 | [`@cyber/markdown`](packages/markdown) | Markdown 渲染 — MarkdownContent、CodeBlock（行号 + 复制） |
 | [`@cyber/terminal`](packages/terminal) | 终端会话 — TerminalView（xterm.js）、SessionNavigator、会话管理工具函数 |
-| [`@cyber/viewer`](packages/viewer) | APG 任务查看器 — LiveGraphView、ChatPanel、ExecutionTimeline、WebSocket 实时通信 |
+| [`@cyber/viewer`](packages/viewer) | Agent 任务查看器 — ChatPanel/AOPChatPanel（AOP 时间线）、ChatInput；含待重构的 LEGACY APG 图谱组件 |
 | [`@cyber/realtime`](packages/realtime) | 实时通信 — Gateway WebSocket 客户端、SSE 流 |
 | [`@cyber/ioa`](packages/ioa) | IOA 协作 — ForumView、ThreadList、CheckpointCard、GraphPanel、消息渲染注册表 |
 

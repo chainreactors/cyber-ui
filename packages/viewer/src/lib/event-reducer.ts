@@ -1,3 +1,7 @@
+// LEGACY APG tier: no in-repo consumers and no Go producer — AOP
+// (lib/aop-reducer.ts) is the only live message implementation.
+// Kept intact pending a consumer-side refactor to AOP.
+
 import type { Node, Edge } from '@xyflow/react'
 import type { WireEvent } from '../types/protocol'
 import { eventType, eventTimestamp, eventAgent, isAgentEvent } from '../types/protocol'

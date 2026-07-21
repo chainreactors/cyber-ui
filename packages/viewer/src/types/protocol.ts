@@ -1,3 +1,7 @@
+// LEGACY APG tier: the APGEvent half of this module has no in-repo consumers
+// and no Go producer — AOP (lib/aop-reducer.ts) is the only live message
+// implementation. Kept intact pending a consumer-side refactor to AOP.
+
 /**
  * Wire protocol for platform events and canonical AOP events.
  *

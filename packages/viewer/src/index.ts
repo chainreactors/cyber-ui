@@ -1,6 +1,12 @@
 // npm library entry — re-exports public API
+//
+// AOP (agent-protocol) is the only live message implementation: agent output
+// flows through reduceAOPToTimeline / AOPChatPanel / ChatPanel. Exports marked
+// "LEGACY APG" below have no in-repo consumers and no Go producer; they are
+// kept intact pending a consumer-side refactor to AOP.
 
 // Layer 0 — Pure functions (no React dependency)
+// LEGACY APG — see header note
 export {
   reduceGraphState,
   reduceChatState,
@@ -10,6 +16,7 @@ export {
   reduceExecutionGraphState,
   reduceExecutionTimeline,
 } from './lib/execution-graph'
+// LEGACY APG — see header note
 export {
   reduceExecutionHistoryGraphState,
   reduceExecutionHistoryTimeline,
@@ -21,6 +28,7 @@ export {
   formatArgs,
   summarizeArgs,
 } from './lib/tool-utils'
+// AOP — canonical reducer
 export { reduceAOPToTimeline } from './lib/aop-reducer'
 
 // Layer 0.5 — Timeline renderer registry
@@ -31,6 +39,7 @@ export {
 } from './components/chat/timeline-registry'
 
 // Layer 1 — Presentational components (props-first, no provider dependency)
+// LEGACY APG — see header note
 export { default as LiveGraphView } from './components/graph/LiveGraphView'
 export { default as LiveChatPanel } from './components/chat/LiveChatPanel'
 export { default as ExecutionTimeline } from './components/graph/ExecutionTimeline'
@@ -42,28 +51,35 @@ export { default as ToolCallDisplay, CodeCallDisplay, BlockingOutputDisplay, Out
 export { default as ChatThinking, ThinkingDots } from './components/chat/ChatThinking'
 export { default as AssistantResponse } from './components/chat/AssistantResponse'
 export { default as ChatInput } from './components/chat/ChatInput'
+// AOP — canonical chat panel
 export { ChatPanel } from './components/chat/ChatPanel'
 export { AOPChatPanel } from './components/chat/AOPChatPanel'
+// LEGACY APG — see header note
 export { default as LiveAPGNode } from './components/graph/LiveAPGNode'
 export { MarkdownContent } from '@cyber/markdown'
 export { default as PromptContent } from './components/shared/PromptContent'
 
 // Layer 2 — Connected components (convenience, require providers)
+// LEGACY APG — see header note
 export { ConnectedGraphView } from './components/graph/LiveGraphView'
 export { ConnectedChatPanel } from './components/chat/LiveChatPanel'
 export { ConnectedTimeline } from './components/graph/ExecutionTimeline'
 
 // Layer 2 — Providers & hooks
+// LEGACY APG — see header note
 export { APGWebSocketProvider, StaticEventProvider, useAPGEvents } from './providers/APGWebSocketProvider'
 export { ThemeProvider, useTheme } from './providers/ThemeProvider'
+// LEGACY APG — see header note
 export { useGraphState } from './providers/useGraphState'
 export { useChatState } from './providers/useChatState'
 export { ChatSessionProvider, useChatSessionContext } from './providers/ChatSessionProvider'
 
 // Layer 3 — Full dashboard
+// LEGACY APG — see header note
 export { default as APGViewer } from './components/APGViewer'
 
 // Execution graph API — for embedding in CTEM and other hosts
+// LEGACY APG — see header note
 export { default as ExecutionGraphView } from './components/ExecutionGraphView'
 export type { ExecutionGraphViewProps } from './components/ExecutionGraphView'
 export type { TokenUsageSummary } from './lib/token-usage'

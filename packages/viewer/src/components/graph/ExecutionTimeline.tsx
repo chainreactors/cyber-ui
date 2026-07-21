@@ -1,3 +1,7 @@
+// LEGACY APG tier: no in-repo consumers and no Go producer — AOP
+// (lib/aop-reducer.ts) is the only live message implementation.
+// Kept intact pending a consumer-side refactor to AOP.
+
 import { useEffect, useRef, useMemo, type CSSProperties } from 'react'
 import { useAPGEvents } from '../../providers/APGWebSocketProvider'
 import { useResolvedTheme } from '../../lib/use-resolved-theme'

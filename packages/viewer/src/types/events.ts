@@ -1,3 +1,7 @@
+// LEGACY APG tier: Python-era event models. No in-repo consumers and no Go
+// producer — AOP (lib/aop-reducer.ts) is the only live message implementation.
+// Kept intact pending a consumer-side refactor to AOP.
+
 /** TypeScript mirrors of Python Pydantic event models. */
 
 // --- Runtime events ---

@@ -1,3 +1,7 @@
+// LEGACY APG tier: no in-repo consumers and no Go producer — AOP
+// (AOPChatPanel / lib/aop-reducer.ts) is the only live message implementation.
+// Kept intact pending a consumer-side refactor to AOP.
+
 import React, { useEffect, useRef, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
 import { cn } from '@cyber/theme'

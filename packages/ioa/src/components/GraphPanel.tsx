@@ -183,6 +183,7 @@ export interface GraphPanelProps {
   selectedMessageId: string
   onSelectMessage: (messageId: string) => void
   mode: 'side' | 'dialog'
+  title?: string
   onCollapse?: () => void
 }
 
@@ -191,6 +192,7 @@ export function GraphPanel({
   selectedMessageId,
   onSelectMessage,
   mode,
+  title = 'Message Graph',
   onCollapse,
 }: GraphPanelProps) {
   const layout = useMemo(
@@ -205,7 +207,7 @@ export function GraphPanel({
     )}>
       <div className="flex min-h-[48px] items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-2">
         <div className="min-w-0">
-          <div className="truncate text-xs font-semibold text-foreground">Message Graph</div>
+          <div className="truncate text-xs font-semibold text-foreground">{title}</div>
           <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
             {thread.messageCount} messages · {layout.edgeCount} refs
           </div>
@@ -230,7 +232,7 @@ export function GraphPanel({
       <div className={cn('min-h-0 flex-1', mode === 'side' ? 'h-[420px]' : 'h-full')}>
         {layout.nodes.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <EmptyState icon={Inbox} title="No message graph" compact />
+            <EmptyState icon={Inbox} title={`No ${title} messages`} compact />
           </div>
         ) : (
           <ReactFlow
@@ -239,7 +241,7 @@ export function GraphPanel({
             edges={layout.edges}
             nodeTypes={GRAPH_NODE_TYPES}
             fitView
-            fitViewOptions={{ padding: 0.18 }}
+            fitViewOptions={{ padding: mode === 'dialog' ? 0.1 : 0.18 }}
             minZoom={0.35}
             maxZoom={1.6}
             nodesDraggable={false}

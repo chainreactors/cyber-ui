@@ -19,17 +19,54 @@
   "additionalProperties": false,
   "allOf": [
     {
-      "if": { "properties": { "type": { "const": "text" } }, "required": ["type"] },
+      "if": { "properties": { "type": { "const": "message" } }, "required": ["type"] },
       "then": {
         "properties": {
           "data": {
             "type": "object",
-            "required": ["content"],
+            "required": ["message_id", "role", "parts"],
             "properties": {
-              "content": { "type": "string" },
-              "role": { "type": "string" },
-              "delta": { "type": "boolean" },
-              "channel": { "enum": ["output", "reasoning"] }
+              "message_id": { "type": "string", "minLength": 1 },
+              "role": { "type": "string", "minLength": 1 },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {
+                    "type": { "type": "string", "minLength": 1 },
+                    "text": { "type": "string" },
+                    "image": {
+                      "type": "object",
+                      "properties": {
+                        "path": { "type": "string" },
+                        "base64": { "type": "string" },
+                        "media_type": { "type": "string" }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "message.delta" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["message_id", "part_index", "part_type", "delta"],
+            "properties": {
+              "message_id": { "type": "string", "minLength": 1 },
+              "part_index": { "type": "integer", "minimum": 0 },
+              "part_type": { "type": "string", "minLength": 1 },
+              "delta": { "type": "string" }
             },
             "additionalProperties": true
           }

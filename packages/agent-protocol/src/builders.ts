@@ -2,7 +2,7 @@
  * Convenience builders for constructing AOP events.
  *
  * Usage:
- *   const evt = textEvent({ agent: 'aiscan', session_id: 's1' }, { content: 'hello' })
+ *   const evt = messageEvent({ agent: 'aiscan', session_id: 's1' }, { message_id: 'm-1', role: 'user', parts: [{ type: 'text', text: 'hi' }] })
  */
 
 import type {
@@ -11,13 +11,15 @@ import type {
   AOPEventType,
   SessionStartData,
   SessionEndData,
-  TextData,
+  MessageData,
+  MessageDeltaData,
   ToolCallData,
   ToolResultData,
   UsageData,
   TurnStartData,
   TurnEndData,
   ErrorData,
+  StatusData,
 } from './types'
 
 interface EventEnvelope {
@@ -45,8 +47,11 @@ export const sessionStartEvent = (env: EventEnvelope, data: SessionStartData = {
 export const sessionEndEvent = (env: EventEnvelope, data: SessionEndData) =>
   makeEvent('session.end', env, data)
 
-export const textEvent = (env: EventEnvelope, data: TextData) =>
-  makeEvent('text', env, data)
+export const messageEvent = (env: EventEnvelope, data: MessageData) =>
+  makeEvent('message', env, data)
+
+export const messageDeltaEvent = (env: EventEnvelope, data: MessageDeltaData) =>
+  makeEvent('message.delta', env, data)
 
 export const toolCallEvent = (env: EventEnvelope, data: ToolCallData) =>
   makeEvent('tool.call', env, data)
@@ -65,3 +70,6 @@ export const turnEndEvent = (env: EventEnvelope, data: TurnEndData) =>
 
 export const errorEvent = (env: EventEnvelope, data: ErrorData) =>
   makeEvent('error', env, data)
+
+export const statusEvent = (env: EventEnvelope, data: StatusData) =>
+  makeEvent('status', env, data)

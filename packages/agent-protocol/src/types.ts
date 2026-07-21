@@ -6,7 +6,7 @@
  * every orchestrator (aide, cairn, …) consumes them without per-agent translation.
  *
  * Envelope:  { type, ts, session_id, agent, seq?, data, ext? }
- * Core:      6 event types cover all agent interactions
+ * Core:      7 event types cover all agent interactions
  * Extension: ext.<agent_name>.* carries agent-specific data
  */
 
@@ -35,7 +35,8 @@ export interface AOPEvent<T extends AOPData = AOPData> {
 export type AOPCoreType =
   | 'session.start'
   | 'session.end'
-  | 'text'
+  | 'message'
+  | 'message.delta'
   | 'tool.call'
   | 'tool.result'
   | 'usage'
@@ -49,6 +50,27 @@ export type AOPOptionalType =
 
 /** All known event types, plus string for forward compatibility. */
 export type AOPEventType = AOPCoreType | AOPOptionalType | (string & {})
+
+// ── Message parts ─────────────────────────────────────────────
+
+export type MessagePartType = 'text' | 'reasoning' | 'image'
+
+export interface ImageSource {
+  /** Local path to the image file. Mutually exclusive with base64. */
+  path?: string
+  /** Base64-encoded image bytes. Mutually exclusive with path. */
+  base64?: string
+  /** MIME type, required when base64 is set (e.g. "image/png"). */
+  media_type?: string
+}
+
+export interface MessagePart {
+  type: MessagePartType | (string & {})
+  /** Present for text/reasoning parts. */
+  text?: string
+  /** Present for image parts. */
+  image?: ImageSource
+}
 
 // ── Data payloads ───────────────────────────────────────────────
 
@@ -68,15 +90,24 @@ export interface SessionEndData {
   error?: string
 }
 
-export interface TextData {
-  /** Text content — the assistant's output. */
-  content: string
-  /** Role: "assistant" (default) or "user". */
-  role?: string
-  /** true = append-only streaming fragment, false/absent = complete message. */
-  delta?: boolean
-  /** Output channel. Missing means normal assistant output. */
-  channel?: 'output' | 'reasoning'
+export interface MessageData {
+  /** Stable message identifier ("m-<n>" per session), reused across retries. */
+  message_id: string
+  /** Message role: user | assistant | system | tool. */
+  role: string
+  /** Ordered content parts. */
+  parts: MessagePart[]
+}
+
+export interface MessageDeltaData {
+  /** Message this delta belongs to. */
+  message_id: string
+  /** Index into the message's parts array this delta extends. */
+  part_index: number
+  /** Part type of the target part (text | reasoning). */
+  part_type: string
+  /** Incremental text to append to the part. */
+  delta: string
 }
 
 export interface ToolCallData {
@@ -144,7 +175,8 @@ export interface StatusData {
 export type AOPData =
   | SessionStartData
   | SessionEndData
-  | TextData
+  | MessageData
+  | MessageDeltaData
   | ToolCallData
   | ToolResultData
   | UsageData
@@ -158,10 +190,12 @@ export type AOPData =
 
 export type SessionStartEvent = AOPEvent<SessionStartData> & { type: 'session.start' }
 export type SessionEndEvent = AOPEvent<SessionEndData> & { type: 'session.end' }
-export type TextEvent = AOPEvent<TextData> & { type: 'text' }
+export type MessageEvent = AOPEvent<MessageData> & { type: 'message' }
+export type MessageDeltaEvent = AOPEvent<MessageDeltaData> & { type: 'message.delta' }
 export type ToolCallEvent = AOPEvent<ToolCallData> & { type: 'tool.call' }
 export type ToolResultEvent = AOPEvent<ToolResultData> & { type: 'tool.result' }
 export type UsageEvent = AOPEvent<UsageData> & { type: 'usage' }
 export type TurnStartEvent = AOPEvent<TurnStartData> & { type: 'turn.start' }
 export type TurnEndEvent = AOPEvent<TurnEndData> & { type: 'turn.end' }
 export type ErrorEvent = AOPEvent<ErrorData> & { type: 'error' }
+export type StatusEvent = AOPEvent<StatusData> & { type: 'status' }

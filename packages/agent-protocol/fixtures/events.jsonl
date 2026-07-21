@@ -1,5 +1,16 @@
 {"type":"session.start","ts":"2026-07-19T00:00:00Z","session_id":"session-1","agent":"aiscan","seq":1,"data":{"model":"test"}}
-{"type":"text","ts":"2026-07-19T00:00:01Z","session_id":"session-1","agent":"aiscan","seq":2,"data":{"content":"inspect ","role":"assistant","delta":true,"channel":"reasoning"}}
-{"type":"text","ts":"2026-07-19T00:00:02Z","session_id":"session-1","agent":"aiscan","seq":3,"data":{"content":"inspect target","role":"assistant","channel":"reasoning"}}
-{"type":"text","ts":"2026-07-19T00:00:03Z","session_id":"session-1","agent":"aiscan","seq":4,"data":{"content":"done","role":"assistant"},"ext":{"aiscan":{"nested":{"preserved":true}}}}
-{"type":"future.event","ts":"2026-07-19T00:00:04Z","session_id":"session-1","agent":"aiscan","seq":5,"data":{"nested":{"value":1}}}
+{"type":"message","ts":"2026-07-19T00:00:01Z","session_id":"session-1","agent":"aiscan","seq":2,"data":{"message_id":"m-1","role":"user","parts":[{"type":"text","text":"inspect the target"}]}}
+{"type":"turn.start","ts":"2026-07-19T00:00:02Z","session_id":"session-1","agent":"aiscan","seq":3,"data":{"turn":1}}
+{"type":"message.delta","ts":"2026-07-19T00:00:03Z","session_id":"session-1","agent":"aiscan","seq":4,"data":{"message_id":"m-2","part_index":0,"part_type":"reasoning","delta":"inspect "}}
+{"type":"message.delta","ts":"2026-07-19T00:00:04Z","session_id":"session-1","agent":"aiscan","seq":5,"data":{"message_id":"m-2","part_index":0,"part_type":"reasoning","delta":"target"}}
+{"type":"message.delta","ts":"2026-07-19T00:00:05Z","session_id":"session-1","agent":"aiscan","seq":6,"data":{"message_id":"m-2","part_index":1,"part_type":"text","delta":"checking "}}
+{"type":"message.delta","ts":"2026-07-19T00:00:06Z","session_id":"session-1","agent":"aiscan","seq":7,"data":{"message_id":"m-2","part_index":1,"part_type":"text","delta":"now"}}
+{"type":"message","ts":"2026-07-19T00:00:07Z","session_id":"session-1","agent":"aiscan","seq":8,"data":{"message_id":"m-2","role":"assistant","parts":[{"type":"reasoning","text":"inspect target"},{"type":"text","text":"checking now"}]},"ext":{"aiscan":{"nested":{"preserved":true}}}}
+{"type":"tool.call","ts":"2026-07-19T00:00:08Z","session_id":"session-1","agent":"aiscan","seq":9,"data":{"tool_call_id":"tc-1","tool_name":"bash","args":{"command":"whoami"}}}
+{"type":"tool.result","ts":"2026-07-19T00:00:09Z","session_id":"session-1","agent":"aiscan","seq":10,"data":{"tool_call_id":"tc-1","tool_name":"bash","content":"john","duration_ms":42}}
+{"type":"usage","ts":"2026-07-19T00:00:10Z","session_id":"session-1","agent":"aiscan","seq":11,"data":{"input_tokens":100,"output_tokens":20,"total_tokens":120}}
+{"type":"turn.end","ts":"2026-07-19T00:00:11Z","session_id":"session-1","agent":"aiscan","seq":12,"data":{"turn":1}}
+{"type":"status","ts":"2026-07-19T00:00:12Z","session_id":"session-1","agent":"aiscan","seq":13,"data":{"state":"eval_end"},"ext":{"aiscan":{"eval_round":1,"eval_pass":true}}}
+{"type":"status","ts":"2026-07-19T00:00:13Z","session_id":"session-1","agent":"aiscan","seq":14,"data":{"state":"token_budget_warning"},"ext":{"aiscan":{"context_tokens":9000,"token_budget":10000}}}
+{"type":"session.end","ts":"2026-07-19T00:00:14Z","session_id":"session-1","agent":"aiscan","seq":15,"data":{"stop":"completed","turns":1}}
+{"type":"future.event","ts":"2026-07-19T00:00:15Z","session_id":"session-1","agent":"aiscan","seq":16,"data":{"nested":{"value":1}}}

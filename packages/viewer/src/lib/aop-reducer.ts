@@ -1,6 +1,8 @@
 import type {
   AOPEvent,
-  TextData,
+  MessageData,
+  MessageDeltaData,
+  MessagePart,
   ToolCallData,
   ToolResultData,
   UsageData,
@@ -54,12 +56,62 @@ function mergeUsage(
   }
 }
 
+/** Join the text of all parts of one type (text or reasoning). */
+function partText(parts: MessagePart[], type: string): string {
+  return parts
+    .filter((part) => part.type === type && part.text)
+    .map((part) => part.text as string)
+    .join('\n')
+}
+
+/** Render image parts as markdown: base64 becomes a data URI, a path a link. */
+function partImagesMarkdown(parts: MessagePart[]): string {
+  const blocks: string[] = []
+  for (const part of parts) {
+    if (part.type !== 'image' || !part.image) continue
+    if (part.image.base64 && part.image.media_type) {
+      blocks.push(`![image](data:${part.image.media_type};base64,${part.image.base64})`)
+    } else if (part.image.path) {
+      blocks.push(`[image: ${part.image.path}]`)
+    }
+  }
+  return blocks.join('\n')
+}
+
+/** First ext namespace value — the emitting agent's extension block. */
+function extBlock(event: AOPEvent): Record<string, unknown> {
+  if (!event.ext) return {}
+  for (const value of Object.values(event.ext)) {
+    if (value && typeof value === 'object') return value as Record<string, unknown>
+  }
+  return {}
+}
+
+function extNumber(ext: Record<string, unknown>, key: string): number | undefined {
+  const value = ext[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+// Message metadata = the emitting agent's ext `metadata` sub-object flattened to
+// the top level (so consumers find e.g. an i18n `code` where the pre-AOP message
+// model put it), with the raw ext kept under `ext` for namespace-specific reads.
+function messageMetadata(event: AOPEvent): Record<string, unknown> | undefined {
+  const ext = extBlock(event)
+  const inner = ext.metadata
+  const flattened: Record<string, unknown> =
+    inner && typeof inner === 'object' ? { ...(inner as Record<string, unknown>) } : {}
+  if (event.ext) flattened.ext = event.ext
+  return Object.keys(flattened).length > 0 ? flattened : undefined
+}
+
 /**
  * Reduce raw AOP events directly into cyber-ui timeline items.
  *
  * Input order is authoritative. Sequence numbers are used for duplicate
  * suppression, not global sorting, because several AOP sessions may be merged
- * into one platform stream.
+ * into one platform stream. Assistant streaming arrives as `message.delta`
+ * fragments keyed by message_id; the complete `message` event is the
+ * authoritative state and replaces whatever the deltas accumulated.
  */
 export function reduceAOPToTimeline(
   events: readonly AOPEvent[],
@@ -67,6 +119,7 @@ export function reduceAOPToTimeline(
 ): TimelineItem[] {
   const items: TimelineItem[] = []
   const seen = new Set<string>()
+  // Accumulators keyed by `${streamKey}:${message_id}`.
   const activeMessages = new Map<string, MessageTimelineItem>()
   const activeThinking = new Map<string, MessageTimelineItem>()
   const lastMessages = new Map<string, MessageTimelineItem>()
@@ -74,24 +127,24 @@ export function reduceAOPToTimeline(
 
   const streamKey = (event: AOPEvent) => `${event.session_id}:${event.agent}`
   const toolKey = (event: AOPEvent, callId: string) => `${event.session_id}:${event.agent}:${callId}`
-  const closeMessage = (key: string) => {
-    const message = activeMessages.get(key)
-    if (message) message.streaming = false
-    activeMessages.delete(key)
-  }
-  const closeThinking = (key: string) => {
-    const message = activeThinking.get(key)
-    if (!message) return
-    if (message.content) {
-      message.streaming = false
-    } else {
-      const index = items.findIndex((item) => item.id === message.id)
-      if (index >= 0) items.splice(index, 1)
+
+  const closeWhere = (map: Map<string, MessageTimelineItem>, prefix: string) => {
+    for (const [mkey, message] of map) {
+      if (!mkey.startsWith(prefix)) continue
+      if (map === activeThinking && !message.content) {
+        const index = items.findIndex((item) => item.id === message.id)
+        if (index >= 0) items.splice(index, 1)
+      } else {
+        message.streaming = false
+      }
+      map.delete(mkey)
     }
-    activeThinking.delete(key)
   }
+  const closeMessage = (key: string) => closeWhere(activeMessages, key)
+  const closeThinking = (key: string) => closeWhere(activeThinking, key)
+
   const openThinking = (event: AOPEvent, index: number, key: string, timestamp: number) => {
-    if (activeThinking.has(key)) return
+    if ([...activeThinking.keys()].some((mkey) => mkey.startsWith(key))) return
     const item: MessageTimelineItem = {
       id: eventId(event, index, ':thinking'),
       kind: 'message',
@@ -103,6 +156,36 @@ export function reduceAOPToTimeline(
     }
     items.push(item)
     activeThinking.set(key, item)
+  }
+
+  // Upsert a message item with a stable, message_id-derived id so a complete
+  // `message` event replaces its own delta-built entry (and replays are
+  // idempotent) instead of appending a duplicate bubble.
+  const upsertMessage = (
+    map: Map<string, MessageTimelineItem>,
+    mkey: string,
+    id: string,
+    event: AOPEvent,
+    timestamp: number,
+    role: MessageTimelineItem['role'],
+  ): MessageTimelineItem => {
+    const existing = map.get(mkey) ?? items.find((item): item is MessageTimelineItem => item.id === id && item.kind === 'message')
+    if (existing) {
+      existing.streaming = false
+      return existing
+    }
+    const item: MessageTimelineItem = {
+      id,
+      kind: 'message',
+      timestamp,
+      actorName: event.agent,
+      role,
+      content: '',
+      streaming: false,
+      metadata: messageMetadata(event),
+    }
+    items.push(item)
+    return item
   }
 
   events.forEach((event, index) => {
@@ -156,72 +239,94 @@ export function reduceAOPToTimeline(
         closeThinking(key)
         break
 
-      case 'text': {
-        const data = event.data as TextData
-        if (!data.content) break
-        const role = data.role === 'user' || data.role === 'system' ? data.role : 'assistant'
+      case 'message.delta': {
+        const data = event.data as MessageDeltaData
+        if (!data.message_id || !data.delta) break
+        const mkey = `${key}:${data.message_id}`
 
-        if (data.channel === 'reasoning') {
+        if (data.part_type === 'reasoning') {
           closeMessage(key)
-          let message = activeThinking.get(key)
+          let message = activeThinking.get(mkey)
           if (!message) {
+            closeThinking(key)
             message = {
-              id: eventId(event, index, ':reasoning'),
+              id: `aop:${event.session_id}:${event.agent}:thinking:${data.message_id}`,
               kind: 'message',
               timestamp,
               actorName: event.agent,
               role: 'thinking',
               content: '',
-              streaming: Boolean(data.delta),
-              metadata: event.ext ? { ext: event.ext } : undefined,
+              streaming: true,
+              metadata: messageMetadata(event),
             }
             items.push(message)
-            activeThinking.set(key, message)
+            activeThinking.set(mkey, message)
           }
-          message.content = data.delta ? message.content + data.content : data.content
-          message.streaming = Boolean(data.delta)
-          if (!data.delta) activeThinking.delete(key)
+          message.content += data.delta
           break
         }
 
         closeThinking(key)
-
-        if (role !== 'assistant') {
-          closeMessage(key)
-          const message: MessageTimelineItem = {
-            id: eventId(event, index, ':text'),
-            kind: 'message',
-            timestamp,
-            actorName: event.agent,
-            role,
-            content: data.content,
-            streaming: false,
-            metadata: event.ext ? { ext: event.ext } : undefined,
-          }
-          items.push(message)
-          lastMessages.set(key, message)
-          break
-        }
-
-        let message = activeMessages.get(key)
+        let message = activeMessages.get(mkey)
         if (!message) {
           message = {
-            id: eventId(event, index, ':text'),
+            id: `aop:${event.session_id}:${event.agent}:msg:${data.message_id}`,
             kind: 'message',
             timestamp,
             actorName: event.agent,
             role: 'assistant',
             content: '',
-            streaming: Boolean(data.delta),
-            metadata: event.ext ? { ext: event.ext } : undefined,
+            streaming: true,
+            metadata: messageMetadata(event),
           }
           items.push(message)
-          activeMessages.set(key, message)
+          activeMessages.set(mkey, message)
         }
-        message.content = data.delta ? message.content + data.content : data.content
-        message.streaming = Boolean(data.delta)
+        message.content += data.delta
         lastMessages.set(key, message)
-        if (!data.delta) activeMessages.delete(key)
+        break
+      }
+
+      case 'message': {
+        const data = event.data as MessageData
+        if (!data.message_id) break
+        const mkey = `${key}:${data.message_id}`
+        const role = data.role === 'user' || data.role === 'system' ? data.role : 'assistant'
+        const text = partText(data.parts, 'text')
+        const reasoning = partText(data.parts, 'reasoning')
+        const images = partImagesMarkdown(data.parts)
+        const content = [text, images].filter(Boolean).join('\n')
+
+        if (reasoning) {
+          const thinking = upsertMessage(
+            activeThinking,
+            mkey,
+            `aop:${event.session_id}:${event.agent}:thinking:${data.message_id}`,
+            event,
+            timestamp,
+            'thinking',
+          )
+          thinking.content = reasoning
+          activeThinking.delete(mkey)
+        }
+
+        if (role === 'assistant' && !content && !reasoning) break
+        if (role === 'assistant') closeThinking(key)
+        else closeMessage(key)
+
+        if (!content) break
+        const message = upsertMessage(
+          activeMessages,
+          mkey,
+          `aop:${event.session_id}:${event.agent}:msg:${data.message_id}`,
+          event,
+          timestamp,
+          role,
+        )
+        message.role = role
+        message.content = content
+        activeMessages.delete(mkey)
+        lastMessages.set(key, message)
         break
       }
 
@@ -300,9 +405,68 @@ export function reduceAOPToTimeline(
       }
 
       case 'status': {
-        const data = event.data as Record<string, unknown>
-        if (data.state === 'thinking') openThinking(event, index, key, timestamp)
-        else closeThinking(key)
+        const data = event.data as { state?: string }
+        const ext = extBlock(event)
+        switch (data.state) {
+          case 'thinking':
+            openThinking(event, index, key, timestamp)
+            break
+          case 'eval_end':
+            items.push({
+              id: eventId(event, index, ':eval'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'eval',
+              data: {
+                round: extNumber(ext, 'eval_round'),
+                pass: ext.eval_pass === true,
+                reason: typeof ext.eval_reason === 'string' ? ext.eval_reason : undefined,
+              },
+            })
+            break
+          case 'eval_error':
+            items.push({
+              id: eventId(event, index, ':eval'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'eval',
+              data: {
+                round: extNumber(ext, 'eval_round'),
+                pass: false,
+                reason: typeof ext.eval_error === 'string' ? ext.eval_error : undefined,
+              },
+            })
+            break
+          case 'compact_end':
+            items.push({
+              id: eventId(event, index, ':compact'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'compact',
+              data: {
+                tokens_before: extNumber(ext, 'compact_tokens_before'),
+                tokens_after: extNumber(ext, 'compact_tokens_after'),
+                kept_messages: extNumber(ext, 'compact_kept_messages'),
+              },
+            })
+            break
+          case 'token_budget_warning':
+            items.push({
+              id: eventId(event, index, ':budget'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'token_budget',
+              data: {
+                context_tokens: extNumber(ext, 'context_tokens'),
+                token_budget: extNumber(ext, 'token_budget'),
+              },
+            })
+            break
+        }
         break
       }
 

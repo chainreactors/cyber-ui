@@ -381,7 +381,7 @@ export const NodeCard = React.memo(function NodeCard({
         return true;
     });
     const hasKeyInfo = keyInfoItems.length > 0;
-    const hasDetails = screenshotId !== null || detailItems.length > 0;
+    const hasDetails = (screenshotId !== null && renderImage !== undefined) || detailItems.length > 0;
     const hasBody = hasKeyInfo || hasDetails;
 
     const renderValue = (
@@ -634,15 +634,6 @@ export const NodeCard = React.memo(function NodeCard({
                                                 className: 'h-40 w-full rounded-md border border-border/60 bg-muted/20 object-cover object-top',
                                             })
                                         )}
-                                        {screenshotId && !renderImage && (
-                                            <img
-                                                src={`/api/files/${screenshotId}`}
-                                                alt="Screenshot"
-                                                className="h-40 w-full rounded-md border border-border/60 bg-muted/20 object-cover object-top"
-                                                loading="lazy"
-                                            />
-                                        )}
-
                                         {detailItems.length > 0 && (
                                             <div className="max-h-28 min-w-0 overflow-y-auto rounded-md border border-border/50 bg-muted/20 px-2 py-1.5">
                                                 {detailItems.map(renderDetailItem)}

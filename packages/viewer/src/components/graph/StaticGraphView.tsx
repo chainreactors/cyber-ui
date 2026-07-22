@@ -20,13 +20,13 @@ import StaticAPGNode from './StaticAPGNode'
 import { SelfLoopEdge, BackEdge } from './SelfLoopEdge'
 import PromptContent from '../shared/PromptContent'
 
-interface GraphEdge {
+export interface GraphEdge {
   to?: string
   to_node?: string
   condition: string
 }
 
-interface GraphNode {
+export interface GraphNode {
   id: string
   name: string
   type: string
@@ -37,7 +37,7 @@ interface GraphNode {
   edges: GraphEdge[]
 }
 
-interface GraphData {
+export interface GraphData {
   name?: string
   nodes: GraphNode[]
 }
@@ -53,34 +53,21 @@ const edgeTypes: EdgeTypes = {
 
 export interface StaticGraphViewProps {
   graph?: GraphData | null
-  fetchUrl?: string
   isDark?: boolean
   onNodeClick?: (node: GraphNode) => void
   renderDetailPanel?: (node: GraphNode, onClose: () => void) => React.ReactNode
 }
 
 export default function StaticGraphView({
-  graph: graphProp,
-  fetchUrl = '/api/graph',
+  graph = null,
   isDark: isDarkProp,
   onNodeClick: onNodeClickProp,
   renderDetailPanel,
 }: StaticGraphViewProps) {
-  const [fetchedGraph, setFetchedGraph] = useState<GraphData | null>(null)
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const isDark = useResolvedTheme(isDarkProp)
-
-  const graph = graphProp !== undefined ? graphProp : fetchedGraph
-
-  useEffect(() => {
-    if (graphProp !== undefined) return
-    fetch(fetchUrl)
-      .then((r) => r.json())
-      .then((data) => setFetchedGraph(data))
-      .catch(() => {})
-  }, [graphProp, fetchUrl])
 
   // Compute layout when graph data changes
   useEffect(() => {
@@ -163,7 +150,7 @@ export default function StaticGraphView({
   if (!graph) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#6b7280' }}>
-        Loading graph definition...
+        No graph definition available.
       </div>
     )
   }

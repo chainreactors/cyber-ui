@@ -3,7 +3,7 @@ import { useAPGEvents } from '../providers/APGWebSocketProvider'
 import { useTheme } from '../providers/ThemeProvider'
 import { GitBranch, MessageSquare, Activity, Wifi, WifiOff, List, Sun, Moon } from 'lucide-react'
 import { reduceExecutionHistoryGraphState } from '../lib/execution-history-graph'
-import StaticGraphView from './graph/StaticGraphView'
+import StaticGraphView, { type GraphData } from './graph/StaticGraphView'
 import { ConnectedTimeline } from './graph/ExecutionTimeline'
 import { ConnectedChatPanel } from './chat/LiveChatPanel'
 import ExecutionGraphView from './ExecutionGraphView'
@@ -14,7 +14,11 @@ type RightTab = 'chat' | 'log'
 const iconSm: CSSProperties = { width: 12, height: 12 }
 const iconMd: CSSProperties = { width: 16, height: 16 }
 
-export default function APGViewer() {
+export interface APGViewerProps {
+  definitionGraph?: GraphData | null
+}
+
+export default function APGViewer({ definitionGraph }: APGViewerProps) {
   const { connected, events } = useAPGEvents()
   const { theme, toggle } = useTheme()
   const [leftTab, setLeftTab] = useState<LeftTab>('definition')
@@ -110,7 +114,7 @@ export default function APGViewer() {
           />
           <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
             {leftTab === 'definition' ? (
-              <StaticGraphView />
+              <StaticGraphView graph={definitionGraph} />
             ) : (
               <ExecutionGraphView
                 events={[]}

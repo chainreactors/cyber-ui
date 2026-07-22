@@ -1,6 +1,6 @@
 import type { Node, Edge } from '@xyflow/react'
-import type { APGEvent } from '../types/protocol'
-import { isAgentEvent } from '../types/protocol'
+import type { WireEvent } from '../types/protocol'
+import { eventType, eventTimestamp, eventAgent, isAgentEvent } from '../types/protocol'
 import { layoutDAG } from './graph-layout'
 import type { TokenUsageSummary } from './token-usage'
 import { mergeTokenUsage, normalizeTokenUsage } from './token-usage'
@@ -49,9 +49,7 @@ export interface ChatMessage {
   args?: Record<string, unknown>
   toolCallId?: string
   timestamp: string
-  /** Raw structured content for BlockingOutput (stdout, stderr, result, traceback) */
   rawContent?: Record<string, unknown>
-  /** Accumulated raw JSON tokens from streaming TextPartEvents (internal) */
   _rawJson?: string
 }
 
@@ -70,16 +68,10 @@ export interface ChatState {
 // --- Initial states ---
 
 export const initialGraphState: GraphState = {
-  nodes: [],
-  edges: [],
-  graphName: '',
-  totalSteps: 0,
-  isRunning: false,
+  nodes: [], edges: [], graphName: '', totalSteps: 0, isRunning: false,
 }
 
-export const initialChatState: ChatState = {
-  messages: [],
-}
+export const initialChatState: ChatState = { messages: [] }
 
 // --- Timeline types ---
 
@@ -91,10 +83,11 @@ export interface TimelineEntry {
   status: 'info' | 'running' | 'success' | 'error'
 }
 
-// --- Pure reducer functions (Layer 0) ---
+// =====================================================================
+// Graph reducer (runtime events only — not AOP)
+// =====================================================================
 
-/** Reduce a list of APGEvents into graph state (nodes + edges). */
-export function reduceGraphState(events: APGEvent[]): GraphState {
+export function reduceGraphState(events: WireEvent[]): GraphState {
   const nodeMap = new Map<string, Node<APGNodeData>>()
   const edgeMap = new Map<string, Edge>()
   const turnToNodeId = new Map<string, string>()
@@ -110,10 +103,7 @@ export function reduceGraphState(events: APGEvent[]): GraphState {
     if (!nodeId || !usage) return
     const node = nodeMap.get(nodeId)
     if (!node) return
-    node.data = {
-      ...node.data,
-      tokenUsage: mergeTokenUsage(node.data.tokenUsage, usage) ?? undefined,
-    }
+    node.data = { ...node.data, tokenUsage: mergeTokenUsage(node.data.tokenUsage, usage) ?? undefined }
   }
 
   function flushPendingTurnUsage(nodeId: string | null): void {
@@ -127,70 +117,41 @@ export function reduceGraphState(events: APGEvent[]): GraphState {
   }
 
   for (const evt of events) {
-    switch (evt.event_type) {
+    const t = eventType(evt)
+    const d = evt.data
+
+    switch (t) {
       case 'ExecutionStartEvent': {
-        graphName = (evt.data.graph_name as string) ?? ''
-        totalSteps = (evt.data.total_steps as number) ?? 0
+        graphName = (d.graph_name as string) ?? ''
+        totalSteps = (d.total_steps as number) ?? 0
         isRunning = true
         break
       }
-
       case 'NodeStartEvent': {
-        const d = evt.data
         const nodeId = d.node_id as string
         const step = (d.step as number) ?? 0
         const isRevisit = nodeMap.has(nodeId)
-
         if (!isRevisit) {
           nodeMap.set(nodeId, {
-            id: nodeId,
-            type: 'apgNode',
-            position: { x: 120, y: step * 140 },
-            data: {
-              label: d.node_name as string,
-              nodeId,
-              nodeType: d.node_type as string,
-              status: 'running',
-              step,
-            },
+            id: nodeId, type: 'apgNode', position: { x: 120, y: step * 140 },
+            data: { label: d.node_name as string, nodeId, nodeType: d.node_type as string, status: 'running', step },
           })
         } else {
           const existing = nodeMap.get(nodeId)!
           existing.data = { ...existing.data, status: 'running' }
         }
-
         if (prevNodeId) {
           const isSelfLoop = prevNodeId === nodeId
           if (isSelfLoop) {
             const count = (selfLoopCounters.get(nodeId) ?? 0) + 1
             selfLoopCounters.set(nodeId, count)
             const edgeId = `e-loop-${nodeId}-${count}`
-            edgeMap.set(edgeId, {
-              id: edgeId,
-              source: prevNodeId,
-              target: nodeId,
-              type: 'selfLoop',
-              animated: true,
-              label: `×${count}`,
-              style: { stroke: '#8b5cf6', strokeWidth: 2 },
-            })
+            edgeMap.set(edgeId, { id: edgeId, source: prevNodeId, target: nodeId, type: 'selfLoop', animated: true, label: `×${count}`, style: { stroke: '#8b5cf6', strokeWidth: 2 } })
           } else {
             const edgeId = `e-${prevNodeId}-${nodeId}`
             if (!edgeMap.has(edgeId)) {
-              // Back-edge if target was already visited (cycle)
               const isBackEdge = isRevisit
-              edgeMap.set(edgeId, {
-                id: edgeId,
-                source: prevNodeId,
-                target: nodeId,
-                type: isBackEdge ? 'backEdge' : 'smoothstep',
-                animated: true,
-                style: {
-                  stroke: isBackEdge ? '#8b5cf6' : '#4b5563',
-                  strokeWidth: 2,
-                  ...(isBackEdge ? { strokeDasharray: '6 3' } : {}),
-                },
-              })
+              edgeMap.set(edgeId, { id: edgeId, source: prevNodeId, target: nodeId, type: isBackEdge ? 'backEdge' : 'smoothstep', animated: true, style: { stroke: isBackEdge ? '#8b5cf6' : '#4b5563', strokeWidth: 2, ...(isBackEdge ? { strokeDasharray: '6 3' } : {}) } })
             }
           }
         }
@@ -198,113 +159,87 @@ export function reduceGraphState(events: APGEvent[]): GraphState {
         activeNodeId = nodeId
         break
       }
-
       case 'NodeInputEvent': {
-        const nid = evt.data.node_id as string
-        const n = nodeMap.get(nid)
-        if (n) n.data = { ...n.data, prompt: evt.data.prompt as string }
+        const n = nodeMap.get(d.node_id as string)
+        if (n) n.data = { ...n.data, prompt: d.prompt as string }
         break
       }
-
       case 'NodeOutputEvent': {
-        const nid = evt.data.node_id as string
+        const nid = d.node_id as string
         const n = nodeMap.get(nid)
         flushPendingTurnUsage(nid)
         if (n) {
-          const out = evt.data.output as Record<string, unknown> | undefined
-          n.data = {
-            ...n.data,
-            status: 'completed',
-            output: out,
-            title: (out?.title as string) || n.data.title,
-            summary: (out?.summary as string) || n.data.summary,
-          }
+          const out = d.output as Record<string, unknown> | undefined
+          n.data = { ...n.data, status: 'completed', output: out, title: (out?.title as string) || n.data.title, summary: (out?.summary as string) || n.data.summary }
         }
         if (activeNodeId === nid) activeNodeId = null
         break
       }
-
       case 'ErrorEvent':
       case 'PanicEvent': {
-        const nid = evt.data.node_id as string
+        const nid = d.node_id as string
         const n = nodeMap.get(nid)
         flushPendingTurnUsage(nid)
-        if (n) {
-          n.data = {
-            ...n.data,
-            status: 'error',
-            errorMessage: evt.data.message as string,
-          }
-        }
+        if (n) n.data = { ...n.data, status: 'error', errorMessage: d.message as string }
         if (activeNodeId === nid) activeNodeId = null
         break
       }
-
-      case 'ConversationTurnStartEvent': {
-        const turnId = evt.data.turn_id as string | undefined
-        if (turnId && activeNodeId) {
-          turnToNodeId.set(turnId, activeNodeId)
+      // Agent lifecycle events that affect graph node usage
+      case 'ConversationTurnStartEvent':
+      case 'session.start': {
+        const turnId = (d.turn_id as string) ?? ''
+        if (turnId && activeNodeId) turnToNodeId.set(turnId, activeNodeId)
+        break
+      }
+      case 'ModelResponseEvent':
+      case 'usage': {
+        const turnId = (d.turn_id as string) ?? ''
+        const usage = normalizeTokenUsage(t === 'usage' ? d : d.usage)
+        if (turnId && usage) {
+          turnUsageMap.set(turnId, mergeTokenUsage(turnUsageMap.get(turnId), usage) ?? usage)
+        } else if (usage) {
+          appendNodeUsage(activeNodeId, usage)
         }
         break
       }
-
-      case 'ModelResponseEvent': {
-        const turnId = evt.data.turn_id as string | undefined
-        if (!turnId) break
-        const usage = normalizeTokenUsage(evt.data.usage)
-        if (!usage) break
-        turnUsageMap.set(turnId, mergeTokenUsage(turnUsageMap.get(turnId), usage) ?? usage)
+      case 'ConversationTurnCompleteEvent':
+      case 'session.end': {
+        const turnId = (d.turn_id as string) ?? ''
+        if (turnId) {
+          const usage = normalizeTokenUsage(d.total_usage) ?? turnUsageMap.get(turnId) ?? null
+          appendNodeUsage(turnToNodeId.get(turnId) ?? activeNodeId, usage)
+          turnToNodeId.delete(turnId)
+          turnUsageMap.delete(turnId)
+        }
         break
       }
-
-      case 'ConversationTurnCompleteEvent': {
-        const turnId = evt.data.turn_id as string | undefined
-        if (!turnId) break
-        const usage = normalizeTokenUsage(evt.data.total_usage) ?? turnUsageMap.get(turnId) ?? null
-        appendNodeUsage(turnToNodeId.get(turnId) ?? activeNodeId, usage)
-        turnToNodeId.delete(turnId)
-        turnUsageMap.delete(turnId)
-        break
-      }
-
       case 'ExecutionCompleteEvent': {
-        for (const nodeId of new Set(turnToNodeId.values())) {
-          flushPendingTurnUsage(nodeId)
-        }
+        for (const nodeId of new Set(turnToNodeId.values())) flushPendingTurnUsage(nodeId)
         flushPendingTurnUsage(activeNodeId)
         isRunning = false
-        for (const edge of edgeMap.values()) {
-          edge.animated = false
-        }
+        for (const edge of edgeMap.values()) edge.animated = false
         break
       }
     }
   }
 
-  // Apply DAG layout to position nodes properly
   const allNodes = Array.from(nodeMap.values())
   const allEdges = Array.from(edgeMap.values())
-
   const positions = layoutDAG(
     allNodes.map((n) => ({ id: n.id, width: 200, height: 60 })),
     allEdges.map((e) => ({ source: e.source, target: e.target })),
   )
-
   for (const node of allNodes) {
     const pos = positions.get(node.id)
     if (pos) node.position = pos
   }
 
-  return {
-    nodes: allNodes,
-    edges: allEdges,
-    graphName,
-    totalSteps,
-    isRunning,
-  }
+  return { nodes: allNodes, edges: allEdges, graphName, totalSteps, isRunning }
 }
 
-// --- Chat reducer helpers ---
+// =====================================================================
+// Chat reducer — natively supports both APGEvent and AOP formats
+// =====================================================================
 
 interface MessagePart {
   part_kind: string
@@ -317,50 +252,33 @@ interface MessagePart {
 function extractTextContent(raw: string): string | null {
   try {
     const parsed = JSON.parse(raw)
-    if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') {
-      return parsed.text
-    }
+    if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') return parsed.text
     return null
-  } catch {
-    return raw
-  }
+  } catch { return raw }
 }
 
 function extractStreamingText(rawJson: string): string | null {
   try {
     const parsed = JSON.parse(rawJson)
-    if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') {
-      return parsed.text
-    }
+    if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') return parsed.text
     return null
-  } catch {
-    // Fall through to regex extraction
-  }
-
+  } catch { /* fall through */ }
   const match = rawJson.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)("?)/)
   if (match) {
     try {
-      const escaped = match[1]
-      if (match[2] === '"') {
-        return JSON.parse(`"${escaped}"`)
-      }
-      const safe = escaped.replace(/\\$/, '')
-      return JSON.parse(`"${safe}"`)
-    } catch {
-      return match[1]
-    }
+      if (match[2] === '"') return JSON.parse(`"${match[1]}"`)
+      return JSON.parse(`"${match[1].replace(/\\$/, '')}"`)
+    } catch { return match[1] }
   }
-
   return null
 }
 
 function xmlPromptToMarkdown(xml: string): string {
   const inner = xml.replace(/^\s*<prompt>\s*/s, '').replace(/\s*<\/prompt>\s*$/s, '')
   const tagLabels: Record<string, string> = {
-    'node-name': 'Node', 'goal': 'Goal', 'output': 'Output',
-    'input': 'Input', 'branches': 'Branches', 'rules': 'Rules',
-    'examples': 'Examples', 'context': 'Context',
-    'user-intent': 'User Intent', 'history': 'History',
+    'node-name': 'Node', 'goal': 'Goal', 'output': 'Output', 'input': 'Input',
+    'branches': 'Branches', 'rules': 'Rules', 'examples': 'Examples',
+    'context': 'Context', 'user-intent': 'User Intent', 'history': 'History',
     'guardrail': 'Guardrail', 'dialectics': 'Dialectics',
   }
   const parts: string[] = []
@@ -370,298 +288,211 @@ function xmlPromptToMarkdown(xml: string): string {
     const label = tagLabels[m[1]] ?? m[1]
     const body = m[2].trim()
     if (!body) continue
-    const hasCode = /^(from |import |class |Model code|Models:)/m.test(body)
-    if (hasCode) {
-      parts.push(`## ${label}\n\n\`\`\`python\n${body}\n\`\`\``)
-    } else {
-      parts.push(`## ${label}\n\n${body}`)
-    }
+    parts.push(/^(from |import |class |Model code|Models:)/m.test(body)
+      ? `## ${label}\n\n\`\`\`python\n${body}\n\`\`\``
+      : `## ${label}\n\n${body}`)
   }
   return parts.length > 0 ? parts.join('\n\n') : xml
 }
 
-function normalizeToolReturnContent(raw: unknown): {
-  text: string
-  rawContent?: Record<string, unknown>
-} {
+function normalizeToolReturnContent(raw: unknown): { text: string; rawContent?: Record<string, unknown> } {
   if (typeof raw === 'string') {
     const parsed = parseJsonObjectSafe(raw)
-    if (parsed) {
-      return {
-        text: JSON.stringify(parsed, null, 2),
-        rawContent: parsed,
-      }
-    }
-    return { text: raw }
+    return parsed ? { text: JSON.stringify(parsed, null, 2), rawContent: parsed } : { text: raw }
   }
-
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
-    return {
-      text: JSON.stringify(raw, null, 2),
-      rawContent: raw as Record<string, unknown>,
-    }
+    return { text: JSON.stringify(raw, null, 2), rawContent: raw as Record<string, unknown> }
   }
-
-  return {
-    text: raw == null ? '' : JSON.stringify(raw, null, 2),
-  }
+  return { text: raw == null ? '' : JSON.stringify(raw, null, 2) }
 }
 
-/** Reduce a list of APGEvents into chat state (messages). */
-export function reduceChatState(events: APGEvent[]): ChatState {
+export function reduceChatState(events: WireEvent[]): ChatState {
   const state: ChatState = { ...initialChatState, messages: [] }
   let msgIdx = 0
   const seenToolCallIds = new Set<string>()
   const toolNames = new Map<string, string>()
 
-  function appendStructuredParts(
-    agentName: string,
-    parts: MessagePart[],
-    timestamp: string,
-  ): void {
+  function appendStructuredParts(agentName: string, parts: MessagePart[], timestamp: string): void {
     for (const part of parts) {
       if (part.part_kind === 'tool-call') {
         const tcId = part.tool_call_id ?? ''
         if (seenToolCallIds.has(tcId)) continue
         seenToolCallIds.add(tcId)
         if (tcId && part.tool_name) toolNames.set(tcId, part.tool_name)
-        const argsRaw = part.args
-        const args: Record<string, unknown> =
-          typeof argsRaw === 'string'
-            ? parseJsonSafe(argsRaw)
-            : (argsRaw as Record<string, unknown>) ?? {}
-        state.messages.push({
-          id: `msg-${msgIdx++}`,
-          kind: 'tool-call',
-          agentName,
-          content: JSON.stringify(args, null, 2),
-          toolName: part.tool_name ?? '',
-          args,
-          toolCallId: tcId,
-          timestamp,
-          rawContent: args,
-        })
+        const args: Record<string, unknown> = typeof part.args === 'string' ? parseJsonSafe(part.args) : (part.args as Record<string, unknown>) ?? {}
+        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-call', agentName, content: JSON.stringify(args, null, 2), toolName: part.tool_name ?? '', args, toolCallId: tcId, timestamp, rawContent: args })
       } else if (part.part_kind === 'tool-return') {
         const tcId = part.tool_call_id ?? ''
         if (seenToolCallIds.has(tcId)) continue
         seenToolCallIds.add(tcId)
         const { text, rawContent } = normalizeToolReturnContent(part.content)
-        state.messages.push({
-          id: `msg-${msgIdx++}`,
-          kind: 'tool-return',
-          agentName,
-          content: text,
-          toolName: part.tool_name ?? (tcId ? toolNames.get(tcId) ?? '' : ''),
-          toolCallId: tcId,
-          timestamp,
-          rawContent,
-        })
+        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-return', agentName, content: text, toolName: part.tool_name ?? (tcId ? toolNames.get(tcId) ?? '' : ''), toolCallId: tcId, timestamp, rawContent })
       } else if (part.part_kind === 'text' && part.content) {
         const batchText = extractTextContent(String(part.content))
         if (batchText === null) continue
-
         let replaced = false
         for (let i = state.messages.length - 1; i >= 0; i--) {
           const m = state.messages[i]
-          if (m.kind === 'assistant' && m.agentName === agentName) {
-            m.content = batchText
-            delete m._rawJson
-            replaced = true
-            break
-          }
+          if (m.kind === 'assistant' && m.agentName === agentName) { m.content = batchText; delete m._rawJson; replaced = true; break }
           if (m.kind === 'user') break
         }
-        if (!replaced) {
-          state.messages.push({
-            id: `msg-${msgIdx++}`,
-            kind: 'assistant',
-            agentName,
-            content: batchText,
-            timestamp,
-          })
-        }
+        if (!replaced) state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName, content: batchText, timestamp })
       }
     }
   }
 
   for (const evt of events) {
     if (!isAgentEvent(evt)) continue
+    const t = eventType(evt)
     const d = evt.data
+    const ts = eventTimestamp(evt)
+    const agent = eventAgent(evt)
 
-    switch (evt.event_type) {
+    switch (t) {
+      // ── User prompt (legacy + AOP) ──
       case 'ConversationTurnStartEvent': {
         const rawPrompt = d.user_prompt as string
-        state.messages.push({
-          id: `msg-${msgIdx++}`,
-          kind: 'user',
-          agentName: d.agent_name as string,
-          content: rawPrompt.includes('<prompt>') ? xmlPromptToMarkdown(rawPrompt) : rawPrompt,
-          timestamp: evt.timestamp,
-        })
+        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'user', agentName: agent, content: rawPrompt.includes('<prompt>') ? xmlPromptToMarkdown(rawPrompt) : rawPrompt, timestamp: ts })
         break
       }
 
+      // ── Text output ──
       case 'TextPartEvent': {
-        const agentName = d.agent_name as string
         const token = d.content as string
         const last = state.messages[state.messages.length - 1]
-
-        if (last && last.kind === 'assistant' && last.agentName === agentName) {
+        if (last && last.kind === 'assistant' && last.agentName === agent) {
           const rawJson = (last._rawJson ?? '') + token
           last._rawJson = rawJson
           const text = extractStreamingText(rawJson)
-          if (text !== null) {
-            last.content = text
+          if (text !== null) last.content = text
+        } else {
+          const text = extractStreamingText(token)
+          state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName: agent, content: text ?? '', timestamp: ts, _rawJson: token })
+        }
+        break
+      }
+      case 'text': {
+        const content = d.content as string
+        if (!content) break
+        const role = (d.role as string) || 'assistant'
+        if (role === 'user') {
+          state.messages.push({ id: `msg-${msgIdx++}`, kind: 'user', agentName: agent, content, timestamp: ts })
+        } else if (d.delta) {
+          const last = state.messages[state.messages.length - 1]
+          if (last && last.kind === 'assistant' && last.agentName === agent) {
+            last.content += content
+          } else {
+            state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName: agent, content, timestamp: ts })
           }
         } else {
-          const rawJson = token
-          const text = extractStreamingText(rawJson)
-          if (text !== null) {
-            state.messages.push({
-              id: `msg-${msgIdx++}`,
-              kind: 'assistant',
-              agentName,
-              content: text,
-              timestamp: evt.timestamp,
-              _rawJson: rawJson,
-            })
-          } else {
-            state.messages.push({
-              id: `msg-${msgIdx++}`,
-              kind: 'assistant',
-              agentName,
-              content: '',
-              timestamp: evt.timestamp,
-              _rawJson: rawJson,
-            })
+          let replaced = false
+          for (let i = state.messages.length - 1; i >= 0; i--) {
+            const m = state.messages[i]
+            if (m.kind === 'assistant' && m.agentName === agent) { m.content = content; delete m._rawJson; replaced = true; break }
+            if (m.kind === 'user') break
           }
+          if (!replaced) state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName: agent, content, timestamp: ts })
         }
         break
       }
 
+      // ── Tool call ──
       case 'ToolCallPartEvent': {
         const tcId = d.tool_call_id as string
         seenToolCallIds.add(tcId)
         if (tcId && typeof d.tool_name === 'string') toolNames.set(tcId, d.tool_name)
         const args = d.args as Record<string, unknown>
-        state.messages.push({
-          id: `msg-${msgIdx++}`,
-          kind: 'tool-call',
-          agentName: d.agent_name as string,
-          content: JSON.stringify(args, null, 2),
-          toolName: d.tool_name as string,
-          args,
-          toolCallId: tcId,
-          timestamp: evt.timestamp,
-          rawContent: args,
-        })
+        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-call', agentName: agent, content: JSON.stringify(args, null, 2), toolName: d.tool_name as string, args, toolCallId: tcId, timestamp: ts, rawContent: args })
+        break
+      }
+      case 'tool.call': {
+        const tcId = (d.tool_call_id as string) ?? ''
+        seenToolCallIds.add(tcId)
+        const toolName = (d.tool_name as string) ?? ''
+        if (tcId && toolName) toolNames.set(tcId, toolName)
+        let args: Record<string, unknown>
+        if (typeof d.args === 'string') {
+          args = parseJsonSafe(d.args as string)
+        } else {
+          args = (d.args as Record<string, unknown>) ?? {}
+        }
+        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-call', agentName: agent, content: JSON.stringify(args, null, 2), toolName, args, toolCallId: tcId, timestamp: ts, rawContent: args })
         break
       }
 
+      // ── Tool result ──
       case 'ToolReturnPartEvent': {
         const tcId = d.tool_call_id as string
         seenToolCallIds.add(tcId)
         const { text, rawContent } = normalizeToolReturnContent(d.content)
-        state.messages.push({
-          id: `msg-${msgIdx++}`,
-          kind: 'tool-return',
-          agentName: d.agent_name as string,
-          content: text,
-          toolName: (d.tool_name as string) || (tcId ? toolNames.get(tcId) ?? '' : ''),
-          toolCallId: tcId,
-          timestamp: evt.timestamp,
-          rawContent,
-        })
+        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-return', agentName: agent, content: text, toolName: (d.tool_name as string) || (tcId ? toolNames.get(tcId) ?? '' : ''), toolCallId: tcId, timestamp: ts, rawContent })
+        break
+      }
+      case 'tool.result': {
+        const tcId = (d.tool_call_id as string) ?? ''
+        seenToolCallIds.add(tcId)
+        const { text, rawContent } = normalizeToolReturnContent(d.content)
+        const toolName = (d.tool_name as string) || (tcId ? toolNames.get(tcId) ?? '' : '')
+        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-return', agentName: agent, content: text, toolName, toolCallId: tcId, timestamp: ts, rawContent })
         break
       }
 
+      // ── Structured message parts (legacy only) ──
       case 'ModelResponseEvent':
       case 'ModelRequestEvent': {
         const parts = d.parts as MessagePart[] | undefined
-        if (!parts) break
-        appendStructuredParts(d.agent_name as string, parts, evt.timestamp)
+        if (parts) appendStructuredParts(agent, parts, ts)
         break
       }
     }
   }
 
-  // Filter out empty assistant messages (streaming accumulators that never got text)
-  state.messages = state.messages.filter(
-    m => !(m.kind === 'assistant' && m.content === '' && m._rawJson)
-  )
-
+  state.messages = state.messages.filter(m => !(m.kind === 'assistant' && m.content === '' && m._rawJson))
   return state
 }
 
-/** Reduce a list of APGEvents into timeline entries. */
-export function reduceTimeline(events: APGEvent[]): TimelineEntry[] {
+// =====================================================================
+// Timeline reducer — natively supports both formats
+// =====================================================================
+
+export function reduceTimeline(events: WireEvent[]): TimelineEntry[] {
   const result: TimelineEntry[] = []
   const nodeIdx = new Map<string, number>()
 
   for (const evt of events) {
+    const t = eventType(evt)
     const d = evt.data
-    switch (evt.event_type) {
-      case 'ExecutionStartEvent':
-        result.push({
-          id: `tl-exec-start`,
-          label: 'Execution Started',
-          detail: `Graph: ${d.graph_name ?? 'unknown'}`,
-          timestamp: evt.timestamp,
-          status: 'running',
-        })
-        break
+    const ts = eventTimestamp(evt)
 
+    switch (t) {
+      case 'ExecutionStartEvent':
+        result.push({ id: 'tl-exec-start', label: 'Execution Started', detail: `Graph: ${d.graph_name ?? 'unknown'}`, timestamp: ts, status: 'running' })
+        break
       case 'NodeStartEvent': {
         const idx = result.length
         nodeIdx.set(d.node_id as string, idx)
-        result.push({
-          id: `tl-node-${d.node_id}`,
-          label: `Step ${d.step}: ${d.node_name}`,
-          detail: `Type: ${d.node_type}`,
-          timestamp: evt.timestamp,
-          status: 'running',
-        })
+        result.push({ id: `tl-node-${d.node_id}`, label: `Step ${d.step}: ${d.node_name}`, detail: `Type: ${d.node_type}`, timestamp: ts, status: 'running' })
         break
       }
-
       case 'NodeOutputEvent': {
         const idx = nodeIdx.get(d.node_id as string)
-        if (idx != null && result[idx]) {
-          result[idx] = { ...result[idx], status: 'success' }
-        }
+        if (idx != null && result[idx]) result[idx] = { ...result[idx], status: 'success' }
         break
       }
-
       case 'ErrorEvent':
       case 'PanicEvent': {
         const nid = d.node_id as string | undefined
         const idx = nid ? nodeIdx.get(nid) : undefined
         if (idx != null && result[idx]) {
-          result[idx] = {
-            ...result[idx],
-            status: 'error',
-            detail: (d.message as string) ?? result[idx].detail,
-          }
+          result[idx] = { ...result[idx], status: 'error', detail: (d.message as string) ?? result[idx].detail }
         } else {
-          result.push({
-            id: `tl-err-${result.length}`,
-            label: `Error: ${d.node_name ?? 'unknown'}`,
-            detail: (d.message as string) ?? '',
-            timestamp: evt.timestamp,
-            status: 'error',
-          })
+          result.push({ id: `tl-err-${result.length}`, label: `Error: ${d.node_name ?? 'unknown'}`, detail: (d.message as string) ?? '', timestamp: ts, status: 'error' })
         }
         break
       }
-
       case 'ExecutionCompleteEvent': {
         if (result.length > 0 && result[0].id === 'tl-exec-start') {
-          result[0] = {
-            ...result[0],
-            status: d.success ? 'success' : 'error',
-            label: d.success ? 'Execution Complete' : 'Execution Failed',
-            detail: `${d.step_count ?? 0} steps`,
-          }
+          result[0] = { ...result[0], status: d.success ? 'success' : 'error', label: d.success ? 'Execution Complete' : 'Execution Failed', detail: `${d.step_count ?? 0} steps` }
         }
         break
       }

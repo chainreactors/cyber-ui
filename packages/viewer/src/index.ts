@@ -35,6 +35,7 @@ export { default as LiveGraphView } from './components/graph/LiveGraphView'
 export { default as LiveChatPanel } from './components/chat/LiveChatPanel'
 export { default as ExecutionTimeline } from './components/graph/ExecutionTimeline'
 export { default as StaticGraphView } from './components/graph/StaticGraphView'
+export type { StaticGraphViewProps, GraphData, GraphNode, GraphEdge } from './components/graph/StaticGraphView'
 export { default as NodeDetailPanel } from './components/graph/NodeDetailPanel'
 export { default as MessageBubble, StreamingCursor } from './components/chat/MessageBubble'
 export { AgentVoiceCard } from './components/chat/AgentVoiceCard'
@@ -62,6 +63,7 @@ export { ChatSessionProvider, useChatSessionContext } from './providers/ChatSess
 
 // Layer 3 — Full dashboard
 export { default as APGViewer } from './components/APGViewer'
+export type { APGViewerProps } from './components/APGViewer'
 
 // Execution graph API — for embedding in CTEM and other hosts
 export { default as ExecutionGraphView } from './components/ExecutionGraphView'

@@ -8,6 +8,7 @@
 |------|------|
 | `TerminalView` | xterm.js 终端渲染器 |
 | `TerminalHeader` | 终端标题栏 |
+| `WebSocketTerminal` | 完整 PTY WebSocket 生命周期、重连、输入输出与 resize |
 | `SessionNavigator` | 会话列表导航面板 |
 | `SessionButton` | 单个会话切换按钮 |
 | `DetailPanel` / `DetailGroup` / `DetailRow` | 会话详情展示 |
@@ -16,9 +17,10 @@
 
 | 函数 | 说明 |
 |------|------|
-| `parseTerminalMessage` | 解析终端消息协议 |
+| `parsePTYFrame` | 解析规范化 PTY 帧 |
+| `encodeTerminalData` | 将终端输入编码为 PTY 帧的 base64 数据 |
 | `writeTerminalData` | 写入终端数据 |
-| `sessionPayload` / `sessionFromPayload` | 会话序列化/反序列化 |
+| `sessionsFromFrame` / `sessionFromFrame` | 从 PTY 帧读取会话数据 |
 | `mergeSession` / `upsertSession` | 会话合并/更新 |
 | `compareSessionsByActivity` | 按活跃度排序 |
 | `sessionTitle` / `sessionDetails` / `stateLabel` | 会话信息格式化 |
@@ -28,13 +30,13 @@
 ## 类型
 
 - `TerminalStatus` — 终端状态
-- `TerminalMessage` — 终端消息
+- `PTYFrame` / `PTYFrameType` — PTY 帧及类型
 - `PTYSession` — PTY 会话数据
 
 ## 使用
 
 ```ts
-import { TerminalView, SessionNavigator, parseTerminalMessage } from "@cyber/terminal"
+import { WebSocketTerminal, TerminalView, SessionNavigator, parsePTYFrame } from "@cyber/terminal"
 ```
 
 Peer dependencies: `react`, `react-dom`

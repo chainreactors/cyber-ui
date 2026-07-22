@@ -1,0 +1,56 @@
+@import "tailwindcss";
+@source "../src/**/*.{ts,tsx}";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  color-scheme: dark;
+  --background: #071016;
+  --foreground: #dce9ef;
+  --card: #0b161d;
+  --card-foreground: #dce9ef;
+  --popover: #101f28;
+  --popover-foreground: #e6f1f5;
+  --primary: #38e38b;
+  --primary-foreground: #032f1b;
+  --secondary: #17303b;
+  --secondary-foreground: #dce9ef;
+  --muted: #142731;
+  --muted-foreground: #8ba2ad;
+  --accent: #1c3944;
+  --accent-foreground: #e6f1f5;
+  --destructive: #f05b68;
+  --destructive-foreground: #fff;
+  --border: #25404b;
+  --input: #2d4b57;
+  --ring: #38e38b;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: radial-gradient(circle at 10% 0%, rgba(56, 227, 139, .08), transparent 35%), var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+button, input { font: inherit; }

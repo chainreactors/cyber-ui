@@ -1,6 +1,7 @@
 {
   "name": "cyber-ui",
   "private": true,
+  "packageManager": "pnpm@10.15.1",
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",

@@ -1,19 +1,50 @@
-import { useEffect, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, type ComponentType, type Dispatch, type ReactNode, type SetStateAction, type SVGProps } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
-import { Terminal as XTerm } from '@xterm/xterm'
+import { Terminal as XTerm, type ILink } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
-import { Monitor, X } from 'lucide-react'
+import { Monitor as LucideMonitor, X as LucideX } from 'lucide-react'
 import { cn } from '@cyber/theme'
+
+const Monitor = LucideMonitor as unknown as ComponentType<SVGProps<SVGSVGElement>>
+const X = LucideX as unknown as ComponentType<SVGProps<SVGSVGElement>>
 
 export type TerminalStatus = 'connecting' | 'connected' | 'closed' | 'error'
 
-export interface TerminalMessage {
-  type: string
-  task_id?: string
+export type PTYFrameType =
+  | 'open'
+  | 'opened'
+  | 'attach'
+  | 'attached'
+  | 'input'
+  | 'output'
+  | 'resize'
+  | 'detach'
+  | 'detached'
+  | 'kill'
+  | 'list'
+  | 'sessions'
+  | 'closed'
+  | 'error'
+
+export interface PTYFrame {
+  type: PTYFrameType
   stream_id?: string
+  session_id?: string
+  kind?: string
+  name?: string
+  command?: string
+  args?: string[]
   data?: string
-  data_b64?: string
-  payload?: unknown
+  cols?: number
+  rows?: number
+  bytes?: number
+  offset?: number
+  singleton?: boolean
+  error?: string
+  state?: string
+  exit_code?: number
+  session?: PTYSession
+  sessions?: PTYSession[]
 }
 
 export interface PTYSession {
@@ -31,6 +62,49 @@ export interface PTYSession {
   output_bytes?: number
   activity_seq?: number
   [key: string]: unknown
+}
+
+export interface TerminalLink {
+  text: string
+  start: number
+  end: number
+  value?: string
+}
+
+export interface WebSocketTerminalLabels {
+  readOnly: string
+  reconnecting: string
+  disconnected: string
+  sessionClosed: string
+  errorPrefix: string
+}
+
+export interface WebSocketTerminalProps {
+  actions?: ReactNode
+  canConnect?: boolean
+  className?: string
+  connectUrl: string
+  initialInput?: string
+  kind?: string
+  killOnUnmount?: boolean
+  labels?: Partial<WebSocketTerminalLabels>
+  onCommandComplete?: () => void
+  onLinkActivate?: (link: TerminalLink) => void
+  onSessionChange?: (session: PTYSession | null) => void
+  onStatusChange?: (status: TerminalStatus) => void
+  reconnectAttempts?: number
+  reconnectDelayMs?: number
+  resolveLinks?: (line: string) => TerminalLink[]
+  sessionName: string
+  title?: string
+}
+
+const DEFAULT_TERMINAL_LABELS: WebSocketTerminalLabels = {
+  readOnly: 'Read-only terminal',
+  reconnecting: 'PTY disconnected, reconnecting…',
+  disconnected: 'PTY disconnected.',
+  sessionClosed: '[session closed]',
+  errorPrefix: '[pty error]',
 }
 
 export function TerminalView({ onReady, className }: {
@@ -111,6 +185,215 @@ export function TerminalHeader({ actions, status, title }: {
         </span>
       </div>
       {actions && <div className="flex items-center gap-1">{actions}</div>}
+    </div>
+  )
+}
+
+export function WebSocketTerminal({
+  actions,
+  canConnect = true,
+  className,
+  connectUrl,
+  initialInput,
+  kind = 'shell',
+  killOnUnmount = true,
+  labels: labelsInput,
+  onCommandComplete,
+  onLinkActivate,
+  onSessionChange,
+  onStatusChange,
+  reconnectAttempts = 3,
+  reconnectDelayMs = 1200,
+  resolveLinks,
+  sessionName,
+  title = 'Terminal',
+}: WebSocketTerminalProps) {
+  const labels = { ...DEFAULT_TERMINAL_LABELS, ...labelsInput }
+  const [status, setStatus] = useState<TerminalStatus>('connecting')
+  const [sessionTitle, setSessionTitle] = useState('')
+  const termRef = useRef<XTerm | null>(null)
+  const [readySeq, setReadySeq] = useState(0)
+  const commandCompleteRef = useRef(onCommandComplete)
+  const linkActivateRef = useRef(onLinkActivate)
+  const linksRef = useRef(resolveLinks)
+  const sessionChangeRef = useRef(onSessionChange)
+  const statusChangeRef = useRef(onStatusChange)
+
+  commandCompleteRef.current = onCommandComplete
+  linkActivateRef.current = onLinkActivate
+  linksRef.current = resolveLinks
+  sessionChangeRef.current = onSessionChange
+  statusChangeRef.current = onStatusChange
+
+  const updateStatus = useCallback((next: TerminalStatus) => {
+    setStatus(next)
+    statusChangeRef.current?.(next)
+  }, [])
+
+  const handleReady = useCallback((terminal: XTerm, _fit: FitAddon) => {
+    termRef.current = terminal
+    setReadySeq((value) => value + 1)
+  }, [])
+
+  useEffect(() => {
+    if (!readySeq) return
+    const terminal = termRef.current
+    if (!terminal) return
+
+    terminal.reset()
+    setSessionTitle('')
+    sessionChangeRef.current?.(null)
+    if (!canConnect) {
+      updateStatus('closed')
+      terminal.writeln(`\x1b[90m${labels.readOnly}\x1b[0m`)
+      return
+    }
+
+    let disposed = false
+    let socket: WebSocket | null = null
+    let reconnectTimer = 0
+    let reconnects = 0
+    let activeSession = ''
+    let initializedSession = ''
+
+    const send = (message: Record<string, unknown>) => {
+      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message))
+    }
+    const size = () => ({ cols: terminal.cols, rows: terminal.rows })
+
+    const dataDisposable = terminal.onData((data) => {
+      if (!activeSession) return
+      send({ type: 'input', session_id: activeSession, data: encodeTerminalData(data) })
+      if (/\r|\n/.test(data)) window.setTimeout(() => commandCompleteRef.current?.(), 400)
+    })
+    const resizeDisposable = terminal.onResize(({ cols, rows }) => {
+      if (activeSession) send({ type: 'resize', session_id: activeSession, cols, rows })
+    })
+    const linkProvider = terminal.registerLinkProvider({
+      provideLinks(lineNumber, callback) {
+        const resolver = linksRef.current
+        if (!resolver) {
+          callback(undefined)
+          return
+        }
+        const line = terminal.buffer.active.getLine(lineNumber - 1)?.translateToString(true) ?? ''
+        const links: ILink[] = resolver(line).map((link) => ({
+          text: link.text,
+          range: {
+            start: { x: link.start + 1, y: lineNumber },
+            end: { x: link.end, y: lineNumber },
+          },
+          activate: () => linkActivateRef.current?.(link),
+        }))
+        callback(links.length ? links : undefined)
+      },
+    })
+
+    const connect = () => {
+      if (disposed) return
+      updateStatus('connecting')
+      const nextSocket = new WebSocket(connectUrl)
+      socket = nextSocket
+
+      nextSocket.onopen = () => {
+        reconnects = 0
+        updateStatus('connected')
+        send({ type: 'open', kind, name: sessionName, ...size() })
+      }
+      nextSocket.onmessage = (event) => {
+        if (typeof event.data !== 'string') return
+        const message = parsePTYFrame(event.data)
+        if (!message) return
+        switch (message.type) {
+          case 'opened':
+          case 'attached': {
+            const session = sessionFromFrame(message)
+            activeSession = message.session_id || session?.id || ''
+            setSessionTitle(session?.name || activeSession)
+            sessionChangeRef.current?.(session)
+            updateStatus('connected')
+            if (activeSession && initialInput && initializedSession !== activeSession) {
+              initializedSession = activeSession
+              send({
+                type: 'input',
+                session_id: activeSession,
+                data: encodeTerminalData(initialInput),
+              })
+            }
+            terminal.focus()
+            break
+          }
+          case 'output':
+            writeTerminalData(terminal, message)
+            break
+          case 'closed':
+            activeSession = ''
+            setSessionTitle('')
+            sessionChangeRef.current?.(null)
+            updateStatus('closed')
+            terminal.writeln(`\r\n\x1b[90m${labels.sessionClosed}\x1b[0m`)
+            break
+          case 'error':
+            updateStatus('error')
+            terminal.writeln(`\r\n\x1b[31m${labels.errorPrefix} ${message.error || 'unknown error'}\x1b[0m`)
+            break
+        }
+      }
+      nextSocket.onerror = () => updateStatus('error')
+      nextSocket.onclose = () => {
+        if (socket === nextSocket) socket = null
+        activeSession = ''
+        sessionChangeRef.current?.(null)
+        if (disposed) return
+        if (reconnects < reconnectAttempts) {
+          reconnects += 1
+          updateStatus('connecting')
+          terminal.writeln(`\r\n\x1b[90m${labels.reconnecting}\x1b[0m`)
+          reconnectTimer = window.setTimeout(connect, reconnectDelayMs)
+        } else {
+          updateStatus('closed')
+          terminal.writeln(`\r\n\x1b[90m${labels.disconnected}\x1b[0m`)
+        }
+      }
+    }
+
+    connect()
+    return () => {
+      disposed = true
+      if (reconnectTimer) window.clearTimeout(reconnectTimer)
+      if (socket?.readyState === WebSocket.OPEN) {
+        if (killOnUnmount && activeSession) {
+          socket.send(JSON.stringify({ type: 'kill', session_id: activeSession }))
+        }
+        socket.send(JSON.stringify({ type: 'detach', session_id: activeSession || undefined }))
+      }
+      socket?.close()
+      dataDisposable.dispose()
+      resizeDisposable.dispose()
+      linkProvider.dispose()
+    }
+  }, [
+    canConnect,
+    connectUrl,
+    initialInput,
+    killOnUnmount,
+    kind,
+    labels.disconnected,
+    labels.errorPrefix,
+    labels.readOnly,
+    labels.reconnecting,
+    labels.sessionClosed,
+    readySeq,
+    reconnectAttempts,
+    reconnectDelayMs,
+    sessionName,
+    updateStatus,
+  ])
+
+  return (
+    <div className={cn('flex h-full min-h-[420px] flex-col overflow-hidden rounded-xl border border-border bg-[#060a0d]', className)}>
+      <TerminalHeader actions={actions} status={status} title={sessionTitle || title} />
+      <TerminalView onReady={handleReady} className="min-h-0" />
     </div>
   )
 }
@@ -245,36 +528,35 @@ export function DetailRow({ label, mono, value }: { label: string; mono?: boolea
   )
 }
 
-export function parseTerminalMessage(value: string): TerminalMessage | null {
+export function parsePTYFrame(value: string): PTYFrame | null {
   try {
     const parsed = JSON.parse(value)
-    return parsed && typeof parsed === 'object' && typeof parsed.type === 'string' ? parsed : null
+    return parsed && typeof parsed === 'object' && isPTYFrameType(parsed.type) ? parsed as PTYFrame : null
   } catch {
     return null
   }
 }
 
-export function writeTerminalData(terminal: XTerm, msg: TerminalMessage) {
-  terminal.write(messageData(msg))
+export function encodeTerminalData(value: string): string {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
 }
 
-export function sessionPayload(msg: TerminalMessage): PTYSession[] {
-  const payload = payloadObject(msg)
-  const sessions = Array.isArray(payload.sessions) ? payload.sessions : []
+export function writeTerminalData(terminal: XTerm, frame: PTYFrame) {
+  terminal.write(frameData(frame))
+}
+
+export function sessionsFromFrame(frame: PTYFrame): PTYSession[] {
+  const sessions = Array.isArray(frame.sessions) ? frame.sessions : []
   return sessions.map(normalizeSession).filter((session): session is PTYSession => !!session)
 }
 
-export function sessionFromPayload(msg: TerminalMessage): PTYSession | null {
-  const payload = payloadObject(msg)
-  const session = normalizeSession(payload.session)
+export function sessionFromFrame(frame: PTYFrame): PTYSession | null {
+  const session = normalizeSession(frame.session)
   if (session) return session
-  return normalizeSession(payload)
-}
-
-export function stringPayload(msg: TerminalMessage, key: string): string {
-  const payload = payloadObject(msg)
-  const value = payload[key]
-  return typeof value === 'string' ? value : ''
+  return normalizeSession(frame)
 }
 
 export function mergeSession(items: PTYSession[], session: PTYSession): PTYSession[] {
@@ -401,19 +683,6 @@ function stateTextColor(state?: string): string {
   }
 }
 
-function payloadObject(msg: TerminalMessage): Record<string, unknown> {
-  if (!msg.payload) return {}
-  if (typeof msg.payload === 'string') {
-    try {
-      const parsed = JSON.parse(msg.payload)
-      return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {}
-    } catch {
-      return {}
-    }
-  }
-  return typeof msg.payload === 'object' ? msg.payload as Record<string, unknown> : {}
-}
-
 function normalizeSession(value: unknown): PTYSession | null {
   if (!value || typeof value !== 'object') return null
   const record = value as Record<string, unknown>
@@ -437,17 +706,22 @@ function normalizeSession(value: unknown): PTYSession | null {
   }
 }
 
-function messageData(msg: TerminalMessage): string {
-  if (msg.data_b64) {
-    try {
-      const binary = atob(msg.data_b64)
-      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
-      return new TextDecoder().decode(bytes)
-    } catch {
-      return ''
-    }
+function frameData(frame: PTYFrame): string {
+  if (!frame.data) return ''
+  try {
+    const binary = atob(frame.data)
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+    return new TextDecoder().decode(bytes)
+  } catch {
+    return ''
   }
-  return msg.data || ''
+}
+
+function isPTYFrameType(value: unknown): value is PTYFrameType {
+  return typeof value === 'string' && [
+    'open', 'opened', 'attach', 'attached', 'input', 'output', 'resize',
+    'detach', 'detached', 'kill', 'list', 'sessions', 'closed', 'error',
+  ].includes(value)
 }
 
 function stringValue(value: unknown): string | undefined {

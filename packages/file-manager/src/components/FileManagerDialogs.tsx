@@ -157,7 +157,7 @@ export function FileManagerDialogs({
 
       {/* Hidden file input for upload dialog */}
       <input
-        ref={fileInputRef}
+        ref={fileInputRef as React.Ref<HTMLInputElement>}
         type="file"
         className="hidden"
         onChange={handleFileSelect}

@@ -111,7 +111,7 @@ export function FileTree({
       <aside className="h-full bg-sidebar overflow-hidden flex flex-col">
         {searchBox}
 
-        <div className="flex-1 relative min-h-0 overflow-x-auto" ref={treeContainerRef}>
+        <div className="flex-1 relative min-h-0 overflow-x-auto" ref={treeContainerRef as React.Ref<HTMLDivElement>}>
           {shouldShowBlockingError ? (
             <div className="absolute inset-0 flex items-center justify-center text-center p-4">
               <div>

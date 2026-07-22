@@ -7,9 +7,9 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/terminal.js",
-      "require": "./dist/terminal.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/terminal.cjs"
     }
   },
   "files": ["dist"],

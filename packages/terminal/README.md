@@ -8,6 +8,7 @@
 |------|------|
 | `TerminalView` | xterm.js 终端渲染器 |
 | `TerminalHeader` | 终端标题栏 |
+| `WebSocketTerminal` | 完整 PTY WebSocket 生命周期、重连、输入输出与 resize |
 | `SessionNavigator` | 会话列表导航面板 |
 | `SessionButton` | 单个会话切换按钮 |
 | `DetailPanel` / `DetailGroup` / `DetailRow` | 会话详情展示 |
@@ -35,7 +36,7 @@
 ## 使用
 
 ```ts
-import { TerminalView, SessionNavigator, parsePTYFrame } from "@cyber/terminal"
+import { WebSocketTerminal, TerminalView, SessionNavigator, parsePTYFrame } from "@cyber/terminal"
 ```
 
 Peer dependencies: `react`, `react-dom`

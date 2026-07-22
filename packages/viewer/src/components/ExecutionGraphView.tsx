@@ -1951,7 +1951,8 @@ export default function ExecutionGraphView({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [panelNodeId, setPanelNodeId] = useState<string | null>(null)
   const [measuredNodeSizes, setMeasuredNodeSizes] = useState<Record<string, MeasuredNodeSize>>({})
-  const hasHistoryGraph = historyEvents.length > 0
+  const hasCanonicalGraph = events.length > 0
+  const hasHistoryGraph = !hasCanonicalGraph && historyEvents.length > 0
   const autoExpandedHistoryKeyRef = useRef<string>('')
 
   const handleNodeMeasure = useCallback((id: string, size: MeasuredNodeSize) => {

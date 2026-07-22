@@ -47,7 +47,7 @@ export function APGWebSocketProvider({ wsUrl, children }: Props) {
   const [events, setEvents] = useState<APGEvent[]>([])
   const [connected, setConnected] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>()
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
@@ -84,7 +84,7 @@ export function APGWebSocketProvider({ wsUrl, children }: Props) {
   useEffect(() => {
     connect()
     return () => {
-      clearTimeout(reconnectTimer.current)
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
       wsRef.current?.close()
     }
   }, [connect])

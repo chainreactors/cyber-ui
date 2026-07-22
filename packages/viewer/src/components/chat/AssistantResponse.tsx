@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ComponentProps, type ReactNode } from 'react'
 import { Bot } from 'lucide-react'
 import { cn } from '@cyber/theme'
 import { Collapsible } from '@cyber/ui'
@@ -53,7 +53,7 @@ export default function AssistantResponse({
           className={cn(!showResponse && !hasTools ? '' : 'border-b border-border')}
           bodyClassName="text-sm leading-relaxed text-muted-foreground"
         >
-          {thinking}
+          {thinking as ComponentProps<typeof Collapsible>['children']}
         </Collapsible>
       )}
       {showResponse && (

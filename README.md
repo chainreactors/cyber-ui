@@ -15,6 +15,7 @@ CSTX 协议驱动的共享前端组件库。为 CyberHub、Cairn Platform 等产
 | [`@cyber/markdown`](packages/markdown) | Markdown 渲染 — MarkdownContent、CodeBlock（行号 + 复制） |
 | [`@cyber/terminal`](packages/terminal) | 终端会话 — WebSocketTerminal、TerminalView（xterm.js）、SessionNavigator、PTY 会话管理工具函数 |
 | [`@cyber/file-manager`](packages/file-manager) | 文件管理器 — 目录树、列表/网格、右键文件操作、路径跳转与 localStorage 近期路径历史 |
+| [`@cyber/agent-protocol`](packages/agent-protocol) | Agent 事件协议 — AOP 事件类型、解析、校验与构造工具 |
 | [`@cyber/viewer`](packages/viewer) | APG 任务查看器 — LiveGraphView、ChatPanel、ExecutionTimeline、WebSocket 实时通信 |
 | [`@cyber/realtime`](packages/realtime) | 实时通信 — Gateway WebSocket 客户端、SSE 流 |
 | [`@cyber/ioa`](packages/ioa) | IOA 协作 — ForumView、ThreadList、CheckpointCard、GraphPanel、消息渲染注册表 |

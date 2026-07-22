@@ -12,6 +12,12 @@ importers:
         specifier: ^2.0.0
         version: 2.10.4
 
+  packages/agent-protocol:
+    devDependencies:
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
   packages/cstx:
     dependencies:
       '@cyber/ui':
@@ -580,6 +586,9 @@ importers:
 
   packages/viewer:
     dependencies:
+      '@cyber/agent-protocol':
+        specifier: workspace:*
+        version: link:../agent-protocol
       '@cyber/markdown':
         specifier: workspace:*
         version: link:../markdown
@@ -591,7 +600,7 @@ importers:
         version: link:../ui
       '@xyflow/react':
         specifier: ^12.0.0
-        version: 12.11.2(@types/react-dom@19.2.3(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       lucide-react:
         specifier: ^0.400.0
         version: 0.400.0(react@19.2.7)
@@ -606,8 +615,11 @@ importers:
         version: 16.1.1(react@19.2.7)
     devDependencies:
       '@types/react':
-        specifier: ^18.3.0
-        version: 18.3.31
+        specifier: ^19.2.0
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.0
+        version: 19.2.3(@types/react@19.2.17)
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
@@ -4549,6 +4561,19 @@ snapshots:
     transitivePeerDependencies:
       - immer
 
+  '@xyflow/react@12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@xyflow/system': 0.0.79
+      classcat: 5.0.5
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+      zustand: 4.5.7(@types/react@19.2.17)(react@19.2.7)
+    optionalDependencies:
+      '@types/react': 19.2.17
+      '@types/react-dom': 19.2.3(@types/react@19.2.17)
+    transitivePeerDependencies:
+      - immer
+
   '@xyflow/system@0.0.79':
     dependencies:
       '@types/d3-drag': 3.0.7
@@ -6023,6 +6048,13 @@ snapshots:
       use-sync-external-store: 1.6.0(react@19.2.7)
     optionalDependencies:
       '@types/react': 18.3.31
+      react: 19.2.7
+
+  zustand@4.5.7(@types/react@19.2.17)(react@19.2.7):
+    dependencies:
+      use-sync-external-store: 1.6.0(react@19.2.7)
+    optionalDependencies:
+      '@types/react': 19.2.17
       react: 19.2.7
 
   zwitch@2.0.4: {}

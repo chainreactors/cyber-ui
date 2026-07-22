@@ -1,8 +1,10 @@
 import type {
   AOPEvent,
+  DelegationDetail,
   MessageData,
   MessageDeltaData,
   MessagePart,
+  SessionStartData,
   ToolCallData,
   ToolResultData,
   UsageData,
@@ -12,11 +14,49 @@ import type {
   MessageTimelineItem,
   TimelineItem,
   ToolCallEntry,
+  SubagentRunTimelineItem,
 } from '../types/timeline'
 
 export interface ReduceAOPOptions {
   /** Mark the last assistant response card as streaming. */
   streaming?: boolean
+  /** Internal: session that owns the current recursive subtree. */
+  rootSessionID?: string
+}
+
+interface ChildSession {
+  sessionID: string
+  parentSessionID: string
+  parentToolCallID: string
+  name: string
+  delegation?: DelegationDetail
+  events: AOPEvent[]
+}
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function delegationOf(event: AOPEvent): DelegationDetail | null {
+  const detail = objectValue(event.ext?.delegation)
+  return detail ? detail as DelegationDetail : null
+}
+
+function delegationMode(detail: DelegationDetail): string {
+  if (detail.context_mode === 'fork') return 'fork'
+  return detail.run_mode ?? ''
+}
+
+function childStatus(child?: ChildSession): SubagentRunTimelineItem['status'] {
+  if (!child) return 'starting'
+  const end = [...child.events].reverse().find((event) => event.session_id === child.sessionID && event.type === 'session.end')
+  if (!end) return 'running'
+  const data = objectValue(end.data) ?? {}
+  if (data.stop === 'canceled') return 'canceled'
+  if (data.stop === 'error' || data.error) return 'failed'
+  return 'completed'
 }
 
 function timestampOf(ts: string): number {
@@ -79,13 +119,9 @@ function partImagesMarkdown(parts: MessagePart[]): string {
   return blocks.join('\n')
 }
 
-/** First ext namespace value — the emitting agent's extension block. */
-function extBlock(event: AOPEvent): Record<string, unknown> {
-  if (!event.ext) return {}
-  for (const value of Object.values(event.ext)) {
-    if (value && typeof value === 'object') return value as Record<string, unknown>
-  }
-  return {}
+function extBlock(event: AOPEvent, namespace: string): Record<string, unknown> {
+  const value = event.ext?.[namespace]
+  return value && typeof value === 'object' ? value : {}
 }
 
 function extNumber(ext: Record<string, unknown>, key: string): number | undefined {
@@ -97,7 +133,7 @@ function extNumber(ext: Record<string, unknown>, key: string): number | undefine
 // the top level (so consumers find e.g. an i18n `code` where the pre-AOP message
 // model put it), with the raw ext kept under `ext` for namespace-specific reads.
 function messageMetadata(event: AOPEvent): Record<string, unknown> | undefined {
-  const ext = extBlock(event)
+  const ext = extBlock(event, 'cairn')
   const inner = ext.metadata
   const flattened: Record<string, unknown> =
     inner && typeof inner === 'object' ? { ...(inner as Record<string, unknown>) } : {}
@@ -124,6 +160,45 @@ export function reduceAOPToTimeline(
 ): TimelineItem[] {
   const items: TimelineItem[] = []
   const seen = new Set<string>()
+
+  const childSessionIDs = new Set<string>()
+  const childrenByRoute = new Map<string, ChildSession>()
+  const childrenByParent = new Map<string, ChildSession[]>()
+  for (const event of events) {
+    if (event.type !== 'session.start') continue
+    if (event.session_id === options.rootSessionID) continue
+    const data = event.data as SessionStartData
+    if (!data.parent_session_id || !data.parent_tool_call_id) continue
+    childSessionIDs.add(event.session_id)
+    const child: ChildSession = {
+      sessionID: event.session_id,
+      parentSessionID: data.parent_session_id,
+      parentToolCallID: data.parent_tool_call_id,
+      name: event.agent,
+      delegation: delegationOf(event) ?? undefined,
+      events: [],
+    }
+    childrenByRoute.set(`${data.parent_session_id}:${data.parent_tool_call_id}`, child)
+    const siblings = childrenByParent.get(data.parent_session_id) ?? []
+    siblings.push(child)
+    childrenByParent.set(data.parent_session_id, siblings)
+  }
+  const subtreeSessionIDs = (rootSessionID: string): Set<string> => {
+    const found = new Set<string>()
+    const pending = [rootSessionID]
+    while (pending.length > 0) {
+      const sessionID = pending.pop()!
+      if (found.has(sessionID)) continue
+      found.add(sessionID)
+      for (const child of childrenByParent.get(sessionID) ?? []) pending.push(child.sessionID)
+    }
+    return found
+  }
+  for (const child of childrenByRoute.values()) {
+    const subtree = subtreeSessionIDs(child.sessionID)
+    child.events = events.filter((event) => subtree.has(event.session_id))
+  }
+  const subagentsByTool = new Map<string, SubagentRunTimelineItem>()
   // A stream can have only one active model turn, but several streams may be
   // interleaved in a merged timeline. Message/tool indexes make final events
   // idempotently update the card opened by their earlier delta/call event.
@@ -246,6 +321,7 @@ export function reduceAOPToTimeline(
 
   events.forEach((event, index) => {
     if (!event.type || !event.session_id) return
+    if (childSessionIDs.has(event.session_id)) return
     const key = streamKey(event)
 
     // A platform chat session may contain many agent runs. Each run restarts
@@ -314,7 +390,7 @@ export function reduceAOPToTimeline(
         break
 
       case 'message.delta': {
-        const data = event.data as MessageDeltaData
+        const data = event.data as unknown as MessageDeltaData
         if (!data.message_id || !data.delta) break
         const mkey = messageKey(event, data.message_id)
         const response = responsesByMessage.get(mkey) ?? ensureResponse(
@@ -337,7 +413,7 @@ export function reduceAOPToTimeline(
       }
 
       case 'message': {
-        const data = event.data as MessageData
+        const data = event.data as unknown as MessageData
         if (!data.message_id) break
         const mkey = messageKey(event, data.message_id)
         const role = data.role === 'user' || data.role === 'system' ? data.role : 'assistant'
@@ -379,8 +455,38 @@ export function reduceAOPToTimeline(
       }
 
       case 'tool.call': {
-        const data = event.data as ToolCallData
+        const data = event.data as unknown as ToolCallData
         if (!data.tool_call_id) break
+        const requested = delegationOf(event)
+        if (requested) {
+          const child = childrenByRoute.get(`${event.session_id}:${data.tool_call_id}`)
+          const actual = child?.delegation
+          const detail: DelegationDetail = { ...requested, ...actual }
+          const nested = child
+            ? reduceAOPToTimeline(child.events, {
+              streaming: !child.events.some((item) => item.session_id === child.sessionID && item.type === 'session.end'),
+              rootSessionID: child.sessionID,
+            })
+                .filter((item) => item.kind !== 'divider')
+            : []
+          const item: SubagentRunTimelineItem = {
+            id: scopedEventId(event, index, ':subagent'),
+            kind: 'subagent_run',
+            timestamp,
+            actorName: event.agent,
+            toolCallID: data.tool_call_id,
+            name: child?.name || detail.agent_name || detail.agent_type || 'subagent',
+            mode: delegationMode(detail),
+            prompt: detail.task ?? '',
+            sessionID: child?.sessionID,
+            parentSessionID: event.session_id,
+            status: childStatus(child),
+            items: nested,
+          }
+          items.push(item)
+          subagentsByTool.set(toolKey(event, data.tool_call_id), item)
+          break
+        }
         const response = ensureResponse(
           event,
           index,
@@ -400,8 +506,13 @@ export function reduceAOPToTimeline(
       }
 
       case 'tool.result': {
-        const data = event.data as ToolResultData
+        const data = event.data as unknown as ToolResultData
         if (!data.tool_call_id) break
+        const subagent = subagentsByTool.get(toolKey(event, data.tool_call_id))
+        if (subagent) {
+          subagent.launchResult = stringify(data.content)
+          break
+        }
         const tkey = toolKey(event, data.tool_call_id)
         const response = responsesByTool.get(tkey) ?? ensureResponse(
           event,
@@ -424,7 +535,7 @@ export function reduceAOPToTimeline(
       case 'usage': {
         const response = lastResponses.get(key)
         if (response?.response) {
-          response.response.metadata = mergeUsage(response.response.metadata, event.data as UsageData)
+          response.response.metadata = mergeUsage(response.response.metadata, event.data as unknown as UsageData)
         }
         break
       }
@@ -448,12 +559,13 @@ export function reduceAOPToTimeline(
 
       case 'status': {
         const data = event.data as { state?: string }
-        const ext = extBlock(event)
         switch (data.state) {
           case 'thinking':
             ensureResponse(event, index, timestamp).streaming = true
             break
           case 'eval_end':
+            {
+            const ext = extBlock(event, 'eval')
             items.push({
               id: scopedEventId(event, index, ':eval'),
               kind: 'extension',
@@ -461,13 +573,16 @@ export function reduceAOPToTimeline(
               actorName: event.agent,
               extensionType: 'eval',
               data: {
-                round: extNumber(ext, 'eval_round'),
-                pass: ext.eval_pass === true,
-                reason: typeof ext.eval_reason === 'string' ? ext.eval_reason : undefined,
+                round: extNumber(ext, 'round'),
+                pass: ext.pass === true,
+                reason: typeof ext.reason === 'string' ? ext.reason : undefined,
               },
             })
             break
+            }
           case 'eval_error':
+            {
+            const ext = extBlock(event, 'eval')
             items.push({
               id: scopedEventId(event, index, ':eval'),
               kind: 'extension',
@@ -475,13 +590,16 @@ export function reduceAOPToTimeline(
               actorName: event.agent,
               extensionType: 'eval',
               data: {
-                round: extNumber(ext, 'eval_round'),
+                round: extNumber(ext, 'round'),
                 pass: false,
-                reason: typeof ext.eval_error === 'string' ? ext.eval_error : undefined,
+                reason: typeof ext.error === 'string' ? ext.error : undefined,
               },
             })
             break
+            }
           case 'compact_end':
+            {
+            const ext = extBlock(event, 'compact')
             items.push({
               id: scopedEventId(event, index, ':compact'),
               kind: 'extension',
@@ -489,13 +607,16 @@ export function reduceAOPToTimeline(
               actorName: event.agent,
               extensionType: 'compact',
               data: {
-                tokens_before: extNumber(ext, 'compact_tokens_before'),
-                tokens_after: extNumber(ext, 'compact_tokens_after'),
-                kept_messages: extNumber(ext, 'compact_kept_messages'),
+                tokens_before: extNumber(ext, 'tokens_before'),
+                tokens_after: extNumber(ext, 'tokens_after'),
+                kept_messages: extNumber(ext, 'kept_messages'),
               },
             })
             break
+            }
           case 'token_budget_warning':
+            {
+            const ext = extBlock(event, 'aop')
             items.push({
               id: scopedEventId(event, index, ':budget'),
               kind: 'extension',
@@ -508,6 +629,7 @@ export function reduceAOPToTimeline(
               },
             })
             break
+            }
         }
         break
       }

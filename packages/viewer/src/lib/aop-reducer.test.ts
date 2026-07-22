@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 
 import type { AOPEvent } from '@cyber/agent-protocol'
 import { reduceAOPToTimeline } from './aop-reducer'
-import type { AssistantResponseTimelineItem, MessageTimelineItem } from '../types/timeline'
+import type { AssistantResponseTimelineItem, MessageTimelineItem, SubagentRunTimelineItem } from '../types/timeline'
 
 const TS = '2026-07-19T00:00:00Z'
 
@@ -24,6 +25,11 @@ function messages(items: ReturnType<typeof reduceAOPToTimeline>): MessageTimelin
 
 function responses(items: ReturnType<typeof reduceAOPToTimeline>): AssistantResponseTimelineItem[] {
   return items.filter((i): i is AssistantResponseTimelineItem => i.kind === 'assistant_response')
+}
+
+function fixture(name: string): AOPEvent[] {
+  const source = readFileSync(new URL(`../../../agent-protocol/fixtures/${name}.jsonl`, import.meta.url), 'utf8')
+  return source.trim().split(/\r?\n/u).map((line) => JSON.parse(line) as AOPEvent)
 }
 
 describe('reduceAOPToTimeline', () => {
@@ -89,6 +95,122 @@ describe('reduceAOPToTimeline', () => {
     expect(card.kind).toBe('assistant_response')
     expect(card.tools[0]).toMatchObject({ id: 'tc-1', toolName: 'bash', pending: false, result: 'ok' })
   })
+
+  it('folds a child AOP session into a dedicated subagent run', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'session.start', {}),
+      ev(2, 'tool.call', {
+        tool_call_id: 'sub-1',
+        tool_name: 'subagent',
+        args: { action: 'create', mode: 'async', name: 'worker', prompt: 'inspect go.mod' },
+      }, { ext: { delegation: { task: 'inspect go.mod', agent_name: 'worker', run_mode: 'background', context_mode: 'fresh' } } }),
+      ev(1, 'session.start', { parent_session_id: 's1', parent_tool_call_id: 'sub-1', model: 'test' }, {
+        session_id: 'child-1',
+        agent: 'worker',
+        ext: { delegation: { task: 'inspect go.mod', agent_name: 'worker', run_mode: 'background', context_mode: 'fresh' } },
+      }),
+      ev(2, 'turn.start', { turn: 1 }, { session_id: 'child-1', agent: 'worker' }),
+      ev(3, 'tool.call', { tool_call_id: 'bash-1', tool_name: 'bash', args: { command: 'type go.mod' } }, { session_id: 'child-1', agent: 'worker' }),
+      ev(4, 'tool.result', { tool_call_id: 'bash-1', tool_name: 'bash', content: 'module example' }, { session_id: 'child-1', agent: 'worker' }),
+      ev(5, 'message', { message_id: 'child-answer', role: 'assistant', parts: [{ type: 'text', text: 'example' }] }, { session_id: 'child-1', agent: 'worker' }),
+      ev(6, 'session.end', { stop: 'completed', turns: 1 }, { session_id: 'child-1', agent: 'worker' }),
+      ev(3, 'tool.result', { tool_call_id: 'sub-1', tool_name: 'subagent', content: 'Started subagent "worker"' }),
+      ev(4, 'session.end', { stop: 'completed', turns: 1 }),
+    ])
+
+    const run = items.find((item): item is SubagentRunTimelineItem => item.kind === 'subagent_run')
+    expect(run).toMatchObject({
+      name: 'worker',
+      mode: 'background',
+      prompt: 'inspect go.mod',
+      sessionID: 'child-1',
+      parentSessionID: 's1',
+      status: 'completed',
+      launchResult: 'Started subagent "worker"',
+    })
+    const childResponse = run?.items.find((item): item is AssistantResponseTimelineItem => item.kind === 'assistant_response')
+    expect(childResponse).toMatchObject({
+      actorName: 'worker',
+      response: { content: 'example' },
+      tools: [{ id: 'bash-1', toolName: 'bash', result: 'module example', pending: false }],
+    })
+    expect(responses(items).flatMap((item) => item.tools).some((tool) => tool.id === 'sub-1')).toBe(false)
+  })
+
+  it('joins concurrent same-name children by parent_tool_call_id only', () => {
+    const delegation = { task: 'work', agent_name: 'worker', run_mode: 'background' }
+    const items = reduceAOPToTimeline([
+      ev(1, 'tool.call', { tool_call_id: 'spawn-a', tool_name: 'Agent', args: {} }, { ext: { delegation: { ...delegation, task: 'alpha' } } }),
+      ev(2, 'tool.call', { tool_call_id: 'spawn-b', tool_name: 'Agent', args: {} }, { ext: { delegation: { ...delegation, task: 'beta' } } }),
+      ev(1, 'session.start', { parent_session_id: 's1', parent_tool_call_id: 'spawn-b' }, { session_id: 'child-b', agent: 'worker' }),
+      ev(2, 'message', { message_id: 'b', role: 'assistant', parts: [{ type: 'text', text: 'B' }] }, { session_id: 'child-b', agent: 'worker' }),
+      ev(3, 'session.end', { stop: 'completed' }, { session_id: 'child-b', agent: 'worker' }),
+      ev(1, 'session.start', { parent_session_id: 's1', parent_tool_call_id: 'spawn-a' }, { session_id: 'child-a', agent: 'worker' }),
+      ev(2, 'message', { message_id: 'a', role: 'assistant', parts: [{ type: 'text', text: 'A' }] }, { session_id: 'child-a', agent: 'worker' }),
+      ev(3, 'session.end', { stop: 'completed' }, { session_id: 'child-a', agent: 'worker' }),
+    ])
+
+    const runs = items.filter((item): item is SubagentRunTimelineItem => item.kind === 'subagent_run')
+    expect(runs).toHaveLength(2)
+    expect(runs.map((run) => [run.toolCallID, run.sessionID, responses(run.items)[0]?.response?.content])).toEqual([
+      ['spawn-a', 'child-a', 'A'],
+      ['spawn-b', 'child-b', 'B'],
+    ])
+  })
+
+  it('does not guess a child relation when parent_tool_call_id is absent', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'tool.call', { tool_call_id: 'spawn-1', tool_name: 'subagent', args: {} }, {
+        ext: { delegation: { task: 'work', agent_name: 'worker', run_mode: 'background' } },
+      }),
+      ev(1, 'session.start', { parent_session_id: 's1' }, { session_id: 'child-1', agent: 'worker' }),
+      ev(2, 'message', { message_id: 'answer', role: 'assistant', parts: [{ type: 'text', text: 'unlinked' }] }, { session_id: 'child-1', agent: 'worker' }),
+    ])
+
+    const run = items.find((item): item is SubagentRunTimelineItem => item.kind === 'subagent_run')
+    expect(run).toMatchObject({ toolCallID: 'spawn-1', status: 'starting' })
+    expect(run?.sessionID).toBeUndefined()
+    expect(responses(items).some((item) => item.response?.content === 'unlinked')).toBe(true)
+  })
+
+  it('folds nested delegated sessions recursively', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'tool.call', { tool_call_id: 'spawn-child', tool_name: 'spawn_agent', args: {} }, {
+        ext: { delegation: { task: 'child task', agent_name: 'child', run_mode: 'background' } },
+      }),
+      ev(1, 'session.start', { parent_session_id: 's1', parent_tool_call_id: 'spawn-child' }, { session_id: 'child', agent: 'child' }),
+      ev(2, 'tool.call', { tool_call_id: 'spawn-grandchild', tool_name: 'Agent', args: {} }, {
+        session_id: 'child', agent: 'child', ext: { delegation: { task: 'grandchild task', agent_name: 'grandchild', run_mode: 'background' } },
+      }),
+      ev(1, 'session.start', { parent_session_id: 'child', parent_tool_call_id: 'spawn-grandchild' }, { session_id: 'grandchild', agent: 'grandchild' }),
+      ev(2, 'message', { message_id: 'grandchild-answer', role: 'assistant', parts: [{ type: 'text', text: 'nested result' }] }, { session_id: 'grandchild', agent: 'grandchild' }),
+      ev(3, 'session.end', { stop: 'completed' }, { session_id: 'grandchild', agent: 'grandchild' }),
+      ev(3, 'session.end', { stop: 'completed' }, { session_id: 'child', agent: 'child' }),
+    ])
+
+    const child = items.find((item): item is SubagentRunTimelineItem => item.kind === 'subagent_run')
+    const grandchild = child?.items.find((item): item is SubagentRunTimelineItem => item.kind === 'subagent_run')
+    expect(grandchild).toMatchObject({ sessionID: 'grandchild', status: 'completed' })
+    expect(responses(grandchild?.items ?? [])[0]?.response?.content).toBe('nested result')
+  })
+
+  it.each(['delegation-aiscan', 'delegation-claude-code', 'delegation-codex'])(
+    'reduces %s into the same delegated run model',
+    (name: string) => {
+      const items = reduceAOPToTimeline(fixture(name))
+      const run = items.find((item): item is SubagentRunTimelineItem => item.kind === 'subagent_run')
+      expect(run).toMatchObject({
+        name: 'worker',
+        mode: 'background',
+        prompt: 'inspect repository',
+        status: 'completed',
+      })
+      expect(responses(run?.items ?? [])[0]).toMatchObject({
+        response: { content: 'done' },
+        tools: [{ toolName: 'bash', result: 'OK', pending: false }],
+      })
+    },
+  )
 
   it('keeps user messages and assistant cards in stream order and attaches usage', () => {
     const items = reduceAOPToTimeline([
@@ -243,9 +365,9 @@ describe('reduceAOPToTimeline', () => {
 
   it('maps status extensions (eval/compact/budget) to extension items', () => {
     const items = reduceAOPToTimeline([
-      ev(1, 'status', { state: 'eval_end' }, { ext: { aiscan: { eval_round: 2, eval_pass: true } } }),
-      ev(2, 'status', { state: 'compact_end' }, { ext: { aiscan: { compact_tokens_before: 100, compact_tokens_after: 40, compact_kept_messages: 3 } } }),
-      ev(3, 'status', { state: 'token_budget_warning' }, { ext: { aiscan: { context_tokens: 90, token_budget: 100 } } }),
+      ev(1, 'status', { state: 'eval_end' }, { ext: { eval: { round: 2, max_rounds: 3, pass: true } } }),
+      ev(2, 'status', { state: 'compact_end' }, { ext: { compact: { tokens_before: 100, tokens_after: 40, kept_messages: 3 } } }),
+      ev(3, 'status', { state: 'token_budget_warning' }, { ext: { aop: { context_tokens: 90, token_budget: 100 } } }),
     ])
     expect(items.map((i) => i.kind)).toEqual(['extension', 'extension', 'extension'])
     expect(items[0]).toMatchObject({ extensionType: 'eval', data: { round: 2, pass: true } })

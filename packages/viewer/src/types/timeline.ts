@@ -35,6 +35,19 @@ export interface ToolCallTimelineItem extends TimelineItemBase {
   toolCall: ToolCallEntry
 }
 
+export interface SubagentRunTimelineItem extends TimelineItemBase {
+  kind: 'subagent_run'
+  toolCallID: string
+  name: string
+  mode: string
+  prompt: string
+  sessionID?: string
+  parentSessionID: string
+  status: 'starting' | 'running' | 'completed' | 'failed' | 'canceled'
+  items: TimelineItem[]
+  launchResult?: string
+}
+
 export interface DividerTimelineItem extends TimelineItemBase {
   kind: 'divider'
   label: string
@@ -51,5 +64,6 @@ export type TimelineItem =
   | MessageTimelineItem
   | AssistantResponseTimelineItem
   | ToolCallTimelineItem
+  | SubagentRunTimelineItem
   | DividerTimelineItem
   | ExtensionTimelineItem

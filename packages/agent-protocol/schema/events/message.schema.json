@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/events/message.schema.json",
+  "title": "MessageData",
+  "type": "object",
+  "required": ["message_id", "role", "parts"],
+  "properties": {
+    "message_id": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "minLength": 1 },
+    "parts": { "type": "array", "items": { "$ref": "../types/message-part.schema.json" } }
+  },
+  "additionalProperties": false
+}

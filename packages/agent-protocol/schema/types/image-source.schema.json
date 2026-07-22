@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/types/image-source.schema.json",
+  "title": "ImageSource",
+  "type": "object",
+  "properties": {
+    "path": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "base64": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "media_type": { "type": "string", "goJSONSchema": { "pointer": false } }
+  },
+  "additionalProperties": false
+}

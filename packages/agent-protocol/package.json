@@ -12,9 +12,11 @@
     "./schema/aop.schema.json": "./schema/aop.schema.json"
   },
   "scripts": {
+    "generate": "node scripts/generate.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "json-schema-to-typescript": "15.0.4",
     "typescript": "^5.3.0"
   }
 }

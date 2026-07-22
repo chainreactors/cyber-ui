@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/events/session.end.schema.json",
+  "title": "SessionEndData",
+  "type": "object",
+  "required": ["stop"],
+  "properties": { "stop": { "type": "string" }, "turns": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } }, "error": { "type": "string", "goJSONSchema": { "pointer": false } }, "usage": { "$ref": "usage.schema.json" } },
+  "additionalProperties": false
+}

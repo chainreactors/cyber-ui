@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/ext/aop.schema.json",
+  "$defs": {
+    "runControl": {
+      "title": "RunControl",
+      "type": "object",
+      "properties": { "no_echo": { "type": "boolean", "goJSONSchema": { "pointer": false } }, "max_turns": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } } },
+      "additionalProperties": false
+    },
+    "messageMeta": {
+      "title": "MessageMeta",
+      "type": "object",
+      "properties": {
+        "agent_id": { "type": "string", "goJSONSchema": { "pointer": false } },
+        "metadata": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": false
+    },
+    "budgetWarning": {
+      "title": "BudgetWarning",
+      "type": "object",
+      "required": ["context_tokens", "token_budget"],
+      "properties": { "context_tokens": { "type": "integer", "minimum": 0 }, "token_budget": { "type": "integer", "minimum": 0 } },
+      "additionalProperties": false
+    },
+    "llmRequest": {
+      "title": "LLMRequest",
+      "type": "object",
+      "required": ["model", "messages", "max_tokens", "stream"],
+      "properties": { "model": { "type": "string" }, "messages": { "type": "integer", "minimum": 0 }, "max_tokens": { "type": "integer", "minimum": 0 }, "stream": { "type": "boolean" } },
+      "additionalProperties": false
+    }
+  }
+}

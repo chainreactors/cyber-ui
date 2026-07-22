@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/types/message-part.schema.json",
+  "title": "MessagePart",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "type": { "type": "string", "minLength": 1 },
+    "text": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "image": { "$ref": "image-source.schema.json" }
+  },
+  "additionalProperties": false
+}

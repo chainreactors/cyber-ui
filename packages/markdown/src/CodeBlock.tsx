@@ -13,15 +13,8 @@ export interface CodeBlockProps {
   maxHeight?: number
   copyable?: boolean
   isDark?: boolean
+  compact?: boolean
   className?: string
-}
-
-const hlCustomStyle: CSSProperties = {
-  margin: 0,
-  padding: '0.75rem',
-  fontSize: '0.75rem',
-  background: 'transparent',
-  borderRadius: 0,
 }
 
 const lineNumStyle: CSSProperties = {
@@ -37,6 +30,7 @@ export function CodeBlock({
   maxHeight,
   copyable = false,
   isDark = false,
+  compact = false,
   className,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
@@ -56,6 +50,14 @@ export function CodeBlock({
   )
 
   const scrollStyle: CSSProperties | undefined = maxHeight ? { maxHeight } : undefined
+  const customStyle: CSSProperties = {
+    margin: 0,
+    padding: compact ? '0.5rem' : '0.75rem',
+    fontSize: compact ? '0.625rem' : '0.75rem',
+    lineHeight: compact ? 1.5 : 1.65,
+    background: 'transparent',
+    borderRadius: 0,
+  }
 
   return (
     <div className={wrapClass}>
@@ -77,7 +79,7 @@ export function CodeBlock({
             language={language}
             style={isDark ? oneDark : oneLight}
             PreTag="div"
-            customStyle={hlCustomStyle}
+            customStyle={customStyle}
             showLineNumbers={showLineNumbers}
             lineNumberStyle={lineNumStyle}
           >

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/ext/ioa.schema.json",
+  "$defs": {
+    "handoffDetail": {
+      "title": "HandoffDetail",
+      "type": "object",
+      "properties": { "phase": { "type": "string" }, "status": { "type": "string" }, "name": { "type": "string" }, "type": { "type": "string" }, "mode": { "type": "string" }, "model": { "type": "string" }, "parent_session_id": { "type": "string" }, "session_id": { "type": "string" }, "refs": { "type": "array", "items": { "type": "string" } } },
+      "additionalProperties": true
+    }
+  }
+}

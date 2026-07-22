@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/ext/compact.schema.json",
+  "$defs": {
+    "detail": {
+      "title": "Detail",
+      "type": "object",
+      "properties": { "tokens_before": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } }, "tokens_after": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } }, "kept_messages": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } }, "error": { "type": "string", "goJSONSchema": { "pointer": false } } },
+      "additionalProperties": false
+    }
+  }
+}

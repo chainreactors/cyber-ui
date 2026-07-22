@@ -65,7 +65,6 @@ export interface ForumData {
 export type ForumContentType = string
 
 export interface HandoffContent {
-  type: 'handoff'
   title?: string
   message?: string
   content?: string
@@ -114,10 +113,6 @@ export type ForumMessageContent =
 
 // ── Type guards ──
 
-export function isHandoffContent(content: unknown): content is HandoffContent {
-  return isObject(content) && content.type === 'handoff'
-}
-
 export function isCheckpointContent(content: unknown): content is CheckpointSubmittedContent {
   return isObject(content) && content.type === 'checkpoint' && typeof content.id === 'string'
 }
@@ -139,7 +134,6 @@ export function isSwarmContent(content: unknown): content is SwarmMessageContent
 
 export function detectContentType(content: unknown, contentType?: string): ForumContentType {
   if (contentType) return contentType
-  if (isHandoffContent(content)) return 'handoff'
   if (isCheckpointContent(content)) return 'checkpoint'
   if (isFeedbackContent(content)) return 'feedback'
   if (isTeamMessageContent(content)) return 'team'

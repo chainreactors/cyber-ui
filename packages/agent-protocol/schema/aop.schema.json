@@ -1,111 +1,43 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/aop.schema.json",
-  "title": "Agent Output Protocol Event",
-  "type": "object",
-  "required": ["type", "ts", "session_id", "agent", "data"],
-  "properties": {
-    "type": { "type": "string", "minLength": 1 },
-    "ts": { "type": "string", "format": "date-time" },
-    "session_id": { "type": "string", "minLength": 1 },
-    "agent": { "type": "string", "minLength": 1 },
-    "seq": { "type": "integer", "minimum": 1 },
-    "data": { "type": "object" },
-    "ext": {
+  "title": "KnownAOPEvent",
+  "oneOf": [
+    { "$ref": "#/$defs/sessionStart" }, { "$ref": "#/$defs/sessionEnd" },
+    { "$ref": "#/$defs/message" }, { "$ref": "#/$defs/messageDelta" },
+    { "$ref": "#/$defs/toolCall" }, { "$ref": "#/$defs/toolResult" },
+    { "$ref": "#/$defs/usage" }, { "$ref": "#/$defs/turnStart" },
+    { "$ref": "#/$defs/turnEnd" }, { "$ref": "#/$defs/error" },
+    { "$ref": "#/$defs/status" }, { "$ref": "#/$defs/unknown" }
+  ],
+  "$defs": {
+    "envelope": {
       "type": "object",
-      "additionalProperties": { "type": "object" }
+      "required": ["type", "ts", "session_id", "agent", "data"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "ts": { "type": "string", "format": "date-time" },
+        "session_id": { "type": "string", "minLength": 1 },
+        "agent": { "type": "string", "minLength": 1 },
+        "seq": { "type": "integer", "minimum": 1 },
+        "data": { "type": "object" },
+        "ext": { "type": "object", "additionalProperties": { "type": "object" } }
+      },
+      "additionalProperties": false
+    },
+    "sessionStart": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "session.start" }, "data": { "$ref": "events/session.start.schema.json" } } }] },
+    "sessionEnd": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "session.end" }, "data": { "$ref": "events/session.end.schema.json" } } }] },
+    "message": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "message" }, "data": { "$ref": "events/message.schema.json" } } }] },
+    "messageDelta": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "message.delta" }, "data": { "$ref": "events/message.delta.schema.json" } } }] },
+    "toolCall": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "tool.call" }, "data": { "$ref": "events/tool.call.schema.json" } } }] },
+    "toolResult": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "tool.result" }, "data": { "$ref": "events/tool.result.schema.json" } } }] },
+    "usage": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "usage" }, "data": { "$ref": "events/usage.schema.json" } } }] },
+    "turnStart": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "turn.start" }, "data": { "$ref": "events/turn.start.schema.json" } } }] },
+    "turnEnd": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "turn.end" }, "data": { "$ref": "events/turn.end.schema.json" } } }] },
+    "error": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "error" }, "data": { "$ref": "events/error.schema.json" } } }] },
+    "status": { "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "const": "status" }, "data": { "$ref": "events/status.schema.json" } } }] },
+    "unknown": {
+      "allOf": [{ "$ref": "#/$defs/envelope" }, { "properties": { "type": { "not": { "enum": ["session.start", "session.end", "message", "message.delta", "tool.call", "tool.result", "usage", "turn.start", "turn.end", "error", "status"] } } } }]
     }
-  },
-  "additionalProperties": false,
-  "allOf": [
-    {
-      "if": { "properties": { "type": { "const": "message" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["message_id", "role", "parts"],
-            "properties": {
-              "message_id": { "type": "string", "minLength": 1 },
-              "role": { "type": "string", "minLength": 1 },
-              "parts": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "required": ["type"],
-                  "properties": {
-                    "type": { "type": "string", "minLength": 1 },
-                    "text": { "type": "string" },
-                    "image": {
-                      "type": "object",
-                      "properties": {
-                        "path": { "type": "string" },
-                        "base64": { "type": "string" },
-                        "media_type": { "type": "string" }
-                      },
-                      "additionalProperties": false
-                    }
-                  },
-                  "additionalProperties": true
-                }
-              }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
-    },
-    {
-      "if": { "properties": { "type": { "const": "message.delta" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["message_id", "part_index", "part_type", "delta"],
-            "properties": {
-              "message_id": { "type": "string", "minLength": 1 },
-              "part_index": { "type": "integer", "minimum": 0 },
-              "part_type": { "type": "string", "minLength": 1 },
-              "delta": { "type": "string" }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
-    },
-    {
-      "if": { "properties": { "type": { "const": "tool.call" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["tool_call_id", "tool_name", "args"],
-            "properties": {
-              "tool_call_id": { "type": "string", "minLength": 1 },
-              "tool_name": { "type": "string", "minLength": 1 }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
-    },
-    {
-      "if": { "properties": { "type": { "const": "tool.result" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["tool_call_id", "content"],
-            "properties": {
-              "tool_call_id": { "type": "string", "minLength": 1 },
-              "tool_name": { "type": "string" },
-              "is_error": { "type": "boolean" },
-              "duration_ms": { "type": "integer", "minimum": 0 }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
-    }
-  ]
+  }
 }

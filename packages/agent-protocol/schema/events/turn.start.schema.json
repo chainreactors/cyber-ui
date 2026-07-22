@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/events/turn.start.schema.json",
+  "title": "TurnData",
+  "type": "object",
+  "required": ["turn"],
+  "properties": { "turn": { "type": "integer", "minimum": 1 } },
+  "additionalProperties": false
+}

@@ -33,8 +33,12 @@ export type { CheckpointReviewComposerProps } from './components/CheckpointRevie
 export { ReplyComposer } from './components/ReplyComposer'
 export type { ReplyComposerProps } from './components/ReplyComposer'
 
-export { MessageContent } from './components/MessageContent'
-export type { MessageContentProps } from './components/MessageContent'
+export { MessageContent, MessageFrontMatter, splitMessageContent } from './components/MessageContent'
+export type {
+  MessageContentProps,
+  MessageContentParts,
+  MessageFrontMatterProps,
+} from './components/MessageContent'
 
 export { HandoffCard } from './components/HandoffCard'
 export type { HandoffCardProps } from './components/HandoffCard'
@@ -69,7 +73,6 @@ export type {
 } from './types'
 
 export {
-  isHandoffContent,
   isCheckpointContent,
   isFeedbackContent,
   isTeamMessageContent,

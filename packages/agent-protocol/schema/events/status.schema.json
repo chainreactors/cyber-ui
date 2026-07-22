@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/events/status.schema.json",
+  "title": "StatusData",
+  "type": "object",
+  "required": ["state"],
+  "properties": { "state": { "type": "string", "minLength": 1 } },
+  "additionalProperties": false
+}

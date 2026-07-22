@@ -68,6 +68,8 @@ function ChatPanelErrorBar({ children, className }: ChatPanelErrorBarProps) {
 export interface ChatPanelTimelineProps {
   className?: string
   contentClassName?: string
+  /** Responsive grid columns for mark / content / side-note rails. */
+  railLayoutClassName?: string
   emptyState?: React.ReactNode
   renderItem?: (item: TimelineItem) => React.ReactNode | undefined | null
   autoScroll?: boolean
@@ -79,7 +81,7 @@ export interface ChatPanelTimelineProps {
 }
 
 function ChatPanelTimeline({
-  className, contentClassName, emptyState, renderItem, autoScroll = true,
+  className, contentClassName, railLayoutClassName, emptyState, renderItem, autoScroll = true,
   renderMark, renderSideNote, stickyScroll, memoItems,
   scrollResetKey,
 }: ChatPanelTimelineProps) {
@@ -162,15 +164,22 @@ function ChatPanelTimeline({
         )
       )}
 
-      <div ref={contentRef} className={cn('flex flex-col gap-3', hasRail && 'grid gap-x-2 gap-y-3', contentClassName)}
-        style={hasRail ? { gridTemplateColumns: 'auto 1fr auto' } : undefined}>
+      <div
+        ref={contentRef}
+        className={cn(
+          'flex flex-col gap-3',
+          hasRail && 'grid gap-x-2 gap-y-3',
+          hasRail && (railLayoutClassName ?? 'grid-cols-[auto_minmax(0,1fr)_auto]'),
+          contentClassName,
+        )}
+      >
         {timeline.map(item => (
           <Fragment key={item.id}>
-            {hasRail && <div className="flex items-start pt-1">{renderMark?.(item)}</div>}
+            {hasRail && <div className="flex min-w-0 items-start pt-1">{renderMark?.(item)}</div>}
             <div className="min-w-0">
               <ItemWrapper item={item} render={renderOne} />
             </div>
-            {hasRail && <div className="flex items-start pt-1">{renderSideNote?.(item)}</div>}
+            {hasRail && <div className="flex min-w-0 items-start pt-1">{renderSideNote?.(item)}</div>}
           </Fragment>
         ))}
       </div>

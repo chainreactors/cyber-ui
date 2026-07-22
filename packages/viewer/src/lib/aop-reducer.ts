@@ -1,18 +1,21 @@
 import type {
   AOPEvent,
-  TextData,
+  MessageData,
+  MessageDeltaData,
+  MessagePart,
   ToolCallData,
   ToolResultData,
   UsageData,
 } from '@cyber/agent-protocol'
 import type {
+  AssistantResponseTimelineItem,
   MessageTimelineItem,
   TimelineItem,
-  ToolCallTimelineItem,
+  ToolCallEntry,
 } from '../types/timeline'
 
 export interface ReduceAOPOptions {
-  /** Mark the last open assistant message as streaming. */
+  /** Mark the last assistant response card as streaming. */
   streaming?: boolean
 }
 
@@ -31,9 +34,9 @@ function stringify(value: unknown): string {
   }
 }
 
-function eventId(event: AOPEvent, index: number, suffix = ''): string {
+function eventId(event: AOPEvent, index: number, suffix = '', scope?: string): string {
   const position = event.seq === undefined ? index : event.seq
-  return `aop:${event.session_id}:${event.agent}:${position}${suffix}`
+  return `${scope ?? `aop:${event.session_id}:${event.agent}`}:${position}${suffix}`
 }
 
 function mergeUsage(
@@ -54,12 +57,66 @@ function mergeUsage(
   }
 }
 
+/** Join the text of all parts of one type (text or reasoning). */
+function partText(parts: MessagePart[], type: string): string {
+  return parts
+    .filter((part) => part.type === type && part.text)
+    .map((part) => part.text as string)
+    .join('\n')
+}
+
+/** Render image parts as markdown: base64 becomes a data URI, a path a link. */
+function partImagesMarkdown(parts: MessagePart[]): string {
+  const blocks: string[] = []
+  for (const part of parts) {
+    if (part.type !== 'image' || !part.image) continue
+    if (part.image.base64 && part.image.media_type) {
+      blocks.push(`![image](data:${part.image.media_type};base64,${part.image.base64})`)
+    } else if (part.image.path) {
+      blocks.push(`[image: ${part.image.path}]`)
+    }
+  }
+  return blocks.join('\n')
+}
+
+/** First ext namespace value — the emitting agent's extension block. */
+function extBlock(event: AOPEvent): Record<string, unknown> {
+  if (!event.ext) return {}
+  for (const value of Object.values(event.ext)) {
+    if (value && typeof value === 'object') return value as Record<string, unknown>
+  }
+  return {}
+}
+
+function extNumber(ext: Record<string, unknown>, key: string): number | undefined {
+  const value = ext[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+// Message metadata = the emitting agent's ext `metadata` sub-object flattened to
+// the top level (so consumers find e.g. an i18n `code` where the pre-AOP message
+// model put it), with the raw ext kept under `ext` for namespace-specific reads.
+function messageMetadata(event: AOPEvent): Record<string, unknown> | undefined {
+  const ext = extBlock(event)
+  const inner = ext.metadata
+  const flattened: Record<string, unknown> =
+    inner && typeof inner === 'object' ? { ...(inner as Record<string, unknown>) } : {}
+  if (event.ext) flattened.ext = event.ext
+  return Object.keys(flattened).length > 0 ? flattened : undefined
+}
+
 /**
  * Reduce raw AOP events directly into cyber-ui timeline items.
  *
  * Input order is authoritative. Sequence numbers are used for duplicate
  * suppression, not global sorting, because several AOP sessions may be merged
- * into one platform stream.
+ * into one platform stream. Assistant streaming arrives as `message.delta`
+ * fragments keyed by message_id; the complete `message` event is the
+ * authoritative state and replaces whatever the deltas accumulated.
+ *
+ * AOP exposes thinking, text, and tool activity as separate events. The chat
+ * surface intentionally folds those events back into one assistant response
+ * per turn so protocol granularity does not leak into the conversation UI.
  */
 export function reduceAOPToTimeline(
   events: readonly AOPEvent[],
@@ -67,61 +124,160 @@ export function reduceAOPToTimeline(
 ): TimelineItem[] {
   const items: TimelineItem[] = []
   const seen = new Set<string>()
-  const activeMessages = new Map<string, MessageTimelineItem>()
-  const activeThinking = new Map<string, MessageTimelineItem>()
-  const lastMessages = new Map<string, MessageTimelineItem>()
-  const toolCalls = new Map<string, ToolCallTimelineItem>()
+  // A stream can have only one active model turn, but several streams may be
+  // interleaved in a merged timeline. Message/tool indexes make final events
+  // idempotently update the card opened by their earlier delta/call event.
+  const activeResponses = new Map<string, AssistantResponseTimelineItem>()
+  const activeRunIDs = new Map<string, string>()
+  const runIDsByStart = new Map<string, string>()
+  const responsesByMessage = new Map<string, AssistantResponseTimelineItem>()
+  const thinkingByMessage = new Map<string, string>()
+  const responsesByTool = new Map<string, AssistantResponseTimelineItem>()
+  const lastResponses = new Map<string, AssistantResponseTimelineItem>()
 
   const streamKey = (event: AOPEvent) => `${event.session_id}:${event.agent}`
-  const toolKey = (event: AOPEvent, callId: string) => `${event.session_id}:${event.agent}:${callId}`
-  const closeMessage = (key: string) => {
-    const message = activeMessages.get(key)
-    if (message) message.streaming = false
-    activeMessages.delete(key)
+  const eventScope = (event: AOPEvent) => (
+    activeRunIDs.get(streamKey(event)) ?? `aop:${event.session_id}:${event.agent}`
+  )
+  const scopedEventId = (event: AOPEvent, index: number, suffix = '') => (
+    eventId(event, index, suffix, eventScope(event))
+  )
+  const messageKey = (event: AOPEvent, messageId: string) => `${eventScope(event)}:message:${messageId}`
+  const toolKey = (event: AOPEvent, callId: string) => `${eventScope(event)}:tool:${callId}`
+  const responseID = (event: AOPEvent, fallback: string) => {
+    const runID = activeRunIDs.get(streamKey(event))
+    return runID ? `${runID}:response` : fallback
   }
-  const closeThinking = (key: string) => {
-    const message = activeThinking.get(key)
-    if (!message) return
-    if (message.content) {
-      message.streaming = false
-    } else {
-      const index = items.findIndex((item) => item.id === message.id)
-      if (index >= 0) items.splice(index, 1)
+
+  const finishResponse = (key: string) => {
+    const response = activeResponses.get(key)
+    if (!response) return
+    response.streaming = false
+    activeResponses.delete(key)
+    for (const [mkey, owner] of responsesByMessage) {
+      if (owner === response) {
+        responsesByMessage.delete(mkey)
+        thinkingByMessage.delete(mkey)
+      }
     }
-    activeThinking.delete(key)
+    for (const [tkey, owner] of responsesByTool) {
+      if (owner === response) responsesByTool.delete(tkey)
+    }
   }
-  const openThinking = (event: AOPEvent, index: number, key: string, timestamp: number) => {
-    if (activeThinking.has(key)) return
-    const item: MessageTimelineItem = {
-      id: eventId(event, index, ':thinking'),
-      kind: 'message',
+
+  const ensureResponse = (
+    event: AOPEvent,
+    index: number,
+    timestamp: number,
+    preferredId?: string,
+  ): AssistantResponseTimelineItem => {
+    const key = streamKey(event)
+    const existing = activeResponses.get(key)
+    if (existing) return existing
+
+    const replayed = preferredId
+      ? items.find((item): item is AssistantResponseTimelineItem => (
+          item.kind === 'assistant_response' && item.id === preferredId
+        ))
+      : undefined
+    if (replayed) {
+      replayed.streaming = true
+      activeResponses.set(key, replayed)
+      lastResponses.set(key, replayed)
+      return replayed
+    }
+
+    const item: AssistantResponseTimelineItem = {
+      id: preferredId ?? scopedEventId(event, index, ':response'),
+      kind: 'assistant_response',
       timestamp,
       actorName: event.agent,
-      role: 'thinking',
-      content: '',
+      tools: [],
       streaming: true,
     }
     items.push(item)
-    activeThinking.set(key, item)
+    activeResponses.set(key, item)
+    lastResponses.set(key, item)
+    return item
+  }
+
+  const startTurn = (event: AOPEvent, index: number, timestamp: number) => {
+    const key = streamKey(event)
+    const active = activeResponses.get(key)
+    if (active) {
+      active.streaming = true
+      return
+    }
+    const data = event.data as { turn?: number }
+    const turn = typeof data.turn === 'number' ? data.turn : undefined
+    const fallbackID = turn === undefined
+      ? scopedEventId(event, index, ':response')
+      : `aop:${event.session_id}:${event.agent}:turn:${turn}`
+    ensureResponse(event, index, timestamp, responseID(event, fallbackID))
+  }
+
+  const pauseResponse = (key: string) => {
+    const response = activeResponses.get(key)
+    if (response) response.streaming = false
+  }
+
+  const updateThinking = (response: AssistantResponseTimelineItem, mkey: string, content: string) => {
+    thinkingByMessage.set(mkey, content)
+    const seenThinking = new Set<string>()
+    response.thinking = [...responsesByMessage.entries()]
+      .filter(([, owner]) => owner === response)
+      .map(([messageKey]) => thinkingByMessage.get(messageKey)?.trim() ?? '')
+      .filter((thinking) => {
+        if (!thinking || seenThinking.has(thinking)) return false
+        seenThinking.add(thinking)
+        return true
+      })
+      .join('\n\n') || undefined
+  }
+
+  const appendTool = (response: AssistantResponseTimelineItem, tool: ToolCallEntry) => {
+    const existing = response.tools.find((candidate) => candidate.id === tool.id)
+    if (existing) {
+      Object.assign(existing, tool)
+    } else {
+      response.tools.push(tool)
+    }
   }
 
   events.forEach((event, index) => {
     if (!event.type || !event.session_id) return
-    if (event.seq !== undefined) {
-      const key = `${event.session_id}:${event.agent}:${event.seq}`
-      if (seen.has(key)) return
-      seen.add(key)
+    const key = streamKey(event)
+
+    // A platform chat session may contain many agent runs. Each run restarts
+    // AOP seq at zero, so seq is only unique inside session.start → session.end.
+    // Replayed history repeats the exact start frame; reuse its prior run id so
+    // the replay remains idempotent while a genuinely new start gets a new scope.
+    if (event.type === 'session.start') {
+      const startIdentity = `${key}:${event.seq ?? index}:${event.ts}`
+      let runID = runIDsByStart.get(startIdentity)
+      if (!runID) {
+        runID = `aop:${event.session_id}:${event.agent}:run:${event.ts}:${event.seq ?? index}`
+        runIDsByStart.set(startIdentity, runID)
+      }
+      activeRunIDs.set(key, runID)
     }
 
-    const key = streamKey(event)
+    if (event.seq !== undefined) {
+      const seenKey = `${eventScope(event)}:seq:${event.seq}`
+      if (seen.has(seenKey)) {
+        if (event.type === 'session.end') activeRunIDs.delete(key)
+        return
+      }
+      seen.add(seenKey)
+    }
+
     const timestamp = timestampOf(event.ts)
 
     switch (event.type) {
       case 'session.start':
-        closeMessage(key)
-        closeThinking(key)
+        finishResponse(key)
         items.push({
-          id: eventId(event, index, ':start'),
+          id: scopedEventId(event, index, ':start'),
           kind: 'divider',
           timestamp,
           actorName: event.agent,
@@ -131,162 +287,153 @@ export function reduceAOPToTimeline(
         break
 
       case 'session.end': {
-        closeMessage(key)
-        closeThinking(key)
+        finishResponse(key)
         const data = event.data as Record<string, unknown>
         const failed = data.stop === 'error' || Boolean(data.error)
         items.push({
-          id: eventId(event, index, ':end'),
+          id: scopedEventId(event, index, ':end'),
           kind: 'divider',
           timestamp,
           actorName: event.agent,
           label: failed ? `Session ended: ${String(data.error ?? data.stop)}` : 'Session ended',
           variant: failed ? 'warning' : 'success',
         })
+        activeRunIDs.delete(key)
         break
       }
 
       case 'turn.start':
-        closeMessage(key)
-        openThinking(event, index, key, timestamp)
+        startTurn(event, index, timestamp)
         break
 
       case 'turn.end':
-        closeMessage(key)
-        closeThinking(key)
+        // One user request may span several model turns (tool call → tool
+        // result → final answer). Keep the response card active until the AOP
+        // session ends so those turns render as one conversation unit.
+        pauseResponse(key)
         break
 
-      case 'text': {
-        const data = event.data as TextData
-        if (!data.content) break
+      case 'message.delta': {
+        const data = event.data as MessageDeltaData
+        if (!data.message_id || !data.delta) break
+        const mkey = messageKey(event, data.message_id)
+        const response = responsesByMessage.get(mkey) ?? ensureResponse(
+          event,
+          index,
+          timestamp,
+          responseID(event, `aop:${event.session_id}:${event.agent}:response:${data.message_id}`),
+        )
+        responsesByMessage.set(mkey, response)
+        response.streaming = true
+
+        if (data.part_type === 'reasoning') {
+          updateThinking(response, mkey, (thinkingByMessage.get(mkey) ?? '') + data.delta)
+          break
+        }
+
+        const current = response.response ?? { content: '', metadata: messageMetadata(event) }
+        response.response = { ...current, content: current.content + data.delta }
+        break
+      }
+
+      case 'message': {
+        const data = event.data as MessageData
+        if (!data.message_id) break
+        const mkey = messageKey(event, data.message_id)
         const role = data.role === 'user' || data.role === 'system' ? data.role : 'assistant'
+        const text = partText(data.parts, 'text')
+        const reasoning = partText(data.parts, 'reasoning')
+        const images = partImagesMarkdown(data.parts)
+        const content = [text, images].filter(Boolean).join('\n')
 
-        if (data.channel === 'reasoning') {
-          closeMessage(key)
-          let message = activeThinking.get(key)
-          if (!message) {
-            message = {
-              id: eventId(event, index, ':reasoning'),
-              kind: 'message',
-              timestamp,
-              actorName: event.agent,
-              role: 'thinking',
-              content: '',
-              streaming: Boolean(data.delta),
-              metadata: event.ext ? { ext: event.ext } : undefined,
-            }
-            items.push(message)
-            activeThinking.set(key, message)
-          }
-          message.content = data.delta ? message.content + data.content : data.content
-          message.streaming = Boolean(data.delta)
-          if (!data.delta) activeThinking.delete(key)
+        if (role === 'assistant') {
+          if (!content && !reasoning) break
+          const response = responsesByMessage.get(mkey) ?? ensureResponse(
+            event,
+            index,
+            timestamp,
+            responseID(event, `aop:${event.session_id}:${event.agent}:response:${data.message_id}`),
+          )
+          responsesByMessage.set(mkey, response)
+          if (reasoning) updateThinking(response, mkey, reasoning)
+          if (content) response.response = { content, metadata: messageMetadata(event) }
+          response.streaming = false
+          lastResponses.set(key, response)
           break
         }
 
-        closeThinking(key)
-
-        if (role !== 'assistant') {
-          closeMessage(key)
-          const message: MessageTimelineItem = {
-            id: eventId(event, index, ':text'),
-            kind: 'message',
-            timestamp,
-            actorName: event.agent,
-            role,
-            content: data.content,
-            streaming: false,
-            metadata: event.ext ? { ext: event.ext } : undefined,
-          }
-          items.push(message)
-          lastMessages.set(key, message)
-          break
+        finishResponse(key)
+        if (!content) break
+        const message: MessageTimelineItem = {
+          id: `${eventScope(event)}:msg:${data.message_id}`,
+          kind: 'message',
+          timestamp,
+          actorName: event.agent,
+          role,
+          content,
+          streaming: false,
+          metadata: messageMetadata(event),
         }
-
-        let message = activeMessages.get(key)
-        if (!message) {
-          message = {
-            id: eventId(event, index, ':text'),
-            kind: 'message',
-            timestamp,
-            actorName: event.agent,
-            role: 'assistant',
-            content: '',
-            streaming: Boolean(data.delta),
-            metadata: event.ext ? { ext: event.ext } : undefined,
-          }
-          items.push(message)
-          activeMessages.set(key, message)
-        }
-        message.content = data.delta ? message.content + data.content : data.content
-        message.streaming = Boolean(data.delta)
-        lastMessages.set(key, message)
-        if (!data.delta) activeMessages.delete(key)
+        items.push(message)
         break
       }
 
       case 'tool.call': {
-        closeMessage(key)
-        closeThinking(key)
         const data = event.data as ToolCallData
         if (!data.tool_call_id) break
-        const item: ToolCallTimelineItem = {
-          id: eventId(event, index, `:tool:${data.tool_call_id}`),
-          kind: 'tool_call',
+        const response = ensureResponse(
+          event,
+          index,
           timestamp,
-          actorName: event.agent,
-          toolCall: {
-            id: data.tool_call_id,
-            toolName: data.tool_name,
-            toolArgs: stringify(data.args),
-            pending: true,
-          },
+          responseID(event, `aop:${event.session_id}:${event.agent}:response:tool:${data.tool_call_id}`),
+        )
+        const tool: ToolCallEntry = {
+          id: data.tool_call_id,
+          toolName: data.tool_name,
+          toolArgs: stringify(data.args),
+          pending: true,
         }
-        items.push(item)
-        toolCalls.set(toolKey(event, data.tool_call_id), item)
+        appendTool(response, tool)
+        response.streaming = true
+        responsesByTool.set(toolKey(event, data.tool_call_id), response)
         break
       }
 
       case 'tool.result': {
-        closeThinking(key)
         const data = event.data as ToolResultData
         if (!data.tool_call_id) break
-        let item = toolCalls.get(toolKey(event, data.tool_call_id))
-        if (!item) {
-          item = {
-            id: eventId(event, index, `:result:${data.tool_call_id}`),
-            kind: 'tool_call',
-            timestamp,
-            actorName: event.agent,
-            toolCall: {
-              id: data.tool_call_id,
-              toolName: data.tool_name ?? '',
-              toolArgs: '',
-              pending: false,
-            },
-          }
-          items.push(item)
-          toolCalls.set(toolKey(event, data.tool_call_id), item)
-        }
-        item.toolCall.result = stringify(data.content)
-        item.toolCall.pending = false
+        const tkey = toolKey(event, data.tool_call_id)
+        const response = responsesByTool.get(tkey) ?? ensureResponse(
+          event,
+          index,
+          timestamp,
+          responseID(event, `aop:${event.session_id}:${event.agent}:response:tool:${data.tool_call_id}`),
+        )
+        const existing = response.tools.find((candidate) => candidate.id === data.tool_call_id)
+        appendTool(response, {
+          id: data.tool_call_id,
+          toolName: data.tool_name ?? existing?.toolName ?? '',
+          toolArgs: existing?.toolArgs ?? '',
+          result: stringify(data.content),
+          pending: false,
+        })
+        responsesByTool.set(tkey, response)
         break
       }
 
       case 'usage': {
-        const message = lastMessages.get(key)
-        if (message) {
-          message.metadata = mergeUsage(message.metadata, event.data as UsageData)
+        const response = lastResponses.get(key)
+        if (response?.response) {
+          response.response.metadata = mergeUsage(response.response.metadata, event.data as UsageData)
         }
         break
       }
 
       case 'error': {
-        closeMessage(key)
-        closeThinking(key)
+        finishResponse(key)
         const data = event.data as Record<string, unknown>
         const message: MessageTimelineItem = {
-          id: eventId(event, index, ':error'),
+          id: scopedEventId(event, index, ':error'),
           kind: 'message',
           timestamp,
           actorName: event.agent,
@@ -300,15 +447,74 @@ export function reduceAOPToTimeline(
       }
 
       case 'status': {
-        const data = event.data as Record<string, unknown>
-        if (data.state === 'thinking') openThinking(event, index, key, timestamp)
-        else closeThinking(key)
+        const data = event.data as { state?: string }
+        const ext = extBlock(event)
+        switch (data.state) {
+          case 'thinking':
+            ensureResponse(event, index, timestamp).streaming = true
+            break
+          case 'eval_end':
+            items.push({
+              id: scopedEventId(event, index, ':eval'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'eval',
+              data: {
+                round: extNumber(ext, 'eval_round'),
+                pass: ext.eval_pass === true,
+                reason: typeof ext.eval_reason === 'string' ? ext.eval_reason : undefined,
+              },
+            })
+            break
+          case 'eval_error':
+            items.push({
+              id: scopedEventId(event, index, ':eval'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'eval',
+              data: {
+                round: extNumber(ext, 'eval_round'),
+                pass: false,
+                reason: typeof ext.eval_error === 'string' ? ext.eval_error : undefined,
+              },
+            })
+            break
+          case 'compact_end':
+            items.push({
+              id: scopedEventId(event, index, ':compact'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'compact',
+              data: {
+                tokens_before: extNumber(ext, 'compact_tokens_before'),
+                tokens_after: extNumber(ext, 'compact_tokens_after'),
+                kept_messages: extNumber(ext, 'compact_kept_messages'),
+              },
+            })
+            break
+          case 'token_budget_warning':
+            items.push({
+              id: scopedEventId(event, index, ':budget'),
+              kind: 'extension',
+              timestamp,
+              actorName: event.agent,
+              extensionType: 'token_budget',
+              data: {
+                context_tokens: extNumber(ext, 'context_tokens'),
+                token_budget: extNumber(ext, 'token_budget'),
+              },
+            })
+            break
+        }
         break
       }
 
       default:
         items.push({
-          id: eventId(event, index, ':extension'),
+          id: scopedEventId(event, index, ':extension'),
           kind: 'extension',
           timestamp,
           actorName: event.agent,
@@ -320,7 +526,7 @@ export function reduceAOPToTimeline(
 
   if (options.streaming) {
     const last = [...items].reverse().find(
-      (item): item is MessageTimelineItem => item.kind === 'message' && item.role === 'assistant',
+      (item): item is AssistantResponseTimelineItem => item.kind === 'assistant_response',
     )
     if (last) last.streaming = true
   }

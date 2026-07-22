@@ -26,6 +26,7 @@ export interface FileListing {
 
 export interface FileManagerAdapter {
   list(path: string): Promise<FileListing | FileNode[]>
+  cwd?(): Promise<string>
   roots?(): Promise<FileRoot[]>
   mkdir?(path: string): Promise<void>
   createFile?(path: string): Promise<void>
@@ -185,7 +186,7 @@ export function useFileSystem() {
     }),
     chownFile: async () => { throw new Error('Changing ownership is not supported') },
     catFile: async () => { throw new Error('Reading files is not supported by this adapter') },
-    pwd: async (_sessionId?: string) => runtime.initialPath,
+    pwd: async (_sessionId?: string) => runtime.adapter.cwd ? runtime.adapter.cwd() : runtime.initialPath,
     cd: async (_sessionId: string, path: string) => path,
     loading,
     error,

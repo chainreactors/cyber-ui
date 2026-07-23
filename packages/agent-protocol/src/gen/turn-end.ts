@@ -2,7 +2,8 @@
 /** Generated from JSON Schema. DO NOT EDIT. */
 
 export interface TurnEndData {
-  turn: number
+  stop: string
+  error?: string
   usage?: UsageData
   context_tokens?: number
 }

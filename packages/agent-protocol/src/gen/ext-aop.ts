@@ -6,14 +6,6 @@ export interface HttpsGithubComChainreactorsCyberUiPackagesAgentProtocolSchemaEx
 }
 /**
  * This interface was referenced by `HttpsGithubComChainreactorsCyberUiPackagesAgentProtocolSchemaExtAopSchemaJson`'s JSON-Schema
- * via the `definition` "runControl".
- */
-export interface RunControl {
-  no_echo?: boolean
-  max_turns?: number
-}
-/**
- * This interface was referenced by `HttpsGithubComChainreactorsCyberUiPackagesAgentProtocolSchemaExtAopSchemaJson`'s JSON-Schema
  * via the `definition` "messageMeta".
  */
 export interface MessageMeta {

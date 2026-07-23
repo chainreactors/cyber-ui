@@ -31,7 +31,7 @@ export type {
   StatusEvent,
 } from './types'
 
-export type { RunControl, MessageMeta, BudgetWarning, LLMRequest } from './gen/ext-aop'
+export type { MessageMeta, BudgetWarning, LLMRequest } from './gen/ext-aop'
 export type { Control as EvalControl, Detail as EvalDetail } from './gen/ext-eval'
 export type { Detail as CompactDetail } from './gen/ext-compact'
 export type { HandoffDetail } from './gen/ext-ioa'

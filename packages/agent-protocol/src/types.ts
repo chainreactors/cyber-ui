@@ -6,7 +6,7 @@ import type { SessionStartData } from './gen/session-start'
 import type { StatusData } from './gen/status'
 import type { ToolCallData } from './gen/tool-call'
 import type { ToolResultData } from './gen/tool-result'
-import type { TurnData } from './gen/turn-start'
+import type { TurnStartData } from './gen/turn-start'
 import type { TurnEndData } from './gen/turn-end'
 import type { UsageData } from './gen/usage'
 
@@ -25,7 +25,8 @@ export type AOPEventType = AOPCoreType | AOPOptionalType | (string & {})
 export interface AOPEvent<T = Record<string, unknown>> {
   type: AOPEventType
   ts: string
-  session_id: string
+	session_id: string
+	turn_id?: string
   agent: string
   seq?: number
   data: T
@@ -33,7 +34,6 @@ export interface AOPEvent<T = Record<string, unknown>> {
 }
 
 export type MessagePartType = 'text' | 'reasoning' | 'image' | (string & {})
-export type TurnStartData = TurnData
 export type AOPData =
   | SessionStartData
   | SessionEndData
@@ -70,7 +70,8 @@ export type {
   SessionStartData,
   StatusData,
   ToolCallData,
-  ToolResultData,
-  TurnEndData,
+	ToolResultData,
+	TurnStartData,
+	TurnEndData,
   UsageData,
 }

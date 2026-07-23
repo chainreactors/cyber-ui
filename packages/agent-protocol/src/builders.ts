@@ -24,7 +24,8 @@ import type {
 
 interface EventEnvelope {
   agent: string
-  session_id: string
+	session_id: string
+	turn_id?: string
   seq?: number
   ext?: Record<string, Record<string, unknown>>
 }
@@ -33,7 +34,8 @@ function makeEvent<T extends AOPData>(type: AOPEventType, env: EventEnvelope, da
   return {
     type,
     ts: new Date().toISOString(),
-    session_id: env.session_id,
+		session_id: env.session_id,
+		...(env.turn_id ? { turn_id: env.turn_id } : {}),
     agent: env.agent,
     ...(env.seq !== undefined ? { seq: env.seq } : {}),
     data,

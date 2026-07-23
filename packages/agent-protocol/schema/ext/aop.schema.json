@@ -2,12 +2,6 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/ext/aop.schema.json",
   "$defs": {
-    "runControl": {
-      "title": "RunControl",
-      "type": "object",
-      "properties": { "no_echo": { "type": "boolean", "goJSONSchema": { "pointer": false } }, "max_turns": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } } },
-      "additionalProperties": false
-    },
     "messageMeta": {
       "title": "MessageMeta",
       "type": "object",

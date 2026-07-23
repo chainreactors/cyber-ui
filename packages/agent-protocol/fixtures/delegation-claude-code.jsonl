@@ -1,6 +1,8 @@
 {"type":"tool.call","ts":"2026-07-22T00:00:00Z","session_id":"parent","agent":"claude-code","seq":1,"data":{"tool_call_id":"spawn-1","tool_name":"Agent","args":{"prompt":"inspect repository","subagent_type":"worker","run_in_background":true}},"ext":{"delegation":{"task":"inspect repository","agent_name":"worker","agent_type":"worker","run_mode":"background","context_mode":"fresh"}}}
 {"type":"session.start","ts":"2026-07-22T00:00:01Z","session_id":"child","agent":"worker","seq":1,"data":{"parent_session_id":"parent","parent_tool_call_id":"spawn-1"},"ext":{"delegation":{"task":"inspect repository","agent_id":"agent-1","agent_name":"worker","agent_type":"worker","run_mode":"background","context_mode":"fresh"}}}
-{"type":"tool.call","ts":"2026-07-22T00:00:02Z","session_id":"child","agent":"worker","seq":2,"data":{"tool_call_id":"bash-1","tool_name":"bash","args":{"command":"echo OK"}}}
-{"type":"tool.result","ts":"2026-07-22T00:00:03Z","session_id":"child","agent":"worker","seq":3,"data":{"tool_call_id":"bash-1","tool_name":"bash","content":"OK"}}
-{"type":"message","ts":"2026-07-22T00:00:04Z","session_id":"child","agent":"worker","seq":4,"data":{"message_id":"answer","role":"assistant","parts":[{"type":"text","text":"done"}]}}
-{"type":"session.end","ts":"2026-07-22T00:00:05Z","session_id":"child","agent":"worker","seq":5,"data":{"stop":"completed"}}
+{"type":"turn.start","ts":"2026-07-22T00:00:02Z","session_id":"child","turn_id":"child-run","agent":"worker","seq":2,"data":{}}
+{"type":"tool.call","ts":"2026-07-22T00:00:03Z","session_id":"child","turn_id":"child-run","agent":"worker","seq":3,"data":{"tool_call_id":"bash-1","tool_name":"bash","args":{"command":"echo OK"}}}
+{"type":"tool.result","ts":"2026-07-22T00:00:04Z","session_id":"child","turn_id":"child-run","agent":"worker","seq":4,"data":{"tool_call_id":"bash-1","tool_name":"bash","content":"OK"}}
+{"type":"message","ts":"2026-07-22T00:00:05Z","session_id":"child","turn_id":"child-run","agent":"worker","seq":5,"data":{"message_id":"answer","role":"assistant","parts":[{"type":"text","text":"done"}]}}
+{"type":"turn.end","ts":"2026-07-22T00:00:06Z","session_id":"child","turn_id":"child-run","agent":"worker","seq":6,"data":{"stop":"completed"}}
+{"type":"session.end","ts":"2026-07-22T00:00:07Z","session_id":"child","agent":"worker","seq":7,"data":{"reason":"completed"}}

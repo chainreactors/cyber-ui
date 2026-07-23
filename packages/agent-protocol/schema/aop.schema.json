@@ -18,6 +18,7 @@
         "type": { "type": "string", "minLength": 1 },
         "ts": { "type": "string", "format": "date-time" },
         "session_id": { "type": "string", "minLength": 1 },
+        "turn_id": { "type": "string", "minLength": 1 },
         "agent": { "type": "string", "minLength": 1 },
         "seq": { "type": "integer", "minimum": 1 },
         "data": { "type": "object" },

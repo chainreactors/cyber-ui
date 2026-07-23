@@ -23,7 +23,9 @@
     "@cyber/theme": "workspace:*",
     "@cyber/ui": "workspace:*",
     "@cyber/markdown": "workspace:*",
+    "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.0",
+    "remark-gfm": "^4.0.1",
     "lucide-react": "^0.400.0"
   },
   "peerDependencies": {

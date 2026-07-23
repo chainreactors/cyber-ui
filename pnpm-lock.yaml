@@ -616,9 +616,15 @@ importers:
       react-dom:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.7(react@19.2.7)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@18.3.31)(react@19.2.7)
       react-syntax-highlighter:
         specifier: ^16.1.0
         version: 16.1.1(react@19.2.7)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
     devDependencies:
       '@types/react':
         specifier: ^18.3.0

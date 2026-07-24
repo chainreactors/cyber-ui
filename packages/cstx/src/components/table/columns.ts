@@ -296,6 +296,64 @@ export function inferColumns(
   });
 }
 
+/**
+ * Keys whose value is present in fewer than `threshold` (0..1) of the rows.
+ *
+ * Used to collapse the union-of-schemas sparsity that appears when heterogeneous
+ * entity types share one table (e.g. an "All assets" view where a Port column is
+ * only filled for the handful of port rows). The first column is always kept so a
+ * row is never left without its primary label. Callers fold the result into the
+ * default-hidden set: the columns stay listed in the column selector, so nothing
+ * is lost — they are just hidden until the user opts back in.
+ *
+ * `options.minVisible` guards against over-collapsing: in a fully mixed view almost
+ * every field is individually rare, so a flat threshold can hide all but the primary
+ * (plus whatever is universal — often just timestamps), leaving a near-empty table.
+ * When fewer than `minVisible` real columns would remain, the most-populated hidden
+ * columns are revealed back (ties broken by column order, so higher-priority columns
+ * win) until the floor is met — yielding a useful overview (host, ip, url, port…)
+ * instead. `options.alwaysHidden` (e.g. metadata keys the caller hides regardless) is
+ * excluded from both the visible count and the reveal candidates, so the floor counts
+ * only columns that will actually show and never wastes a slot on a still-hidden key.
+ */
+export function sparseColumnKeys(
+  rows: Record<string, unknown>[],
+  columns: ColumnConfig[],
+  threshold: number,
+  options?: { minVisible?: number; alwaysHidden?: Set<string> },
+): Set<string> {
+  const sparse = new Set<string>();
+  if (rows.length === 0 || threshold <= 0) return sparse;
+  const alwaysHidden = options?.alwaysHidden ?? new Set<string>();
+  const fill = new Map<string, number>();
+  columns.forEach((column, index) => {
+    let filled = 0;
+    for (const row of rows) {
+      const value = row[column.key];
+      if (value != null && comparable(value) !== '') filled += 1;
+    }
+    fill.set(column.key, filled / rows.length);
+    if (index !== 0 && filled / rows.length < threshold) sparse.add(column.key);
+  });
+
+  const minVisible = options?.minVisible ?? 0;
+  if (minVisible > 0) {
+    const isVisible = (c: ColumnConfig) => !sparse.has(c.key) && !alwaysHidden.has(c.key);
+    let visibleCount = columns.filter(isVisible).length;
+    if (visibleCount < minVisible) {
+      const revealable = columns
+        .filter((c) => sparse.has(c.key) && !alwaysHidden.has(c.key))
+        .sort((a, b) => (fill.get(b.key) ?? 0) - (fill.get(a.key) ?? 0));
+      for (const column of revealable) {
+        if (visibleCount >= minVisible) break;
+        sparse.delete(column.key);
+        visibleCount += 1;
+      }
+    }
+  }
+  return sparse;
+}
+
 export function isMetaKey(key: string): boolean {
   if (EXCLUDED_KEYS.has(key)) return true;
   if (key.startsWith('cstx_') || key.startsWith('__')) return true;

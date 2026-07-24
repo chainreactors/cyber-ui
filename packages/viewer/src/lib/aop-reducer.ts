@@ -15,23 +15,33 @@ import type {
 } from '../types/timeline'
 
 export interface ReduceAOPOptions {
-  /** Mark the last assistant response card as streaming. */
+  /** Keep the most recent active assistant response card streaming. */
   streaming?: boolean
+  /** Control whether routine AOP lifecycle events appear in the chat timeline. */
+  lifecycle?: 'all' | 'errors' | 'none'
 }
+
+const MAX_TOOL_ARGS_CHARS = 32_000
+const MAX_TOOL_RESULT_CHARS = 100_000
 
 function timestampOf(ts: string): number {
   const value = Date.parse(ts)
   return Number.isFinite(value) ? value : 0
 }
 
-function stringify(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (value === undefined) return ''
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return String(value)
+function stringify(value: unknown, maxChars = MAX_TOOL_RESULT_CHARS): string {
+  let text: string
+  if (typeof value === 'string') text = value
+  else if (value === undefined) text = ''
+  else {
+    try {
+      text = JSON.stringify(value, null, 2)
+    } catch {
+      text = String(value)
+    }
   }
+  if (text.length <= maxChars) return text
+  return `${text.slice(0, maxChars)}\n... (${text.length - maxChars} characters omitted)`
 }
 
 function eventId(event: AOPEvent, index: number, suffix = '', scope?: string): string {
@@ -79,9 +89,13 @@ function partImagesMarkdown(parts: MessagePart[]): string {
   return blocks.join('\n')
 }
 
-/** First ext namespace value — the emitting agent's extension block. */
-function extBlock(event: AOPEvent): Record<string, unknown> {
+/** Named ext namespace, falling back to the legacy single extension block. */
+function extBlock(event: AOPEvent, namespace?: string): Record<string, unknown> {
   if (!event.ext) return {}
+  if (namespace) {
+    const value = event.ext[namespace]
+    if (value && typeof value === 'object') return value as Record<string, unknown>
+  }
   for (const value of Object.values(event.ext)) {
     if (value && typeof value === 'object') return value as Record<string, unknown>
   }
@@ -91,6 +105,20 @@ function extBlock(event: AOPEvent): Record<string, unknown> {
 function extNumber(ext: Record<string, unknown>, key: string): number | undefined {
   const value = ext[key]
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function extString(ext: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    if (typeof ext[key] === 'string') return ext[key] as string
+  }
+  return undefined
+}
+
+function evalRound(ext: Record<string, unknown>): number | undefined {
+  const round = extNumber(ext, 'round')
+  if (round !== undefined) return round
+  const legacyRound = extNumber(ext, 'eval_round')
+  return legacyRound === undefined ? undefined : legacyRound + 1
 }
 
 // Message metadata = the emitting agent's ext `metadata` sub-object flattened to
@@ -134,6 +162,7 @@ export function reduceAOPToTimeline(
   const thinkingByMessage = new Map<string, string>()
   const responsesByTool = new Map<string, AssistantResponseTimelineItem>()
   const lastResponses = new Map<string, AssistantResponseTimelineItem>()
+  const lifecycle = options.lifecycle ?? 'all'
 
   const streamKey = (event: AOPEvent) => `${event.session_id}:${event.agent}`
   const eventScope = (event: AOPEvent) => (
@@ -154,6 +183,11 @@ export function reduceAOPToTimeline(
     if (!response) return
     response.streaming = false
     activeResponses.delete(key)
+    if (!response.thinking?.trim() && !response.response?.content.trim() && response.tools.length === 0) {
+      const itemIndex = items.indexOf(response)
+      if (itemIndex >= 0) items.splice(itemIndex, 1)
+      if (lastResponses.get(key) === response) lastResponses.delete(key)
+    }
     for (const [mkey, owner] of responsesByMessage) {
       if (owner === response) {
         responsesByMessage.delete(mkey)
@@ -274,30 +308,38 @@ export function reduceAOPToTimeline(
     const timestamp = timestampOf(event.ts)
 
     switch (event.type) {
-      case 'session.start':
+      case 'session.start': {
         finishResponse(key)
-        items.push({
-          id: scopedEventId(event, index, ':start'),
-          kind: 'divider',
-          timestamp,
-          actorName: event.agent,
-          label: event.agent ? `${event.agent} session started` : 'Session started',
-          variant: 'info',
-        })
+        const start = event.data as { parent_session_id?: string }
+        const sessionKind = start.parent_session_id ? 'sub-session' : 'session'
+        const sessionLabel = sessionKind === 'sub-session' ? 'Sub-session started' : 'Session started'
+        if (lifecycle === 'all') {
+          items.push({
+            id: scopedEventId(event, index, ':start'),
+            kind: 'divider',
+            timestamp,
+            actorName: event.agent,
+            label: event.agent ? `${event.agent} ${sessionKind} started` : sessionLabel,
+            variant: 'info',
+          })
+        }
         break
+      }
 
       case 'session.end': {
         finishResponse(key)
         const data = event.data as Record<string, unknown>
         const failed = data.stop === 'error' || Boolean(data.error)
-        items.push({
-          id: scopedEventId(event, index, ':end'),
-          kind: 'divider',
-          timestamp,
-          actorName: event.agent,
-          label: failed ? `Session ended: ${String(data.error ?? data.stop)}` : 'Session ended',
-          variant: failed ? 'warning' : 'success',
-        })
+        if (lifecycle === 'all' || (lifecycle === 'errors' && failed)) {
+          items.push({
+            id: scopedEventId(event, index, ':end'),
+            kind: 'divider',
+            timestamp,
+            actorName: event.agent,
+            label: failed ? `Session ended: ${String(data.error ?? data.stop)}` : 'Session ended',
+            variant: failed ? 'warning' : 'success',
+          })
+        }
         activeRunIDs.delete(key)
         break
       }
@@ -364,8 +406,16 @@ export function reduceAOPToTimeline(
 
         finishResponse(key)
         if (!content) break
+        // User/system messages carry no per-run seq to dedup on: the hub echoes a
+        // user message with seq omitted (0 → omitempty), so the seq guard above
+        // can't suppress a redelivered copy. Key by the message's stable id and
+        // drop repeats — otherwise a double-delivered echo renders as a second
+        // identical bubble the platform-side content match can't always collapse.
+        const messageID = `${eventScope(event)}:msg:${data.message_id}`
+        if (seen.has(messageID)) break
+        seen.add(messageID)
         const message: MessageTimelineItem = {
-          id: `${eventScope(event)}:msg:${data.message_id}`,
+          id: messageID,
           kind: 'message',
           timestamp,
           actorName: event.agent,
@@ -387,11 +437,14 @@ export function reduceAOPToTimeline(
           timestamp,
           responseID(event, `aop:${event.session_id}:${event.agent}:response:tool:${data.tool_call_id}`),
         )
+        const existing = response.tools.find((candidate) => candidate.id === data.tool_call_id)
         const tool: ToolCallEntry = {
           id: data.tool_call_id,
           toolName: data.tool_name,
-          toolArgs: stringify(data.args),
-          pending: true,
+          toolArgs: stringify(data.args, MAX_TOOL_ARGS_CHARS),
+          result: existing?.result,
+          pending: existing?.result === undefined,
+          error: existing?.error,
         }
         appendTool(response, tool)
         response.streaming = true
@@ -414,8 +467,9 @@ export function reduceAOPToTimeline(
           id: data.tool_call_id,
           toolName: data.tool_name ?? existing?.toolName ?? '',
           toolArgs: existing?.toolArgs ?? '',
-          result: stringify(data.content),
+          result: stringify(data.content, MAX_TOOL_RESULT_CHARS),
           pending: false,
+          error: Boolean(data.is_error),
         })
         responsesByTool.set(tkey, response)
         break
@@ -430,8 +484,8 @@ export function reduceAOPToTimeline(
       }
 
       case 'error': {
-        finishResponse(key)
         const data = event.data as Record<string, unknown>
+        if (data.retryable !== true) finishResponse(key)
         const message: MessageTimelineItem = {
           id: scopedEventId(event, index, ':error'),
           kind: 'message',
@@ -448,12 +502,12 @@ export function reduceAOPToTimeline(
 
       case 'status': {
         const data = event.data as { state?: string }
-        const ext = extBlock(event)
         switch (data.state) {
           case 'thinking':
             ensureResponse(event, index, timestamp).streaming = true
             break
-          case 'eval_end':
+          case 'eval_end': {
+            const ext = extBlock(event, 'eval')
             items.push({
               id: scopedEventId(event, index, ':eval'),
               kind: 'extension',
@@ -461,13 +515,15 @@ export function reduceAOPToTimeline(
               actorName: event.agent,
               extensionType: 'eval',
               data: {
-                round: extNumber(ext, 'eval_round'),
-                pass: ext.eval_pass === true,
-                reason: typeof ext.eval_reason === 'string' ? ext.eval_reason : undefined,
+                round: evalRound(ext),
+                pass: typeof ext.pass === 'boolean' ? ext.pass : ext.eval_pass === true,
+                reason: extString(ext, 'reason', 'eval_reason'),
               },
             })
             break
-          case 'eval_error':
+          }
+          case 'eval_error': {
+            const ext = extBlock(event, 'eval')
             items.push({
               id: scopedEventId(event, index, ':eval'),
               kind: 'extension',
@@ -475,13 +531,15 @@ export function reduceAOPToTimeline(
               actorName: event.agent,
               extensionType: 'eval',
               data: {
-                round: extNumber(ext, 'eval_round'),
+                round: evalRound(ext),
                 pass: false,
-                reason: typeof ext.eval_error === 'string' ? ext.eval_error : undefined,
+                reason: extString(ext, 'error', 'eval_error'),
               },
             })
             break
-          case 'compact_end':
+          }
+          case 'compact_end': {
+            const ext = extBlock(event, 'compact')
             items.push({
               id: scopedEventId(event, index, ':compact'),
               kind: 'extension',
@@ -489,13 +547,15 @@ export function reduceAOPToTimeline(
               actorName: event.agent,
               extensionType: 'compact',
               data: {
-                tokens_before: extNumber(ext, 'compact_tokens_before'),
-                tokens_after: extNumber(ext, 'compact_tokens_after'),
-                kept_messages: extNumber(ext, 'compact_kept_messages'),
+                tokens_before: extNumber(ext, 'tokens_before') ?? extNumber(ext, 'compact_tokens_before'),
+                tokens_after: extNumber(ext, 'tokens_after') ?? extNumber(ext, 'compact_tokens_after'),
+                kept_messages: extNumber(ext, 'kept_messages') ?? extNumber(ext, 'compact_kept_messages'),
               },
             })
             break
-          case 'token_budget_warning':
+          }
+          case 'token_budget_warning': {
+            const ext = extBlock(event, 'aop')
             items.push({
               id: scopedEventId(event, index, ':budget'),
               kind: 'extension',
@@ -508,6 +568,7 @@ export function reduceAOPToTimeline(
               },
             })
             break
+          }
         }
         break
       }
@@ -525,10 +586,9 @@ export function reduceAOPToTimeline(
   })
 
   if (options.streaming) {
-    const last = [...items].reverse().find(
-      (item): item is AssistantResponseTimelineItem => item.kind === 'assistant_response',
-    )
-    if (last) last.streaming = true
+    const activeList = [...activeResponses.values()]
+    const active = activeList[activeList.length - 1]
+    if (active) active.streaming = true
   }
 
   return items

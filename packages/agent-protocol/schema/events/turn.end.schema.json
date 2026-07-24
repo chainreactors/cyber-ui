@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/events/turn.end.schema.json",
+  "title": "TurnEndData",
+  "type": "object",
+  "required": ["stop"],
+  "properties": {
+    "stop": { "type": "string", "minLength": 1 },
+    "error": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "context_tokens": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } },
+    "usage": { "$ref": "usage.schema.json" }
+  },
+  "additionalProperties": false
+}

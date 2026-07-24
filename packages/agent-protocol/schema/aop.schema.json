@@ -8,6 +8,7 @@
     "type": { "type": "string", "minLength": 1 },
     "ts": { "type": "string", "format": "date-time" },
     "session_id": { "type": "string", "minLength": 1 },
+    "turn_id": { "type": "string", "minLength": 1 },
     "agent": { "type": "string", "minLength": 1 },
     "seq": { "type": "integer", "minimum": 1 },
     "data": { "type": "object" },
@@ -19,56 +20,48 @@
   "additionalProperties": false,
   "allOf": [
     {
-      "if": { "properties": { "type": { "const": "text" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["content"],
-            "properties": {
-              "content": { "type": "string" },
-              "role": { "type": "string" },
-              "delta": { "type": "boolean" },
-              "channel": { "enum": ["output", "reasoning"] }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
+      "if": { "properties": { "type": { "const": "session.start" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/session.start.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "session.end" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/session.end.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "message" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/message.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "message.delta" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/message.delta.schema.json" } } }
     },
     {
       "if": { "properties": { "type": { "const": "tool.call" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["tool_call_id", "tool_name", "args"],
-            "properties": {
-              "tool_call_id": { "type": "string", "minLength": 1 },
-              "tool_name": { "type": "string", "minLength": 1 }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
+      "then": { "properties": { "data": { "$ref": "events/tool.call.schema.json" } } }
     },
     {
       "if": { "properties": { "type": { "const": "tool.result" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "data": {
-            "type": "object",
-            "required": ["tool_call_id", "content"],
-            "properties": {
-              "tool_call_id": { "type": "string", "minLength": 1 },
-              "tool_name": { "type": "string" },
-              "is_error": { "type": "boolean" },
-              "duration_ms": { "type": "integer", "minimum": 0 }
-            },
-            "additionalProperties": true
-          }
-        }
-      }
+      "then": { "properties": { "data": { "$ref": "events/tool.result.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "usage" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/usage.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "turn.start" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/turn.start.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "turn.end" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/turn.end.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "error" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/error.schema.json" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "status" } }, "required": ["type"] },
+      "then": { "properties": { "data": { "$ref": "events/status.schema.json" } } }
     }
   ]
 }

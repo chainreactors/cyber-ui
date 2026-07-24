@@ -2,149 +2,147 @@
  * Agent Output Protocol (AOP)
  *
  * A language-neutral JSONL event protocol for AI coding agents.
- * Every agent (aiscan, codex, claude-code, …) outputs these events;
- * every orchestrator (aide, cairn, …) consumes them without per-agent translation.
- *
- * Envelope:  { type, ts, session_id, agent, seq?, data, ext? }
- * Core:      6 event types cover all agent interactions
- * Extension: ext.<agent_name>.* carries agent-specific data
+ * Every agent outputs these events; every orchestrator consumes them without
+ * per-agent transport translation.
  */
 
-// ── Envelope ────────────────────────────────────────────────────
+// Envelope
 
 export interface AOPEvent<T extends AOPData = AOPData> {
-  /** Event type — dot-separated hierarchy. */
+  /** Dot-separated event type. */
   type: AOPEventType
-  /** RFC 3339 timestamp with nanosecond precision. */
+  /** RFC 3339 timestamp. */
   ts: string
-  /** Session identifier. */
+  /** Stable session identifier. */
   session_id: string
+  /** Stable identifier for the run within a session. */
+  turn_id?: string
   /** Agent name that emitted this event. */
   agent: string
   /** Monotonically increasing sequence number within the session. */
   seq?: number
   /** Type-specific payload. */
   data: T
-  /** Agent-specific extensions, keyed by agent name. */
+  /** Extension payloads keyed by namespace. */
   ext?: Record<string, Record<string, unknown>>
 }
 
-// ── Event types ─────────────────────────────────────────────────
+// Event types
 
-/** Core event types — the universal minimum every agent emits. */
 export type AOPCoreType =
   | 'session.start'
   | 'session.end'
-  | 'text'
+  | 'message'
+  | 'message.delta'
   | 'tool.call'
   | 'tool.result'
   | 'usage'
 
-/** Optional event types — not all agents emit these. */
 export type AOPOptionalType =
   | 'turn.start'
   | 'turn.end'
   | 'error'
   | 'status'
 
-/** All known event types, plus string for forward compatibility. */
+/** Known event types plus a forward-compatible string type. */
 export type AOPEventType = AOPCoreType | AOPOptionalType | (string & {})
 
-// ── Data payloads ───────────────────────────────────────────────
+// Message parts
+
+export type MessagePartType = 'text' | 'reasoning' | 'image'
+
+export interface ImageSource {
+  /** Local image path, mutually exclusive with base64. */
+  path?: string
+  /** Base64-encoded image bytes, mutually exclusive with path. */
+  base64?: string
+  /** MIME type for base64 image data. */
+  media_type?: string
+}
+
+export interface MessagePart {
+  type: MessagePartType | (string & {})
+  /** Content for text and reasoning parts. */
+  text?: string
+  /** Content for image parts. */
+  image?: ImageSource
+}
+
+// Data payloads
 
 export interface SessionStartData {
-  /** Model name used for this session. */
   model?: string
-  /** Parent session ID for sub-agent scenarios. */
   parent_session_id?: string
+  parent_tool_call_id?: string
 }
 
 export interface SessionEndData {
-  /** Stop reason: completed | canceled | error | budget | terminated | stopped */
-  stop: string
-  /** Total number of turns in this session. */
-  turns?: number
-  /** Error message when stop is "error". */
-  error?: string
+  reason: string
 }
 
-export interface TextData {
-  /** Text content — the assistant's output. */
-  content: string
-  /** Role: "assistant" (default) or "user". */
-  role?: string
-  /** true = append-only streaming fragment, false/absent = complete message. */
-  delta?: boolean
-  /** Output channel. Missing means normal assistant output. */
-  channel?: 'output' | 'reasoning'
+export interface MessageData {
+  message_id: string
+  role: string
+  parts: MessagePart[]
+}
+
+export interface MessageDeltaData {
+  message_id: string
+  part_index: number
+  part_type: string
+  delta: string
 }
 
 export interface ToolCallData {
-  /** Unique identifier for this tool call. */
   tool_call_id: string
-  /** Tool name. */
   tool_name: string
-  /** Call arguments — object preferred, JSON string accepted. */
-  args: Record<string, unknown> | string
+  args: unknown
+  work_dir?: string
 }
 
 export interface ToolResultData {
-  /** Corresponding tool call ID. */
   tool_call_id: string
-  /** Tool name (redundant but convenient). */
   tool_name?: string
-  /** Return value — string or structured object. */
-  content: string | Record<string, unknown>
-  /** Whether the tool returned an error. */
+  content: unknown
+  details?: unknown
   is_error?: boolean
-  /** Execution duration in milliseconds. */
   duration_ms?: number
+  terminate?: boolean
 }
 
 export interface UsageData {
-  /** Input / prompt tokens. */
   input_tokens: number
-  /** Output / completion tokens. */
   output_tokens: number
-  /** Total tokens (input + output). */
   total_tokens: number
-  /** Tokens served from cache. */
   cache_read_tokens?: number
-  /** Tokens written to cache. */
   cache_write_tokens?: number
-  /** Model name if different from session.start. */
   model?: string
 }
 
-export interface TurnStartData {
-  /** Turn number (1-indexed). */
-  turn: number
-}
+export type TurnStartData = Record<string, never>
 
 export interface TurnEndData {
-  /** Turn number. */
-  turn: number
+  stop: string
+  error?: string
+  context_tokens?: number
+  usage?: UsageData
 }
 
 export interface ErrorData {
-  /** Human-readable error message. */
   message: string
-  /** Machine-readable error code. */
   code?: string
-  /** Whether the error is retryable. */
   retryable?: boolean
 }
 
 export interface StatusData {
-  /** Current state: idle | busy | thinking */
   state: string
 }
 
-/** Union of all data payloads. */
 export type AOPData =
   | SessionStartData
   | SessionEndData
-  | TextData
+  | MessageData
+  | MessageDeltaData
   | ToolCallData
   | ToolResultData
   | UsageData
@@ -154,14 +152,16 @@ export type AOPData =
   | StatusData
   | Record<string, unknown>
 
-// ── Typed event aliases ─────────────────────────────────────────
+// Typed event aliases
 
 export type SessionStartEvent = AOPEvent<SessionStartData> & { type: 'session.start' }
 export type SessionEndEvent = AOPEvent<SessionEndData> & { type: 'session.end' }
-export type TextEvent = AOPEvent<TextData> & { type: 'text' }
+export type MessageEvent = AOPEvent<MessageData> & { type: 'message' }
+export type MessageDeltaEvent = AOPEvent<MessageDeltaData> & { type: 'message.delta' }
 export type ToolCallEvent = AOPEvent<ToolCallData> & { type: 'tool.call' }
 export type ToolResultEvent = AOPEvent<ToolResultData> & { type: 'tool.result' }
 export type UsageEvent = AOPEvent<UsageData> & { type: 'usage' }
 export type TurnStartEvent = AOPEvent<TurnStartData> & { type: 'turn.start' }
 export type TurnEndEvent = AOPEvent<TurnEndData> & { type: 'turn.end' }
 export type ErrorEvent = AOPEvent<ErrorData> & { type: 'error' }
+export type StatusEvent = AOPEvent<StatusData> & { type: 'status' }

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/ext/delegation.schema.json",
+  "title": "DelegationDetail",
+  "type": "object",
+  "properties": {
+    "agent_id": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "agent_name": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "agent_type": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "task": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "context_mode": { "type": "string", "enum": ["fork", "fresh"], "goJSONSchema": { "pointer": false } },
+    "run_mode": { "type": "string", "enum": ["foreground", "background"], "goJSONSchema": { "pointer": false } }
+  },
+  "additionalProperties": false
+}

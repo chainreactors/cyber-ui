@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/events/tool.result.schema.json",
+  "title": "ToolResultData",
+  "type": "object",
+  "required": ["tool_call_id", "content"],
+  "properties": {
+    "tool_call_id": { "type": "string", "minLength": 1 },
+    "tool_name": { "type": "string", "goJSONSchema": { "pointer": false } },
+    "content": { "goJSONSchema": { "type": "any" } },
+    "details": { "goJSONSchema": { "type": "any", "pointer": false } },
+    "is_error": { "type": "boolean", "goJSONSchema": { "pointer": false } },
+    "duration_ms": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } },
+    "terminate": { "type": "boolean", "goJSONSchema": { "pointer": false } }
+  },
+  "additionalProperties": false
+}

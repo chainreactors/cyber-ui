@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/events/message.delta.schema.json",
+  "title": "MessageDeltaData",
+  "type": "object",
+  "required": ["message_id", "part_index", "part_type", "delta"],
+  "properties": {
+    "message_id": { "type": "string", "minLength": 1 },
+    "part_index": { "type": "integer", "minimum": 0 },
+    "part_type": { "type": "string", "minLength": 1 },
+    "delta": { "type": "string" }
+  },
+  "additionalProperties": false
+}

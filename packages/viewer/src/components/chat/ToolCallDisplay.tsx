@@ -93,6 +93,7 @@ export interface ToolCallDisplayProps {
   toolArgs?: string
   result?: string
   pending?: boolean
+  error?: boolean
   defaultExpanded?: boolean
   className?: string
 }
@@ -102,6 +103,7 @@ export default function ToolCallDisplay({
   toolArgs = '',
   result,
   pending = false,
+  error = false,
   defaultExpanded = false,
   className,
 }: ToolCallDisplayProps) {
@@ -114,7 +116,7 @@ export default function ToolCallDisplay({
     <div
       className={cn(
         'overflow-hidden rounded-lg border transition-colors duration-200',
-        pending ? 'border-warning/30' : 'border-border',
+        error ? 'border-destructive/35' : pending ? 'border-warning/30' : 'border-border',
         className,
       )}
     >
@@ -126,7 +128,7 @@ export default function ToolCallDisplay({
         <Wrench
           className={cn(
             'h-3.5 w-3.5 shrink-0 transition-colors',
-            pending ? 'text-warning' : 'text-muted-foreground',
+            error ? 'text-destructive' : pending ? 'text-warning' : 'text-muted-foreground',
           )}
         />
         <span className="shrink-0 rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono font-medium text-foreground">
@@ -136,9 +138,11 @@ export default function ToolCallDisplay({
           className="min-w-0 flex-1 truncate font-mono text-muted-foreground"
           title={summary || formattedArgs}
         >
-          {summary || (pending ? 'running' : 'completed')}
+          {summary || (error ? 'failed' : pending ? 'running' : 'completed')}
         </span>
-        {pending ? (
+        {error ? (
+          <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
+        ) : pending ? (
           <Loader2 className="h-3 w-3 shrink-0 animate-spin text-warning" />
         ) : (
           <Check className="h-3 w-3 shrink-0 text-success" />

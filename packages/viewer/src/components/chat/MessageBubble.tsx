@@ -13,6 +13,8 @@ export interface MessageBubbleProps {
   streaming?: boolean
   defaultExpanded?: boolean
   className?: string
+  headerClassName?: string
+  timeLabel?: string
   children?: ReactNode
   variant?: MessageBubbleVariant
   labels?: { user?: string; assistant?: string }
@@ -26,12 +28,14 @@ export default function MessageBubble({
   streaming,
   defaultExpanded = true,
   className,
+  headerClassName,
   children,
   variant = 'bubble',
   labels,
+  timeLabel,
 }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
-  const time = timestamp ? new Date(timestamp).toLocaleTimeString() : ''
+  const time = timeLabel ?? (timestamp ? new Date(timestamp).toLocaleTimeString() : '')
   const body = children ?? content
 
   if (role === 'system') {
@@ -67,7 +71,7 @@ export default function MessageBubble({
       </div>
       <div className={cn('min-w-0 space-y-1', isUser ? 'flex max-w-[min(82%,52rem)] flex-col items-end' : 'flex-1')}>
         <button type="button" onClick={() => setExpanded(v => !v)}
-          className={cn('flex items-center gap-2 text-[10px] text-muted-foreground', isUser && 'flex-row-reverse')}>
+          className={cn('flex items-center gap-2 text-[10px] text-muted-foreground', isUser && 'flex-row-reverse', headerClassName)}>
           <span className="font-medium">{label}</span>
           {time && <span className="font-mono">{time}</span>}
           <Chevron className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />

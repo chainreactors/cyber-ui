@@ -156,6 +156,7 @@ export function reduceAOPToTimeline(
   // interleaved in a merged timeline. Message/tool indexes make final events
   // idempotently update the card opened by their earlier delta/call event.
   const activeResponses = new Map<string, AssistantResponseTimelineItem>()
+  const activeTurnIDs = new Map<string, string>()
   const activeRunIDs = new Map<string, string>()
   const runIDsByStart = new Map<string, string>()
   const responsesByMessage = new Map<string, AssistantResponseTimelineItem>()
@@ -165,15 +166,22 @@ export function reduceAOPToTimeline(
   const lifecycle = options.lifecycle ?? 'all'
 
   const streamKey = (event: AOPEvent) => `${event.session_id}:${event.agent}`
-  const eventScope = (event: AOPEvent) => (
-    activeRunIDs.get(streamKey(event)) ?? `aop:${event.session_id}:${event.agent}`
+  const turnScope = (event: AOPEvent, turnID: string) => (
+    `aop:${event.session_id}:${event.agent}:turn:${turnID}`
   )
+  const eventScope = (event: AOPEvent) => {
+    const turnID = event.turn_id ?? activeTurnIDs.get(streamKey(event))
+    if (turnID) return turnScope(event, turnID)
+    return activeRunIDs.get(streamKey(event)) ?? `aop:${event.session_id}:${event.agent}`
+  }
   const scopedEventId = (event: AOPEvent, index: number, suffix = '') => (
     eventId(event, index, suffix, eventScope(event))
   )
   const messageKey = (event: AOPEvent, messageId: string) => `${eventScope(event)}:message:${messageId}`
   const toolKey = (event: AOPEvent, callId: string) => `${eventScope(event)}:tool:${callId}`
   const responseID = (event: AOPEvent, fallback: string) => {
+    const turnID = event.turn_id ?? activeTurnIDs.get(streamKey(event))
+    if (turnID) return `${turnScope(event, turnID)}:response`
     const runID = activeRunIDs.get(streamKey(event))
     return runID ? `${runID}:response` : fallback
   }
@@ -243,10 +251,12 @@ export function reduceAOPToTimeline(
       return
     }
     const data = event.data as { turn?: number }
-    const turn = typeof data.turn === 'number' ? data.turn : undefined
-    const fallbackID = turn === undefined
+    const legacyTurn = typeof data.turn === 'number' ? data.turn : undefined
+    const fallbackID = event.turn_id
+      ? `${turnScope(event, event.turn_id)}:response`
+      : legacyTurn === undefined
       ? scopedEventId(event, index, ':response')
-      : `aop:${event.session_id}:${event.agent}:turn:${turn}`
+      : `aop:${event.session_id}:${event.agent}:turn:${legacyTurn}`
     ensureResponse(event, index, timestamp, responseID(event, fallbackID))
   }
 
@@ -281,6 +291,14 @@ export function reduceAOPToTimeline(
   events.forEach((event, index) => {
     if (!event.type || !event.session_id) return
     const key = streamKey(event)
+
+    // turn_id is the canonical run boundary. Close any previous response when
+    // a new run appears, including streams where turn.start was not replayed.
+    if (event.turn_id) {
+      const activeTurnID = activeTurnIDs.get(key)
+      if (activeTurnID && activeTurnID !== event.turn_id) finishResponse(key)
+      activeTurnIDs.set(key, event.turn_id)
+    }
 
     // A platform chat session may contain many agent runs. Each run restarts
     // AOP seq at zero, so seq is only unique inside session.start → session.end.
@@ -329,17 +347,23 @@ export function reduceAOPToTimeline(
       case 'session.end': {
         finishResponse(key)
         const data = event.data as Record<string, unknown>
-        const failed = data.stop === 'error' || Boolean(data.error)
+        const reason = typeof data.reason === 'string' ? data.reason : undefined
+        const routineReasons = new Set(['completed', 'closed', 'runtime_closed'])
+        const failed = data.stop === 'error'
+          || Boolean(data.error)
+          || Boolean(reason && !routineReasons.has(reason))
+        const detail = data.error ?? reason ?? data.stop
         if (lifecycle === 'all' || (lifecycle === 'errors' && failed)) {
           items.push({
             id: scopedEventId(event, index, ':end'),
             kind: 'divider',
             timestamp,
             actorName: event.agent,
-            label: failed ? `Session ended: ${String(data.error ?? data.stop)}` : 'Session ended',
+            label: failed ? `Session ended: ${String(detail)}` : 'Session ended',
             variant: failed ? 'warning' : 'success',
           })
         }
+        activeTurnIDs.delete(key)
         activeRunIDs.delete(key)
         break
       }
@@ -349,10 +373,14 @@ export function reduceAOPToTimeline(
         break
 
       case 'turn.end':
-        // One user request may span several model turns (tool call → tool
-        // result → final answer). Keep the response card active until the AOP
-        // session ends so those turns render as one conversation unit.
-        pauseResponse(key)
+        if (event.turn_id) {
+          finishResponse(key)
+          if (activeTurnIDs.get(key) === event.turn_id) activeTurnIDs.delete(key)
+        } else {
+          // Legacy turn numbers represented internal model cycles, so several
+          // of them could still belong to one user-facing response.
+          pauseResponse(key)
+        }
         break
 
       case 'message.delta': {

@@ -30,7 +30,7 @@ describe('reduceAOPToTimeline', () => {
   it('brackets a run with session dividers', () => {
     const items = reduceAOPToTimeline([
       ev(1, 'session.start', {}),
-      ev(2, 'session.end', { stop: 'completed', turns: 1 }),
+      ev(2, 'session.end', { reason: 'completed' }),
     ])
     expect(items.map((i) => i.kind)).toEqual(['divider', 'divider'])
     expect(items[0]).toMatchObject({ variant: 'info' })
@@ -47,11 +47,11 @@ describe('reduceAOPToTimeline', () => {
     })
   })
 
-  it('marks a failed session end as warning with the error', () => {
+  it('marks a non-routine session end reason as a warning', () => {
     const items = reduceAOPToTimeline([
-      ev(1, 'session.end', { stop: 'error', error: 'boom' }),
+      ev(1, 'session.end', { reason: 'canceled' }),
     ])
-    expect(items[0]).toMatchObject({ kind: 'divider', variant: 'warning', label: 'Session ended: boom' })
+    expect(items[0]).toMatchObject({ kind: 'divider', variant: 'warning', label: 'Session ended: canceled' })
   })
 
   it('folds thinking and response deltas into one assistant card', () => {
@@ -130,8 +130,8 @@ describe('reduceAOPToTimeline', () => {
 
   it('groups thinking, response, and tools by AOP turn boundaries', () => {
     const items = reduceAOPToTimeline([
-      ev(1, 'turn.start', { turn: 3 }),
-      ev(2, 'message.delta', { message_id: 'm-3', part_type: 'reasoning', part_index: 0, delta: 'inspect' }),
+      ev(1, 'turn.start', {}, { turn_id: 'run-3' }),
+      ev(2, 'message.delta', { message_id: 'm-3', part_type: 'reasoning', part_index: 0, delta: 'inspect' }, { turn_id: 'run-3' }),
       ev(3, 'message', {
         message_id: 'm-3',
         role: 'assistant',
@@ -139,20 +139,46 @@ describe('reduceAOPToTimeline', () => {
           { type: 'reasoning', text: 'inspect target' },
           { type: 'text', text: 'running check' },
         ],
-      }),
-      ev(4, 'tool.call', { tool_call_id: 'tc-3', tool_name: 'bash', args: { command: 'whoami' } }),
-      ev(5, 'tool.result', { tool_call_id: 'tc-3', tool_name: 'bash', content: 'john' }),
-      ev(6, 'turn.end', { turn: 3 }),
+      }, { turn_id: 'run-3' }),
+      ev(4, 'tool.call', { tool_call_id: 'tc-3', tool_name: 'bash', args: { command: 'whoami' } }, { turn_id: 'run-3' }),
+      ev(5, 'tool.result', { tool_call_id: 'tc-3', tool_name: 'bash', content: 'john' }, { turn_id: 'run-3' }),
+      ev(6, 'turn.end', { stop: 'completed' }, { turn_id: 'run-3' }),
     ])
 
     expect(items).toHaveLength(1)
     expect(responses(items)[0]).toMatchObject({
-      id: 'aop:s1:aiscan:turn:3',
+      id: 'aop:s1:aiscan:turn:run-3:response',
       thinking: 'inspect target',
       response: { content: 'running check' },
       tools: [{ id: 'tc-3', toolName: 'bash', result: 'john', pending: false }],
       streaming: false,
     })
+  })
+
+  it('keeps canonical turn ids isolated within one long-lived session', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'session.start', {}),
+      ev(2, 'turn.start', {}, { turn_id: 'run-1' }),
+      ev(3, 'message', {
+        message_id: 'm-1', role: 'assistant', parts: [{ type: 'text', text: 'first' }],
+      }, { turn_id: 'run-1' }),
+      ev(4, 'turn.end', { stop: 'completed' }, { turn_id: 'run-1' }),
+      ev(5, 'turn.start', {}, { turn_id: 'run-2' }),
+      ev(6, 'message', {
+        message_id: 'm-2', role: 'assistant', parts: [{ type: 'text', text: 'second' }],
+      }, { turn_id: 'run-2' }),
+      ev(7, 'turn.end', { stop: 'completed' }, { turn_id: 'run-2' }),
+      ev(8, 'session.end', { reason: 'completed' }),
+    ], { lifecycle: 'none' })
+
+    expect(responses(items).map((card) => ({
+      id: card.id,
+      content: card.response?.content,
+      streaming: card.streaming,
+    }))).toEqual([
+      { id: 'aop:s1:aiscan:turn:run-1:response', content: 'first', streaming: false },
+      { id: 'aop:s1:aiscan:turn:run-2:response', content: 'second', streaming: false },
+    ])
   })
 
   it('aggregates consecutive tool and answer turns into one response card', () => {

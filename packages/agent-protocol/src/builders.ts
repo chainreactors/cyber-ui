@@ -1,9 +1,4 @@
-/**
- * Convenience builders for constructing AOP events.
- *
- * Usage:
- *   const evt = textEvent({ agent: 'aiscan', session_id: 's1' }, { content: 'hello' })
- */
+/** Convenience builders for constructing AOP events. */
 
 import type {
   AOPEvent,
@@ -11,18 +6,21 @@ import type {
   AOPEventType,
   SessionStartData,
   SessionEndData,
-  TextData,
+  MessageData,
+  MessageDeltaData,
   ToolCallData,
   ToolResultData,
   UsageData,
   TurnStartData,
   TurnEndData,
   ErrorData,
+  StatusData,
 } from './types'
 
 interface EventEnvelope {
   agent: string
   session_id: string
+  turn_id?: string
   seq?: number
   ext?: Record<string, Record<string, unknown>>
 }
@@ -32,6 +30,7 @@ function makeEvent<T extends AOPData>(type: AOPEventType, env: EventEnvelope, da
     type,
     ts: new Date().toISOString(),
     session_id: env.session_id,
+    ...(env.turn_id !== undefined ? { turn_id: env.turn_id } : {}),
     agent: env.agent,
     ...(env.seq !== undefined ? { seq: env.seq } : {}),
     data,
@@ -45,8 +44,11 @@ export const sessionStartEvent = (env: EventEnvelope, data: SessionStartData = {
 export const sessionEndEvent = (env: EventEnvelope, data: SessionEndData) =>
   makeEvent('session.end', env, data)
 
-export const textEvent = (env: EventEnvelope, data: TextData) =>
-  makeEvent('text', env, data)
+export const messageEvent = (env: EventEnvelope, data: MessageData) =>
+  makeEvent('message', env, data)
+
+export const messageDeltaEvent = (env: EventEnvelope, data: MessageDeltaData) =>
+  makeEvent('message.delta', env, data)
 
 export const toolCallEvent = (env: EventEnvelope, data: ToolCallData) =>
   makeEvent('tool.call', env, data)
@@ -57,7 +59,7 @@ export const toolResultEvent = (env: EventEnvelope, data: ToolResultData) =>
 export const usageEvent = (env: EventEnvelope, data: UsageData) =>
   makeEvent('usage', env, data)
 
-export const turnStartEvent = (env: EventEnvelope, data: TurnStartData) =>
+export const turnStartEvent = (env: EventEnvelope, data: TurnStartData = {}) =>
   makeEvent('turn.start', env, data)
 
 export const turnEndEvent = (env: EventEnvelope, data: TurnEndData) =>
@@ -65,3 +67,6 @@ export const turnEndEvent = (env: EventEnvelope, data: TurnEndData) =>
 
 export const errorEvent = (env: EventEnvelope, data: ErrorData) =>
   makeEvent('error', env, data)
+
+export const statusEvent = (env: EventEnvelope, data: StatusData) =>
+  makeEvent('status', env, data)

@@ -30,18 +30,28 @@ describe('reduceAOPToTimeline', () => {
   it('brackets a run with session dividers', () => {
     const items = reduceAOPToTimeline([
       ev(1, 'session.start', {}),
-      ev(2, 'session.end', { stop: 'completed', turns: 1 }),
+      ev(2, 'session.end', { reason: 'completed' }),
     ])
     expect(items.map((i) => i.kind)).toEqual(['divider', 'divider'])
     expect(items[0]).toMatchObject({ variant: 'info' })
     expect(items[1]).toMatchObject({ variant: 'success', label: 'Session ended' })
   })
 
-  it('marks a failed session end as warning with the error', () => {
+  it('labels a child run as a sub-session', () => {
     const items = reduceAOPToTimeline([
-      ev(1, 'session.end', { stop: 'error', error: 'boom' }),
+      ev(1, 'session.start', { parent_session_id: 'root-session' }, { session_id: 'child-session' }),
     ])
-    expect(items[0]).toMatchObject({ kind: 'divider', variant: 'warning', label: 'Session ended: boom' })
+    expect(items[0]).toMatchObject({
+      kind: 'divider',
+      label: 'aiscan sub-session started',
+    })
+  })
+
+  it('marks a non-routine session end reason as a warning', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'session.end', { reason: 'canceled' }),
+    ])
+    expect(items[0]).toMatchObject({ kind: 'divider', variant: 'warning', label: 'Session ended: canceled' })
   })
 
   it('folds thinking and response deltas into one assistant card', () => {
@@ -79,6 +89,23 @@ describe('reduceAOPToTimeline', () => {
     expect(responses(twice)[0].response?.content).toBe('hello')
   })
 
+  it('drops a redelivered seqless user echo instead of rendering it twice', () => {
+    // The hub echoes each user message as an AOP `message` with seq omitted
+    // (0 → omitempty), so the seq-based replay guard can't suppress a double
+    // delivery. Deduping by the message's stable id must, or the operator sees
+    // their own message twice.
+    const echo = {
+      type: 'message',
+      ts: TS,
+      session_id: 's1',
+      agent: 'aiscan.web',
+      data: { message_id: 'user-echo-1', role: 'user', parts: [{ type: 'text', text: '帮我测试' }] },
+    } as AOPEvent
+    const items = reduceAOPToTimeline([echo, echo])
+    expect(messages(items)).toHaveLength(1)
+    expect(messages(items)[0]).toMatchObject({ role: 'user', content: '帮我测试' })
+  })
+
   it('pairs tool.call with tool.result inside one assistant card', () => {
     const items = reduceAOPToTimeline([
       ev(1, 'tool.call', { tool_call_id: 'tc-1', tool_name: 'bash', args: { command: 'ls' } }),
@@ -103,8 +130,8 @@ describe('reduceAOPToTimeline', () => {
 
   it('groups thinking, response, and tools by AOP turn boundaries', () => {
     const items = reduceAOPToTimeline([
-      ev(1, 'turn.start', { turn: 3 }),
-      ev(2, 'message.delta', { message_id: 'm-3', part_type: 'reasoning', part_index: 0, delta: 'inspect' }),
+      ev(1, 'turn.start', {}, { turn_id: 'run-3' }),
+      ev(2, 'message.delta', { message_id: 'm-3', part_type: 'reasoning', part_index: 0, delta: 'inspect' }, { turn_id: 'run-3' }),
       ev(3, 'message', {
         message_id: 'm-3',
         role: 'assistant',
@@ -112,20 +139,46 @@ describe('reduceAOPToTimeline', () => {
           { type: 'reasoning', text: 'inspect target' },
           { type: 'text', text: 'running check' },
         ],
-      }),
-      ev(4, 'tool.call', { tool_call_id: 'tc-3', tool_name: 'bash', args: { command: 'whoami' } }),
-      ev(5, 'tool.result', { tool_call_id: 'tc-3', tool_name: 'bash', content: 'john' }),
-      ev(6, 'turn.end', { turn: 3 }),
+      }, { turn_id: 'run-3' }),
+      ev(4, 'tool.call', { tool_call_id: 'tc-3', tool_name: 'bash', args: { command: 'whoami' } }, { turn_id: 'run-3' }),
+      ev(5, 'tool.result', { tool_call_id: 'tc-3', tool_name: 'bash', content: 'john' }, { turn_id: 'run-3' }),
+      ev(6, 'turn.end', { stop: 'completed' }, { turn_id: 'run-3' }),
     ])
 
     expect(items).toHaveLength(1)
     expect(responses(items)[0]).toMatchObject({
-      id: 'aop:s1:aiscan:turn:3',
+      id: 'aop:s1:aiscan:turn:run-3:response',
       thinking: 'inspect target',
       response: { content: 'running check' },
       tools: [{ id: 'tc-3', toolName: 'bash', result: 'john', pending: false }],
       streaming: false,
     })
+  })
+
+  it('keeps canonical turn ids isolated within one long-lived session', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'session.start', {}),
+      ev(2, 'turn.start', {}, { turn_id: 'run-1' }),
+      ev(3, 'message', {
+        message_id: 'm-1', role: 'assistant', parts: [{ type: 'text', text: 'first' }],
+      }, { turn_id: 'run-1' }),
+      ev(4, 'turn.end', { stop: 'completed' }, { turn_id: 'run-1' }),
+      ev(5, 'turn.start', {}, { turn_id: 'run-2' }),
+      ev(6, 'message', {
+        message_id: 'm-2', role: 'assistant', parts: [{ type: 'text', text: 'second' }],
+      }, { turn_id: 'run-2' }),
+      ev(7, 'turn.end', { stop: 'completed' }, { turn_id: 'run-2' }),
+      ev(8, 'session.end', { reason: 'completed' }),
+    ], { lifecycle: 'none' })
+
+    expect(responses(items).map((card) => ({
+      id: card.id,
+      content: card.response?.content,
+      streaming: card.streaming,
+    }))).toEqual([
+      { id: 'aop:s1:aiscan:turn:run-1:response', content: 'first', streaming: false },
+      { id: 'aop:s1:aiscan:turn:run-2:response', content: 'second', streaming: false },
+    ])
   })
 
   it('aggregates consecutive tool and answer turns into one response card', () => {
@@ -241,16 +294,44 @@ describe('reduceAOPToTimeline', () => {
     expect(cards[0]).toMatchObject({ response: { content: 'recovered' } })
   })
 
-  it('maps status extensions (eval/compact/budget) to extension items', () => {
+  it('maps namespaced status extensions to extension items', () => {
     const items = reduceAOPToTimeline([
-      ev(1, 'status', { state: 'eval_end' }, { ext: { aiscan: { eval_round: 2, eval_pass: true } } }),
-      ev(2, 'status', { state: 'compact_end' }, { ext: { aiscan: { compact_tokens_before: 100, compact_tokens_after: 40, compact_kept_messages: 3 } } }),
-      ev(3, 'status', { state: 'token_budget_warning' }, { ext: { aiscan: { context_tokens: 90, token_budget: 100 } } }),
+      ev(1, 'status', { state: 'eval_end' }, {
+        ext: { eval: { round: 1, max_rounds: 3, pass: true, reason: 'criteria met' } },
+      }),
+      ev(2, 'status', { state: 'compact_end' }, {
+        ext: { compact: { tokens_before: 100, tokens_after: 40, kept_messages: 3 } },
+      }),
+      ev(3, 'status', { state: 'token_budget_warning' }, {
+        ext: { aop: { context_tokens: 90, token_budget: 100 } },
+      }),
     ])
     expect(items.map((i) => i.kind)).toEqual(['extension', 'extension', 'extension'])
-    expect(items[0]).toMatchObject({ extensionType: 'eval', data: { round: 2, pass: true } })
+    expect(items[0]).toMatchObject({
+      extensionType: 'eval',
+      data: { round: 1, pass: true, reason: 'criteria met' },
+    })
     expect(items[1]).toMatchObject({ extensionType: 'compact', data: { tokens_before: 100, tokens_after: 40, kept_messages: 3 } })
     expect(items[2]).toMatchObject({ extensionType: 'token_budget', data: { context_tokens: 90, token_budget: 100 } })
+  })
+
+  it('normalizes legacy eval status extensions to one-based rounds', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'status', { state: 'eval_end' }, {
+        ext: { aiscan: { eval_round: 0, eval_pass: true, eval_reason: 'legacy pass' } },
+      }),
+      ev(2, 'status', { state: 'eval_error' }, {
+        ext: { aiscan: { eval_round: 1, eval_error: 'legacy error' } },
+      }),
+    ])
+    expect(items[0]).toMatchObject({
+      extensionType: 'eval',
+      data: { round: 1, pass: true, reason: 'legacy pass' },
+    })
+    expect(items[1]).toMatchObject({
+      extensionType: 'eval',
+      data: { round: 2, pass: false, reason: 'legacy error' },
+    })
   })
 
   it('separates interleaved sessions by stream key', () => {
@@ -269,5 +350,52 @@ describe('reduceAOPToTimeline', () => {
       { streaming: true },
     )
     expect(responses(items)[0].streaming).toBe(true)
+  })
+
+  it('keeps completed history closed while another session is busy', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'session.start', {}),
+      ev(2, 'message', { message_id: 'a-1', role: 'assistant', parts: [{ type: 'text', text: 'done' }] }),
+      ev(3, 'session.end', { stop: 'completed', turns: 1 }),
+    ], { streaming: true })
+    expect(responses(items)[0].streaming).toBe(false)
+  })
+
+  it('can hide routine lifecycle while preserving failed session ends', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'session.start', {}),
+      ev(2, 'session.end', { stop: 'error', error: 'boom' }),
+    ], { lifecycle: 'errors' })
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ kind: 'divider', variant: 'warning', label: 'Session ended: boom' })
+  })
+
+  it('keeps a result-before-call tool complete and carries its error state', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'tool.result', { tool_call_id: 'tc-1', tool_name: 'bash', content: 'failed', is_error: true }),
+      ev(2, 'tool.call', { tool_call_id: 'tc-1', tool_name: 'bash', args: { command: 'exit 1' } }),
+    ])
+    expect(responses(items)[0].tools[0]).toMatchObject({
+      id: 'tc-1', result: 'failed', pending: false, error: true,
+    })
+  })
+
+  it('drops an empty turn when its session ends', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'session.start', {}),
+      ev(2, 'turn.start', { turn: 1 }),
+      ev(3, 'turn.end', { turn: 1 }),
+      ev(4, 'session.end', { stop: 'completed', turns: 1 }),
+    ], { lifecycle: 'none' })
+    expect(items).toEqual([])
+  })
+
+  it('caps large tool results before they reach the renderer', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'tool.result', { tool_call_id: 'tc-large', tool_name: 'read', content: 'x'.repeat(120_000) }),
+    ])
+    const result = responses(items)[0].tools[0].result || ''
+    expect(result.length).toBeLessThan(101_000)
+    expect(result).toContain('characters omitted')
   })
 })

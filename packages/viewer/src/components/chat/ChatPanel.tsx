@@ -100,7 +100,13 @@ function ChatPanelTimeline({
     if (scrollFrameRef.current !== null) return
     scrollFrameRef.current = requestAnimationFrame(() => {
       scrollFrameRef.current = null
-      bottomRef.current?.scrollIntoView({ behavior: scrollBehaviorRef.current })
+      const scroller = scrollRef.current
+      if (scroller) {
+        const requested = scrollBehaviorRef.current
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        if (requested === 'instant' || reduceMotion) scroller.scrollTop = scroller.scrollHeight
+        else scroller.scrollTo({ top: scroller.scrollHeight, behavior: requested })
+      }
       scrollBehaviorRef.current = 'smooth'
     })
   }, [])
@@ -255,7 +261,7 @@ function renderTimelineItem(
           response={item.response ? <MarkdownContent content={item.response.content} /> : undefined}
           streaming={item.streaming}
           tools={item.tools.length > 0 ? item.tools.map(tc => (
-            <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} />
+            <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} error={tc.error} />
           )) : undefined}
         />
       )
@@ -265,7 +271,7 @@ function renderTimelineItem(
         const Override = overrides.toolCall
         return <Override item={item} context={context} />
       }
-      return <ToolCallDisplay toolName={item.toolCall.toolName} toolArgs={item.toolCall.toolArgs} result={item.toolCall.result} pending={item.toolCall.pending} />
+      return <ToolCallDisplay toolName={item.toolCall.toolName} toolArgs={item.toolCall.toolArgs} result={item.toolCall.result} pending={item.toolCall.pending} error={item.toolCall.error} />
     }
     case 'divider':
       return (

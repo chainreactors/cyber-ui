@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useLayoutEffect } from 'react';
 import * as LucideIcons from 'lucide-react';
 import {
   useReactTable,
@@ -39,6 +39,7 @@ import {
   applyExclusions,
   flattenRow,
   isMetaKey,
+  sparseColumnKeys,
 } from './columns';
 import { TypeFilterBar } from './sub/TypeFilterBar';
 import { ColumnSelector } from './sub/ColumnSelector';
@@ -365,6 +366,47 @@ function RowFlagBadges({ row }: { row: Row }) {
   );
 }
 
+/**
+ * Render a single cell's content: prefer the column's configured renderer, then
+ * fall back by value shape (null → dash, array → list, object → json, scalar →
+ * text). Shared by the table cell and the card field so both surfaces render a
+ * value identically. `wrap` picks the scalar presentation: false truncates to a
+ * single line (the dense table cell); true wraps so the full value is visible
+ * (the card, which trades density for showing everything without scrolling).
+ */
+function renderCellContent(
+  col: ColumnConfig,
+  value: unknown,
+  row: Row,
+  renderers: CellRendererRegistry,
+  wrap: boolean,
+): React.ReactNode {
+  if (col.render) {
+    const renderer = renderers.get(col.render);
+    if (renderer) {
+      const out = renderer(value, row, col.renderOptions as Record<string, unknown>);
+      if (out !== undefined) return out;
+    }
+  }
+  if (value == null) return <span className="text-[var(--c-faint,#94a3b8)]">-</span>;
+  if (Array.isArray(value)) {
+    const listRenderer = renderers.get('list');
+    return listRenderer ? listRenderer(value, row) : String(value);
+  }
+  if (typeof value === 'object') {
+    const jsonRenderer = renderers.get('json');
+    return jsonRenderer ? jsonRenderer(value, row) : JSON.stringify(value);
+  }
+  const text = String(value);
+  return wrap ? (
+    <span className="block min-w-0 break-words">{text}</span>
+  ) : (
+    <span className="block min-w-0 max-w-full truncate" title={text}>
+      {text}
+    </span>
+  );
+}
+
 function buildColumns(
   configs: ColumnConfig[],
   sortingEnabled: boolean,
@@ -468,32 +510,7 @@ function buildColumns(
         );
       },
       cell: ({ getValue, row: tableRow }) => {
-        const v = getValue();
-        let content: React.ReactNode;
-        const renderName = col.render;
-        if (renderName) {
-          const renderer = renderers.get(renderName);
-          if (renderer) content = renderer(v, tableRow.original, col.renderOptions as Record<string, unknown>);
-        }
-        if (content === undefined) {
-          if (v == null) content = <span className="text-[var(--c-faint,#94a3b8)]">-</span>;
-          else if (Array.isArray(v)) {
-            const listRenderer = renderers.get('list');
-            content = listRenderer ? listRenderer(v, tableRow.original) : String(v);
-          }
-          else if (typeof v === 'object') {
-            const jsonRenderer = renderers.get('json');
-            content = jsonRenderer ? jsonRenderer(v, tableRow.original) : JSON.stringify(v);
-          }
-          else {
-            const text = String(v);
-            content = (
-              <span className="block min-w-0 max-w-full truncate" title={text}>
-                {text}
-              </span>
-            );
-          }
-        }
+        const content = renderCellContent(col, getValue(), tableRow.original, renderers, false);
         if (!showFlagBadges) return content;
         return (
           <span className="flex min-w-0 max-w-full items-center gap-0">
@@ -527,6 +544,127 @@ function buildColumns(
   return cols;
 }
 
+type TableRow = ReturnType<ReturnType<typeof useReactTable<Row>>['getRowModel']>['rows'][number];
+
+/**
+ * One row rendered as a card instead of a grid line. The primary column is the
+ * card's title; every other populated column becomes a wrapping label/value pair
+ * in a responsive grid that reflows from several pairs wide down to one, so all
+ * fields stay visible without a horizontal scrollbar — the trade the table can't
+ * make when its columns sum wider than the container. Empty fields are dropped
+ * (a per-row concern; the column selector still lists every field), and the card
+ * carries the row's selection checkbox, type chip, flags, and row actions so
+ * search, selection, batch actions, and export keep working unchanged.
+ */
+function RecordCard({
+  row,
+  columns,
+  primaryKey,
+  renderers,
+  compact,
+  enableRowSelection,
+  enableCstxFlags,
+  typeKey,
+  typeColorMap,
+  rowActions,
+  onAction,
+  isActive,
+  onCardClick,
+}: {
+  row: TableRow;
+  columns: ColumnConfig[];
+  primaryKey: string | undefined;
+  renderers: CellRendererRegistry;
+  compact: boolean;
+  enableRowSelection: boolean;
+  enableCstxFlags: boolean;
+  typeKey: string | undefined;
+  typeColorMap: Record<string, string> | undefined;
+  rowActions: TableActionConfig[];
+  onAction?: (action: string, payload?: Record<string, unknown>) => void;
+  isActive: boolean;
+  onCardClick: () => void;
+}): React.JSX.Element {
+  const data = row.original;
+  const primaryCol = primaryKey ? columns.find((c) => c.key === primaryKey) : columns[0];
+  const bodyCols = columns.filter((c) => c.key !== primaryCol?.key && hasDisplayValue(data[c.key]));
+  const typeValue = typeKey ? data[typeKey] : undefined;
+  const typeText = hasDisplayValue(typeValue) ? String(typeValue) : null;
+  const typeColor = typeColorMap && typeText ? typeColorMap[typeText] : undefined;
+  const selected = row.getIsSelected();
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onCardClick();
+        }
+      }}
+      className={cn(
+        'group rounded-lg border text-left transition-colors',
+        'border-[var(--c-line,#e2e8f0)] dark:border-[var(--c-line,#334155)]',
+        compact ? 'p-2.5' : 'p-3',
+        'cursor-pointer hover:border-[var(--c-accent,#3b82f6)]/40 hover:bg-[var(--c-surface-2,#f8fafc)] dark:hover:bg-[var(--c-surface-2,rgba(30,41,59,0.4))]',
+        (selected || isActive) &&
+          'border-[var(--c-accent,#3b82f6)]/60 bg-[var(--c-row-highlight,var(--c-accent-soft,rgba(239,246,255,0.6)))] dark:bg-[var(--c-row-highlight,var(--c-accent-soft,rgba(30,58,138,0.15)))]',
+      )}
+    >
+      <div className="flex items-start gap-2">
+        {enableRowSelection && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={row.getToggleSelectedHandler()}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Select row"
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 accent-blue-600"
+          />
+        )}
+        {typeText && (
+          <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--c-muted,#475569)] dark:bg-[var(--c-surface-2,#1e293b)] dark:text-[var(--c-muted,#94a3b8)]">
+            {typeColor && <span className="h-1.5 w-1.5 rounded-full" style={{ background: typeColor }} />}
+            {typeText}
+          </span>
+        )}
+        <div className="min-w-0 flex-1 font-medium text-[var(--c-fg,#0f172a)] dark:text-[var(--c-fg,#e2e8f0)]">
+          {primaryCol ? renderCellContent(primaryCol, data[primaryCol.key], data, renderers, false) : null}
+        </div>
+        {enableCstxFlags && <RowFlagBadges row={data} />}
+        {rowActions.length > 0 && (
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <RowActionsCell actions={rowActions} row={data} rowId={row.id} onAction={onAction} />
+          </div>
+        )}
+      </div>
+
+      {bodyCols.length > 0 && (
+        <dl
+          className={cn('mt-2 grid gap-x-4', compact ? 'gap-y-1.5' : 'gap-y-2')}
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 13rem), 1fr))' }}
+        >
+          {bodyCols.map((col) => (
+            <div key={col.key} className="min-w-0">
+              <dt
+                className="truncate text-[10px] font-medium uppercase tracking-wide text-[var(--c-faint,#94a3b8)]"
+                title={col.title ?? col.key}
+              >
+                {col.title ?? col.key}
+              </dt>
+              <dd className="mt-0.5 min-w-0 break-words text-xs text-[var(--c-fg,#334155)] dark:text-[var(--c-fg,#cbd5e1)]">
+                {renderCellContent(col, data[col.key], data, renderers, true)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 export function CSTXTable({
   data,
   loading,
@@ -551,6 +689,12 @@ export function CSTXTable({
   const commonBadgeLabels = asRecord(config.commonBadgeLabels);
   const compact = config.compact === true;
   const columnSelectorEnabled = config.columnSelector === true;
+  const sparseColumnThreshold = typeof config.sparseColumnThreshold === 'number'
+    ? config.sparseColumnThreshold
+    : 0;
+  const sparseMinColumns = typeof config.sparseMinColumns === 'number'
+    ? config.sparseMinColumns
+    : 6;
   const explicitMetaKeys = asStringArray(config.metaKeys);
   const paginationMode = (config.paginationMode as string) || 'client';
   const serverPagination = paginationMode === 'server';
@@ -667,14 +811,34 @@ export function CSTXTable({
     return keys;
   }, [explicitMetaKeys, allColumns]);
 
+  // Columns that are mostly empty for the current rows (e.g. type-specific fields
+  // on a mixed "All" view) are hidden by default so the table fits without a wide
+  // sea of blanks. They stay in `allColumns` — the column selector still lists them
+  // — so this only changes the default, never removes data. Opt-in via
+  // `sparseColumnThreshold`; requires the column selector so hidden columns remain
+  // reachable, and only applies to auto-inferred columns (explicit columns are honored).
+  const sparseKeySet = useMemo(() => {
+    if (!columnSelectorEnabled || sparseColumnThreshold <= 0) return new Set<string>();
+    if (explicitColumns && explicitColumns.length > 0) return new Set<string>();
+    return sparseColumnKeys(rows, allColumns, sparseColumnThreshold, {
+      minVisible: sparseMinColumns,
+      alwaysHidden: metaKeySet,
+    });
+  }, [columnSelectorEnabled, sparseColumnThreshold, sparseMinColumns, explicitColumns, rows, allColumns, metaKeySet]);
+
+  const defaultHiddenKeySet = useMemo(() => {
+    if (sparseKeySet.size === 0) return metaKeySet;
+    return new Set<string>([...metaKeySet, ...sparseKeySet]);
+  }, [metaKeySet, sparseKeySet]);
+
   const [userVisibility, setUserVisibility] = useState<Record<string, boolean>>({});
   const isColumnVisible = useCallback(
-    (key: string) => (key in userVisibility ? userVisibility[key] : !metaKeySet.has(key)),
-    [userVisibility, metaKeySet],
+    (key: string) => (key in userVisibility ? userVisibility[key] : !defaultHiddenKeySet.has(key)),
+    [userVisibility, defaultHiddenKeySet],
   );
   const toggleColumnVisibility = useCallback(
-    (key: string) => setUserVisibility((prev) => ({ ...prev, [key]: !(prev[key] ?? !metaKeySet.has(key)) })),
-    [metaKeySet],
+    (key: string) => setUserVisibility((prev) => ({ ...prev, [key]: !(prev[key] ?? !defaultHiddenKeySet.has(key)) })),
+    [defaultHiddenKeySet],
   );
 
   const resolvedColumns = useMemo(() => {
@@ -823,6 +987,36 @@ export function CSTXTable({
     gridTemplateColumns,
     minWidth: visibleColumns.length > 0 ? `${tableMinWidth}px` : undefined,
   };
+
+  // --- Layout: table vs. cards ---
+  // 'table' keeps the grid (may scroll horizontally); 'cards' always renders one
+  // card per row; 'auto' measures the container and switches to cards the moment
+  // the grid couldn't show every column at its preferred width — i.e. exactly when
+  // a horizontal scrollbar would otherwise appear.
+  const layoutMode: 'table' | 'cards' | 'auto' =
+    config.layout === 'cards' ? 'cards' : config.layout === 'auto' ? 'auto' : 'table';
+  const tablePreferredWidth = visibleColumns.reduce(
+    (total, col) => total + estimateColumnWidth(col.width), 32,
+  ) + (enableRowSelection ? 72 : 0) + (diffMode ? 90 : 0) + (enableExpanding ? 32 : 0) + actionsColumnWidth;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (layoutMode !== 'auto') return;
+    const el = scrollRef.current;
+    if (!el) return;
+    // Measure synchronously before paint so the first frame already picks the
+    // right layout (no table→cards flash), then track later resizes.
+    const measure = () => setContainerWidth(el.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [layoutMode]);
+  const useCards =
+    layoutMode === 'cards' ||
+    (layoutMode === 'auto' && containerWidth != null && containerWidth < tablePreferredWidth);
+  const primaryKey = visibleColumns[0]?.key;
 
   // --- Handlers ---
   const handleRowClick = useCallback((row: Row, resolvedId?: string) => {
@@ -1101,14 +1295,25 @@ export function CSTXTable({
       )}
 
       {/* ── Table ── */}
-      <div className="overflow-x-auto">
+      <div ref={scrollRef} className={useCards ? 'overflow-x-hidden' : 'overflow-x-auto'}>
         {isLoading ? (
-          <SkeletonTable
-            columns={skeletonColumnCount}
-            rows={Math.min(pageSize, 8)}
-            compact={compact}
-            gridTemplate={gridTemplateColumns}
-          />
+          useCards ? (
+            <div className={cn('flex flex-col', compact ? 'gap-1.5 p-2' : 'gap-2 p-3')}>
+              {Array.from({ length: Math.min(pageSize, 6) }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-16 animate-pulse rounded-lg bg-[var(--c-surface-2,#f1f5f9)] dark:bg-[var(--c-surface-2,#1e293b)]"
+                />
+              ))}
+            </div>
+          ) : (
+            <SkeletonTable
+              columns={skeletonColumnCount}
+              rows={Math.min(pageSize, 8)}
+              compact={compact}
+              gridTemplate={gridTemplateColumns}
+            />
+          )
         ) : filteredByType.length === 0 ? (
           <EmptyGuide
             totalRows={rawRows.length}
@@ -1128,6 +1333,30 @@ export function CSTXTable({
               clearFilters: tr('clearFilters', 'Clear filters'),
             }}
           />
+        ) : useCards ? (
+          <div className={cn('flex flex-col', compact ? 'gap-1.5 p-2' : 'gap-2 p-3')}>
+            {table.getRowModel().rows.map((row) => (
+              <RecordCard
+                key={row.id}
+                row={row}
+                columns={visibleColumns}
+                primaryKey={primaryKey}
+                renderers={cellRenderers}
+                compact={compact}
+                enableRowSelection={enableRowSelection}
+                enableCstxFlags={enableCstxFlags}
+                typeKey={typeFilterKey}
+                typeColorMap={typeColorMap}
+                rowActions={effectiveRowActions}
+                onAction={onAction}
+                isActive={activeRowId === row.id}
+                onCardClick={() => {
+                  if (enableRowSelection) row.toggleSelected();
+                  else handleRowClick(row.original, row.id);
+                }}
+              />
+            ))}
+          </div>
         ) : (
           <>
             {/* Column headers — low-profile, no uppercase, no heavy bg */}

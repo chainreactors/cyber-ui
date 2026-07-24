@@ -130,6 +130,22 @@ export const cstxTableManifest: ComponentManifest = {
         'Column keys to classify as metadata (hidden by default in selector). Auto-detected from key patterns when omitted.',
     },
     {
+      key: 'sparseColumnThreshold',
+      label: 'Sparse column fill threshold',
+      type: 'number',
+      default: 0,
+      description:
+        'Fraction 0..1. Auto-inferred columns filled for fewer than this share of rows are hidden by default (still listed in the column selector). Collapses union-of-schemas sparsity on mixed-type views. Requires columnSelector; ignored for explicit columns. 0 disables.',
+    },
+    {
+      key: 'sparseMinColumns',
+      label: 'Minimum columns kept visible',
+      type: 'number',
+      default: 6,
+      description:
+        'Floor for sparseColumnThreshold: when collapsing would leave fewer than this many real (non-metadata) columns visible, the most-populated hidden columns are revealed back until the floor is met. Stops a fully mixed view from collapsing to just its primary column. Only applies when sparseColumnThreshold > 0.',
+    },
+    {
       key: 'paginationMode',
       label: 'Pagination mode',
       type: 'enum',
@@ -260,6 +276,15 @@ export const cstxTableManifest: ComponentManifest = {
       type: 'boolean',
       default: false,
       description: 'Only show the export button after rows are selected. CSV export includes visible columns and selected rows.',
+    },
+    {
+      key: 'layout',
+      label: 'Row layout',
+      type: 'enum',
+      default: 'table',
+      options: ['table', 'cards', 'auto'],
+      description:
+        "Row presentation. 'table': classic grid, scrolls horizontally when columns sum wider than the container. 'cards': one card per row showing every populated field, wrapping vertically so nothing scrolls horizontally. 'auto': table while all columns fit their preferred width, cards once they wouldn't. Cards keep search, type filter, selection, batch actions, and export.",
     },
   ],
   tags: ['table', 'data', 'list', 'cstx', 'filter', 'search', 'diff'],

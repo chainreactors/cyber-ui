@@ -30,6 +30,11 @@ export interface MentionPopupApi {
   query: string
   onSelect: (targets: string[]) => void
   onDismiss: () => void
+  // Present when the host composer accepts file attachments. A categorized
+  // mention popup (e.g. a "File" entry) calls this to drop the half-typed
+  // "@frag" and open the native file picker, funnelling the choice into the
+  // same attachment tray as the paperclip button.
+  onAttach?: () => void
 }
 
 export interface ChatInputProps {
@@ -107,6 +112,12 @@ export default function ChatInput({
   // Guards the injectText effect: only fire when the nonce actually advances,
   // so a StrictMode double-invoke or an unrelated re-render can't re-append.
   const lastInjectRef = useRef(0)
+  // Coalesce a byte-identical resend fired within a frame of the previous one.
+  // The CJK-IME confirm Enter can invoke handleSend twice off a single keypress
+  // (see handleKeyDown); both calls close over the same not-yet-cleared draft and
+  // would post the message — and start an agent run — twice. This backstops the
+  // isComposing/keyCode 229 guard, which some engines don't report on that keydown.
+  const lastSendRef = useRef({ sig: '', at: 0 })
 
   const hasContent = draft.trim().length > 0 || attachments.length > 0
   const canSend = hasContent && !disabled
@@ -135,6 +146,10 @@ export default function ChatInput({
   const handleSend = useCallback(() => {
     const text = draft.trim()
     if ((!text && attachments.length === 0) || disabled) return
+    const sig = JSON.stringify([text, attachments.length])
+    const now = Date.now()
+    if (sig === lastSendRef.current.sig && now - lastSendRef.current.at < 500) return
+    lastSendRef.current = { sig, at: now }
     onSend(text, attachments.length > 0 ? attachments : undefined)
     setDraft('')
     setAttachments([])
@@ -143,11 +158,24 @@ export default function ChatInput({
   }, [draft, attachments, disabled, onSend])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // The mention popup claims Enter first, so a half-typed "@frag" resolves to
-    // an asset instead of being sent as literal text.
-    if (mention && matchingMentions.length > 0 && e.key === 'Enter' && !e.shiftKey) {
+    // Ignore keys mid-IME-composition (CJK input). The Enter that confirms a
+    // candidate reports isComposing (keyCode 229 on older engines) here — it must
+    // not send. Without this guard it both sends the half-composed text and, since
+    // handleSend closes over a draft that setDraft('') hasn't cleared yet, can fire
+    // a second identical send off the same keypress and spawn a duplicate run.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return
+    // Built-in simple list: Enter resolves a half-typed "@frag" to the top match
+    // instead of sending it as literal text.
+    if (mention && !renderMentionPopup && matchingMentions.length > 0 && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       insertMention(matchingMentions[0].target)
+      return
+    }
+    // A custom popup owns its own selection (click, or its own key handling).
+    // While it is open, swallow Enter so the message isn't sent out from under
+    // the picker — Escape dismisses it, and then Enter sends as usual.
+    if (mention && renderMentionPopup && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
       return
     }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -167,13 +195,13 @@ export default function ChatInput({
       setShowHints(value === '/' || (value.startsWith('/') && !value.includes(' ')))
     }
     const caret = e.target.selectionStart ?? value.length
-    setMention(mentionables.length > 0 ? mentionAt(value, caret) : null)
+    setMention(mentionables.length > 0 || renderMentionPopup ? mentionAt(value, caret) : null)
   }
 
   // Re-evaluate the mention token when the caret moves without a text change
   // (arrow keys, or clicking into an existing @token).
   function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {
-    if (mentionables.length === 0) return
+    if (mentionables.length === 0 && !renderMentionPopup) return
     const el = e.currentTarget
     const caret = el.selectionStart ?? el.value.length
     setMention(mentionAt(el.value, caret))
@@ -202,6 +230,19 @@ export default function ChatInput({
     setMention(null)
     const pos = start + token.length
     requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos, pos) })
+  }
+
+  // Bridge for a categorized mention popup's "File" entry: drop the half-typed
+  // "@frag" under the caret, then open the native file picker. The chosen files
+  // land in the same attachment tray as the paperclip button (via addFiles).
+  function requestAttach() {
+    const el = textareaRef.current
+    if (mention) {
+      const caret = el?.selectionStart ?? draft.length
+      setDraft(draft.slice(0, mention.start) + draft.slice(caret))
+    }
+    setMention(null)
+    fileInputRef.current?.click()
   }
 
   function handleDragOver(e: DragEvent) {
@@ -312,6 +353,7 @@ export default function ChatInput({
             query: mention.query,
             onSelect: insertMentions,
             onDismiss: () => setMention(null),
+            onAttach: enableAttachments ? requestAttach : undefined,
           })}
         </div>
       )}

@@ -20,6 +20,7 @@ export interface ToolCallEntry {
   toolArgs: string
   result?: string
   pending: boolean
+  error?: boolean
 }
 
 export interface AssistantResponseTimelineItem extends TimelineItemBase {

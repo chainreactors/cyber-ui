@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/chainreactors/cyber-ui/packages/agent-protocol/schema/ext/eval.schema.json",
+  "$defs": {
+    "control": {
+      "title": "Control",
+      "type": "object",
+      "required": ["criteria"],
+      "properties": {
+        "criteria": { "type": "string" },
+        "max_rounds": { "type": "integer", "minimum": 0, "goJSONSchema": { "pointer": false } }
+      },
+      "additionalProperties": false
+    },
+    "detail": {
+      "title": "Detail",
+      "type": "object",
+      "required": ["round", "max_rounds"],
+      "properties": {
+        "round": { "type": "integer", "minimum": 0 },
+        "max_rounds": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "boolean", "goJSONSchema": { "pointer": false } },
+        "reason": { "type": "string", "goJSONSchema": { "pointer": false } },
+        "error": { "type": "string", "goJSONSchema": { "pointer": false } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

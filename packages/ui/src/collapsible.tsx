@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@cyber/theme'
 
 export interface CollapsibleProps {
-  title: string
+  title: ReactNode
   defaultExpanded?: boolean
   expanded?: boolean
   onToggle?: (expanded: boolean) => void

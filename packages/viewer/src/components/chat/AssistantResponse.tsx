@@ -16,10 +16,13 @@ export interface AssistantResponseProps {
   streaming?: boolean
   defaultThinkingExpanded?: boolean
   className?: string
+  headerClassName?: string
+  timeLabel?: string
+  showResponseLabel?: boolean
   variant?: MessageBubbleVariant
   labels?: {
     thinking?: string
-    tools?: string
+    tools?: ReactNode
     response?: string
     assistant?: string
   }
@@ -29,21 +32,28 @@ export default function AssistantResponse({
   actorName,
   className,
   defaultThinkingExpanded = false,
+  headerClassName,
   labels,
   response,
+  showResponseLabel = true,
   streaming,
   thinking,
   timestamp,
+  timeLabel,
   tools,
   variant = 'bubble',
 }: AssistantResponseProps) {
-  const time = timestamp ? new Date(timestamp).toLocaleTimeString() : ''
+  const time = timeLabel ?? (timestamp ? new Date(timestamp).toLocaleTimeString() : '')
   const hasThinking = hasContent(thinking)
   const hasTools = hasContent(tools)
   const hasResponse = hasContent(response)
   const showResponse = hasResponse || !!streaming
-  const responseIsLast = !hasTools
 
+  // Order: thinking → tools → response. The written answer is the turn's
+  // conclusion and must render last so it sits at the bottom of the card, where
+  // the transcript's sticky scroll keeps it in view as it streams and once the
+  // turn settles. (Tools above it stay collapsed, so they never push the report
+  // off-screen.)
   const cardInner = (
     <>
       {hasThinking && (
@@ -56,8 +66,22 @@ export default function AssistantResponse({
           {thinking}
         </Collapsible>
       )}
+      {hasTools && (
+        <Collapsible
+          title={labels?.tools || 'Tools'}
+          defaultExpanded={false}
+          className={cn(showResponse && 'border-b border-border')}
+          bodyClassName="space-y-2"
+        >
+          {tools}
+        </Collapsible>
+      )}
       {showResponse && (
-        <Section testId="assistant-response-content" title={labels?.response || 'Response'} last={responseIsLast}>
+        <Section
+          testId="assistant-response-content"
+          title={showResponseLabel ? (labels?.response || 'Response') : undefined}
+          last
+        >
           {hasResponse ? (
             <div className="text-sm leading-relaxed">
               {response}
@@ -66,11 +90,6 @@ export default function AssistantResponse({
           ) : (
             <ThinkingDots className="py-1" />
           )}
-        </Section>
-      )}
-      {hasTools && (
-        <Section testId="assistant-response-tools" title={labels?.tools || 'Tools'} last>
-          {tools}
         </Section>
       )}
     </>
@@ -92,7 +111,7 @@ export default function AssistantResponse({
         <Bot className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        <div className={cn('flex items-center gap-2 text-[10px] text-muted-foreground', headerClassName)}>
           <span className="font-medium">{labels?.assistant ?? actorName ?? 'Assistant'}</span>
           {time && <span className="font-mono">{time}</span>}
         </div>
@@ -104,10 +123,10 @@ export default function AssistantResponse({
   )
 }
 
-function Section({ children, last, testId, title }: { children: ReactNode; last?: boolean; testId: string; title: string }) {
+function Section({ children, last, testId, title }: { children: ReactNode; last?: boolean; testId: string; title?: ReactNode }) {
   return (
     <section data-testid={testId} className={cn('px-3 py-2', !last && 'border-b border-border')}>
-      <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{title}</div>
+      {title && <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{title}</div>}
       {children}
     </section>
   )

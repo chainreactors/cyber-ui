@@ -260,6 +260,8 @@ function renderTimelineItem(
           thinking={item.thinking ? <MarkdownContent content={item.thinking} compact muted /> : undefined}
           response={item.response ? <MarkdownContent content={item.response.content} /> : undefined}
           streaming={item.streaming}
+          showResponseLabel={false}
+          labels={{ tools: `${item.tools.length} ${item.tools.length === 1 ? 'Tool' : 'Tools'}` }}
           tools={item.tools.length > 0 ? item.tools.map(tc => (
             <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} error={tc.error} />
           )) : undefined}

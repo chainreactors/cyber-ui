@@ -106,27 +106,27 @@ export function CyberHubPocTemplateViewer({
   const handleCopyText = async (text: string) => {
     await copyToClipboard(text)
   }
-  const sectionClass = 'rounded-lg border-0 bg-slate-50/55 shadow-none ring-1 ring-slate-200/70'
+  const sectionClass = 'rounded-lg border-0 bg-surface-2 shadow-none ring-1 ring-line'
 
   return (
     <div className={cn('flex flex-col h-full w-full', className)}>
-      <div className="flex-none rounded-t-xl border-b border-slate-200/70 bg-white px-4 py-3">
+      <div className="flex-none rounded-t-xl border-b border-line bg-surface px-4 py-3">
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
               <SeverityBadge severity={poc.severity || 'info'} size="sm" className="!border-transparent shadow-none" />
               {poc.poc_id && (
-                <Badge variant="muted" className="border-transparent bg-slate-100/80 font-mono text-xs text-slate-700 shadow-none">
+                <Badge variant="muted" className="border-transparent bg-surface-2 font-mono text-xs text-muted shadow-none">
                   {poc.poc_id}
                 </Badge>
               )}
-              <h2 className="text-lg font-bold text-slate-900 line-clamp-1">{poc.name}</h2>
+              <h2 className="text-lg font-bold text-fg line-clamp-1">{poc.name}</h2>
               <POCStatusBadge status={isStatusValue(poc.status) ? poc.status : 'draft'} />
             </div>
 
-            <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap mb-1.5">
+            <div className="flex items-center gap-4 text-xs text-muted flex-wrap mb-1.5">
               <div className="flex items-center gap-1">
-                <User className="h-3 w-3 text-slate-400" />
+                <User className="h-3 w-3 text-faint" />
                 <span>{poc.author || '未知'}</span>
               </div>
               {cveId && (
@@ -150,11 +150,11 @@ export function CyberHubPocTemplateViewer({
                 </div>
               )}
               <div className="flex items-center gap-1">
-                <Database className="h-3 w-3 text-slate-400" />
+                <Database className="h-3 w-3 text-faint" />
                 <span>{poc.source || '未知'}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-slate-400" />
+                <Clock className="h-3 w-3 text-faint" />
                 <span>{formatRelativeTime(poc.updated_at)}</span>
               </div>
             </div>
@@ -172,7 +172,7 @@ export function CyberHubPocTemplateViewer({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto bg-white px-6 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto bg-surface px-6 py-4">
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2 space-y-4">
             {testPanel}
@@ -181,13 +181,13 @@ export function CyberHubPocTemplateViewer({
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Info className="h-4 w-4 text-blue-500" />
-                  <h3 className="text-sm font-semibold text-slate-700">基础信息</h3>
+                  <h3 className="text-sm font-semibold text-fg">基础信息</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">数据库ID</span>
+                    <span className="text-muted">数据库ID</span>
                     <div className="flex items-center gap-1">
-                      <span className="font-medium text-slate-700 font-mono">{poc.id || '-'}</span>
+                      <span className="font-medium text-fg font-mono">{poc.id || '-'}</span>
                       {poc.id && (
                         <Button
                           variant="ghost"
@@ -201,9 +201,9 @@ export function CyberHubPocTemplateViewer({
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">POC ID</span>
+                    <span className="text-muted">POC ID</span>
                     <div className="flex items-center gap-1">
-                      <span className="font-medium text-slate-700 font-mono">{poc.poc_id || '-'}</span>
+                      <span className="font-medium text-fg font-mono">{poc.poc_id || '-'}</span>
                       {poc.poc_id && (
                         <Button
                           variant="ghost"
@@ -217,57 +217,57 @@ export function CyberHubPocTemplateViewer({
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">POC类型</span>
-                    <span className="font-medium text-slate-700">
+                    <span className="text-muted">POC类型</span>
+                    <span className="font-medium text-fg">
                       {poc.type?.toUpperCase() || '-'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">格式</span>
-                    <span className="font-medium text-slate-700">
+                    <span className="text-muted">格式</span>
+                    <span className="font-medium text-fg">
                       {poc.format?.toUpperCase() || '-'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">版本</span>
-                    <span className="font-medium text-slate-700">
+                    <span className="text-muted">版本</span>
+                    <span className="font-medium text-fg">
                       {poc.version || '-'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">验证状态</span>
-                    <span className="font-medium text-slate-700">
+                    <span className="text-muted">验证状态</span>
+                    <span className="font-medium text-fg">
                       {verified ? '已验证' : '未验证'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">创建时间</span>
-                    <span className="font-medium text-slate-700">
+                    <span className="text-muted">创建时间</span>
+                    <span className="font-medium text-fg">
                       {formatFullTime(poc.created_at)}
                     </span>
                   </div>
                 </div>
 
                 {(impact || remediation) && (
-                  <div className="mt-4 space-y-3 border-t border-slate-200/70 pt-4">
+                  <div className="mt-4 space-y-3 border-t border-line pt-4">
                     {impact && (
                       <div>
-                        <div className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
+                        <div className="text-xs font-medium text-muted mb-1 flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3 text-orange-500" />
                           影响范围
                         </div>
-                        <div className="rounded-md bg-orange-50/90 p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-orange-100">
+                        <div className="rounded-md bg-warn-soft p-3 text-xs leading-relaxed text-fg ring-1 ring-line">
                           {impact}
                         </div>
                       </div>
                     )}
                     {remediation && (
                       <div>
-                        <div className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
+                        <div className="text-xs font-medium text-muted mb-1 flex items-center gap-1">
                           <Shield className="h-3 w-3 text-green-500" />
                           修复建议
                         </div>
-                        <div className="rounded-md bg-green-50/90 p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-green-100">
+                        <div className="rounded-md bg-ok-soft p-3 text-xs leading-relaxed text-fg ring-1 ring-line">
                           {remediation}
                         </div>
                       </div>
@@ -283,11 +283,11 @@ export function CyberHubPocTemplateViewer({
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-green-500" />
-                      <h3 className="text-sm font-semibold text-slate-700">规则配置</h3>
+                      <h3 className="text-sm font-semibold text-fg">规则配置</h3>
                     </div>
                     {compareAction}
                   </div>
-                  <div className="overflow-hidden rounded-lg ring-1 ring-slate-200/80">
+                  <div className="overflow-hidden rounded-lg ring-1 ring-line">
                     <YamlEditor
                       value={displayRawContent}
                       onChange={() => {}}
@@ -319,12 +319,12 @@ export function CyberHubPocTemplateViewer({
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Shield className="h-4 w-4 text-red-500" />
-                  <h3 className="text-sm font-semibold text-slate-700">安全分类</h3>
+                  <h3 className="text-sm font-semibold text-fg">安全分类</h3>
                 </div>
                 <div className="space-y-2.5">
                   {cveId && (
                     <div>
-                      <div className="text-xs text-slate-500 mb-1">CVE编号</div>
+                      <div className="text-xs text-muted mb-1">CVE编号</div>
                       <Badge variant="outline" className="font-mono text-xs">
                         {cveId}
                       </Badge>
@@ -332,7 +332,7 @@ export function CyberHubPocTemplateViewer({
                   )}
                   {cweId && (
                     <div>
-                      <div className="text-xs text-slate-500 mb-1">CWE编号</div>
+                      <div className="text-xs text-muted mb-1">CWE编号</div>
                       <Badge variant="outline" className="font-mono text-xs">
                         {cweId}
                       </Badge>
@@ -340,25 +340,25 @@ export function CyberHubPocTemplateViewer({
                   )}
                   {cvssMetrics && (
                     <div>
-                      <div className="text-xs text-slate-500 mb-1">CVSS向量</div>
-                      <div className="text-[10px] text-slate-400 font-mono break-all">
+                      <div className="text-xs text-muted mb-1">CVSS向量</div>
+                      <div className="text-[10px] text-faint font-mono break-all">
                         {cvssMetrics}
                       </div>
                     </div>
                   )}
                   {(epssScore || epssPercentile) && (
                     <div>
-                      <div className="text-xs text-slate-500 mb-1">EPSS评分</div>
+                      <div className="text-xs text-muted mb-1">EPSS评分</div>
                       <div className="space-y-1">
                         {epssScore && (
                           <div className="text-xs">
-                            <span className="text-slate-500">Score:</span>{' '}
+                            <span className="text-muted">Score:</span>{' '}
                             <span className="font-medium">{(epssScore * 100).toFixed(2)}%</span>
                           </div>
                         )}
                         {epssPercentile && (
                           <div className="text-xs">
-                            <span className="text-slate-500">Percentile:</span>{' '}
+                            <span className="text-muted">Percentile:</span>{' '}
                             <span className="font-medium">{(epssPercentile * 100).toFixed(2)}%</span>
                           </div>
                         )}
@@ -366,7 +366,7 @@ export function CyberHubPocTemplateViewer({
                     </div>
                   )}
                   {!cveId && !cweId && !cvssScore && !epssScore && (
-                    <div className="text-xs text-slate-400 text-center py-3">
+                    <div className="text-xs text-faint text-center py-3">
                       暂无安全分类信息
                     </div>
                   )}
@@ -379,7 +379,7 @@ export function CyberHubPocTemplateViewer({
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <FingerprintIcon className="h-4 w-4 text-amber-500" />
-                    <h3 className="text-sm font-semibold text-slate-700">分类</h3>
+                    <h3 className="text-sm font-semibold text-fg">分类</h3>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {poc.categories.map((category) => (
@@ -399,7 +399,7 @@ export function CyberHubPocTemplateViewer({
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Link2 className="h-4 w-4 text-blue-500" />
-                    <h3 className="text-sm font-semibold text-slate-700">参考链接</h3>
+                    <h3 className="text-sm font-semibold text-fg">参考链接</h3>
                   </div>
                   <div className="space-y-1.5">
                     {links.map((ref) => (
@@ -408,7 +408,7 @@ export function CyberHubPocTemplateViewer({
                         href={ref}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline block truncate"
+                        className="text-xs text-accent hover:text-accent-hover hover:underline block truncate"
                       >
                         {ref}
                       </a>
@@ -422,7 +422,7 @@ export function CyberHubPocTemplateViewer({
       </div>
 
       {bottomActions && (
-        <div className="flex-none border-t border-slate-200/70 bg-white px-6 py-3">
+        <div className="flex-none border-t border-line bg-surface px-6 py-3">
           {bottomActions}
         </div>
       )}

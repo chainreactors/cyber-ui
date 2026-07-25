@@ -296,8 +296,13 @@ export function reduceAOPToTimeline(
     // a new run appears, including streams where turn.start was not replayed.
     if (event.turn_id) {
       const activeTurnID = activeTurnIDs.get(key)
-      if (activeTurnID && activeTurnID !== event.turn_id) finishResponse(key)
-      activeTurnIDs.set(key, event.turn_id)
+      const staleTurnEnd = event.type === 'turn.end'
+        && activeTurnID !== undefined
+        && activeTurnID !== event.turn_id
+      if (!staleTurnEnd) {
+        if (activeTurnID && activeTurnID !== event.turn_id) finishResponse(key)
+        activeTurnIDs.set(key, event.turn_id)
+      }
     }
 
     // A platform chat session may contain many agent runs. Each run restarts
@@ -374,8 +379,10 @@ export function reduceAOPToTimeline(
 
       case 'turn.end':
         if (event.turn_id) {
-          finishResponse(key)
-          if (activeTurnIDs.get(key) === event.turn_id) activeTurnIDs.delete(key)
+          if (activeTurnIDs.get(key) === event.turn_id) {
+            finishResponse(key)
+            activeTurnIDs.delete(key)
+          }
         } else {
           // Legacy turn numbers represented internal model cycles, so several
           // of them could still belong to one user-facing response.

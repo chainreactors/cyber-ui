@@ -43,7 +43,7 @@ Separator.displayName = 'Separator'
 export const Tooltip = (props: React.ComponentProps<typeof TooltipPrimitive.Root>) => <TooltipPrimitive.Provider delayDuration={250}><TooltipPrimitive.Root {...props} /></TooltipPrimitive.Provider>
 export const TooltipTrigger = TooltipPrimitive.Trigger
 export const TooltipContent = React.forwardRef<React.ElementRef<typeof TooltipPrimitive.Content>, React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>>(({ className, sideOffset = 4, ...props }, ref) => (
-  <TooltipPrimitive.Portal><TooltipPrimitive.Content ref={ref} sideOffset={sideOffset} className={cn('z-[80] rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md', className)} {...props} /></TooltipPrimitive.Portal>
+  <TooltipPrimitive.Portal><TooltipPrimitive.Content ref={ref} sideOffset={sideOffset} className={cn('file-manager-theme z-[80] rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md', className)} {...props} /></TooltipPrimitive.Portal>
 ))
 TooltipContent.displayName = 'TooltipContent'
 
@@ -55,7 +55,7 @@ export const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLD
 export const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideCloseButton?: boolean }>(({ className, children, hideCloseButton, ...props }, ref) => (
   <DialogPrimitive.Portal>
     <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-    <DialogPrimitive.Content ref={ref} className={cn('fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-background p-6 shadow-xl', className)} {...props}>
+    <DialogPrimitive.Content ref={ref} className={cn('file-manager-theme fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-background p-6 shadow-xl', className)} {...props}>
       {children}
       {!hideCloseButton && <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100"><X className="h-4 w-4" /><span className="sr-only">Close</span></DialogPrimitive.Close>}
     </DialogPrimitive.Content>
@@ -67,7 +67,7 @@ export const Sheet = DialogPrimitive.Root
 export const SheetTrigger = DialogPrimitive.Trigger
 export const SheetContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { side?: 'left' | 'right' | 'top' | 'bottom' }>(({ className, children, side = 'right', ...props }, ref) => {
   const sides = { left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm border-r', right: 'inset-y-0 right-0 h-full w-3/4 max-w-sm border-l', top: 'inset-x-0 top-0 border-b', bottom: 'inset-x-0 bottom-0 border-t' }
-  return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" /><DialogPrimitive.Content ref={ref} className={cn('fixed z-50 bg-background p-6 shadow-xl', sides[side], className)} {...props}>{children}<DialogPrimitive.Close className="absolute right-4 top-4 opacity-70 hover:opacity-100"><X className="h-4 w-4" /></DialogPrimitive.Close></DialogPrimitive.Content></DialogPrimitive.Portal>
+  return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" /><DialogPrimitive.Content ref={ref} className={cn('file-manager-theme fixed z-50 bg-background p-6 shadow-xl', sides[side], className)} {...props}>{children}<DialogPrimitive.Close className="absolute right-4 top-4 opacity-70 hover:opacity-100"><X className="h-4 w-4" /></DialogPrimitive.Close></DialogPrimitive.Content></DialogPrimitive.Portal>
 })
 SheetContent.displayName = 'SheetContent'
 
@@ -83,9 +83,9 @@ export const ContextMenuTrigger = ContextMenuPrimitive.Trigger
 export const ContextMenuSub = ContextMenuPrimitive.Sub
 export const ContextMenuSubTrigger = React.forwardRef<React.ElementRef<typeof ContextMenuPrimitive.SubTrigger>, React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubTrigger>>(({ className, children, ...props }, ref) => <ContextMenuPrimitive.SubTrigger ref={ref} className={cn('flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent', className)} {...props}>{children}<ChevronRight className="ml-auto h-4 w-4" /></ContextMenuPrimitive.SubTrigger>)
 ContextMenuSubTrigger.displayName = 'ContextMenuSubTrigger'
-export const ContextMenuSubContent = React.forwardRef<React.ElementRef<typeof ContextMenuPrimitive.SubContent>, React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>>(({ className, ...props }, ref) => <ContextMenuPrimitive.Portal><ContextMenuPrimitive.SubContent ref={ref} className={cn('z-50 min-w-32 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md', className)} {...props} /></ContextMenuPrimitive.Portal>)
+export const ContextMenuSubContent = React.forwardRef<React.ElementRef<typeof ContextMenuPrimitive.SubContent>, React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>>(({ className, ...props }, ref) => <ContextMenuPrimitive.Portal><ContextMenuPrimitive.SubContent ref={ref} className={cn('file-manager-theme z-50 min-w-32 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md', className)} {...props} /></ContextMenuPrimitive.Portal>)
 ContextMenuSubContent.displayName = 'ContextMenuSubContent'
-export const ContextMenuContent = React.forwardRef<React.ElementRef<typeof ContextMenuPrimitive.Content>, React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>>(({ className, ...props }, ref) => <ContextMenuPrimitive.Portal><ContextMenuPrimitive.Content ref={ref} className={cn('z-50 min-w-32 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md', className)} {...props} /></ContextMenuPrimitive.Portal>)
+export const ContextMenuContent = React.forwardRef<React.ElementRef<typeof ContextMenuPrimitive.Content>, React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>>(({ className, ...props }, ref) => <ContextMenuPrimitive.Portal><ContextMenuPrimitive.Content ref={ref} className={cn('file-manager-theme z-50 min-w-32 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md', className)} {...props} /></ContextMenuPrimitive.Portal>)
 ContextMenuContent.displayName = 'ContextMenuContent'
 export const ContextMenuItem = React.forwardRef<React.ElementRef<typeof ContextMenuPrimitive.Item>, React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Item>>(({ className, ...props }, ref) => <ContextMenuPrimitive.Item ref={ref} className={cn('relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50', className)} {...props} />)
 ContextMenuItem.displayName = 'ContextMenuItem'

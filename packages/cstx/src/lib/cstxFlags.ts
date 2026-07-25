@@ -97,7 +97,7 @@ export const isFalsePositive = (node: CSTXNode): boolean => (
     (getCstxFlags(node) & CSTX_FLAGS.FALSE_POSITIVE) !== 0
 );
 
-export const hasCstxFlag = (node: CSTXNode, flagValue: number): boolean => (
+export const hasCstxFlag = (node: unknown, flagValue: number): boolean => (
     (getCstxFlags(node) & normalizeCstxFlagMask(flagValue)) !== 0
 );
 

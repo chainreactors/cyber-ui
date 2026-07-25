@@ -181,6 +181,24 @@ describe('reduceAOPToTimeline', () => {
     ])
   })
 
+  it('does not let a late turn end close the newer active turn', () => {
+    const items = reduceAOPToTimeline([
+      ev(1, 'turn.start', {}, { turn_id: 'run-1' }),
+      ev(2, 'message.delta', {
+        message_id: 'm-1', part_type: 'reasoning', part_index: 0, delta: 'first',
+      }, { turn_id: 'run-1' }),
+      ev(3, 'turn.start', {}, { turn_id: 'run-2' }),
+      ev(4, 'message.delta', {
+        message_id: 'm-2', part_type: 'reasoning', part_index: 0, delta: 'second',
+      }, { turn_id: 'run-2' }),
+      ev(5, 'turn.end', { stop: 'completed' }, { turn_id: 'run-1' }),
+    ], { streaming: true, lifecycle: 'none' })
+
+    expect(responses(items)).toHaveLength(2)
+    expect(responses(items)[0]).toMatchObject({ thinking: 'first', streaming: false })
+    expect(responses(items)[1]).toMatchObject({ thinking: 'second', streaming: true })
+  })
+
   it('aggregates consecutive tool and answer turns into one response card', () => {
     const items = reduceAOPToTimeline([
       ev(0, 'session.start', {}),

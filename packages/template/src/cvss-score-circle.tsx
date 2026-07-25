@@ -33,9 +33,10 @@ export function CVSSScoreCircle({ score, size = 120, strokeWidth = 8 }: CVSSScor
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#e5e7eb"
+            stroke="currentColor"
             strokeWidth={strokeWidth}
             fill="transparent"
+            className="text-raise"
           />
           <circle
             cx={size / 2}
@@ -58,7 +59,7 @@ export function CVSSScoreCircle({ score, size = 120, strokeWidth = 8 }: CVSSScor
           >
             {score.toFixed(1)}
           </span>
-          <span className="text-xs text-gray-500 font-medium">Score</span>
+          <span className="text-xs text-muted font-medium">Score</span>
         </div>
       </div>
     </div>

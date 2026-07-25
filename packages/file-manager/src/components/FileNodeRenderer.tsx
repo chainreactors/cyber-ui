@@ -111,7 +111,7 @@ export function useFileNodeRenderer({
               })()}
             </>
           )}
-          <span className="min-w-0 flex-1 truncate whitespace-nowrap">
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap" title={data.name}>
             {highlightText(data.name, treeSearchQuery)}
           </span>
               {isOperating && (

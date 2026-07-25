@@ -1,12 +1,13 @@
 import React, { useMemo } from 'react'
 import type { AOPEvent } from '@cyber/agent-protocol'
-import { reduceAOPToTimeline } from '../../lib/aop-reducer'
+import { reduceAOPToTimeline, type ReduceAOPOptions } from '../../lib/aop-reducer'
 import { ChatPanel } from './ChatPanel'
 import type { ChatPanelProps, ChatPanelTimelineProps } from './ChatPanel'
 
 export interface AOPChatPanelProps extends Omit<ChatPanelProps, 'timeline' | 'children'> {
   events: readonly AOPEvent[]
   streaming?: boolean
+  lifecycle?: ReduceAOPOptions['lifecycle']
   timelineProps?: ChatPanelTimelineProps
   children?: React.ReactNode
 }
@@ -15,13 +16,14 @@ export interface AOPChatPanelProps extends Omit<ChatPanelProps, 'timeline' | 'ch
 export function AOPChatPanel({
   events,
   streaming = false,
+  lifecycle,
   timelineProps,
   children,
   ...panelProps
 }: AOPChatPanelProps) {
   const timeline = useMemo(
-    () => reduceAOPToTimeline(events, { streaming }),
-    [events, streaming],
+    () => reduceAOPToTimeline(events, { streaming, lifecycle }),
+    [events, lifecycle, streaming],
   )
 
   return (

@@ -77,6 +77,7 @@ interface TableActionConfig {
 const DEFAULT_COLUMN_WIDTH_PX = 128;
 const DEFAULT_COMMON_BADGE_KEYS = ['type'];
 const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100, 500];
+const IDENTITY_KEEP_KEYS = new Set(['name', 'title', 'sources']);
 
 function hasDisplayValue(value: unknown): boolean {
   return value != null && String(value).trim().length > 0;
@@ -808,8 +809,9 @@ export function CSTXTable({
   const metaKeySet = useMemo(() => {
     const keys = new Set(allColumns.filter((c) => isMetaKey(c.key)).map((c) => c.key));
     explicitMetaKeys.forEach((key) => keys.add(key));
+    if (sparseColumnThreshold > 0 && typeFilterKey) keys.delete(typeFilterKey);
     return keys;
-  }, [explicitMetaKeys, allColumns]);
+  }, [explicitMetaKeys, allColumns, sparseColumnThreshold, typeFilterKey]);
 
   // Columns that are mostly empty for the current rows (e.g. type-specific fields
   // on a mixed "All" view) are hidden by default so the table fits without a wide
@@ -823,8 +825,17 @@ export function CSTXTable({
     return sparseColumnKeys(rows, allColumns, sparseColumnThreshold, {
       minVisible: sparseMinColumns,
       alwaysHidden: metaKeySet,
+      alwaysVisible: new Set([
+        ...IDENTITY_KEEP_KEYS,
+        ...(typeFilterKey ? [typeFilterKey] : []),
+      ]),
     });
-  }, [columnSelectorEnabled, sparseColumnThreshold, sparseMinColumns, explicitColumns, rows, allColumns, metaKeySet]);
+  }, [columnSelectorEnabled, sparseColumnThreshold, sparseMinColumns, explicitColumns, rows, allColumns, metaKeySet, typeFilterKey]);
+
+  const selectorMetaKeySet = useMemo(
+    () => new Set<string>([...metaKeySet, ...sparseKeySet]),
+    [metaKeySet, sparseKeySet],
+  );
 
   const defaultHiddenKeySet = useMemo(() => {
     if (sparseKeySet.size === 0) return metaKeySet;
@@ -1233,7 +1244,7 @@ export function CSTXTable({
           {columnSelectorEnabled && (
             <ColumnSelector
               allColumns={allColumns}
-              metaKeys={metaKeySet}
+              metaKeys={selectorMetaKeySet}
               isVisible={isColumnVisible}
               onToggle={toggleColumnVisibility}
               metadataLabel={tr('metadata', 'Metadata')}

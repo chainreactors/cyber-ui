@@ -315,16 +315,18 @@ export function inferColumns(
  * instead. `options.alwaysHidden` (e.g. metadata keys the caller hides regardless) is
  * excluded from both the visible count and the reveal candidates, so the floor counts
  * only columns that will actually show and never wastes a slot on a still-hidden key.
+ * `options.alwaysVisible` protects identity columns from being folded even when sparse.
  */
 export function sparseColumnKeys(
   rows: Record<string, unknown>[],
   columns: ColumnConfig[],
   threshold: number,
-  options?: { minVisible?: number; alwaysHidden?: Set<string> },
+  options?: { minVisible?: number; alwaysHidden?: Set<string>; alwaysVisible?: Set<string> },
 ): Set<string> {
   const sparse = new Set<string>();
   if (rows.length === 0 || threshold <= 0) return sparse;
   const alwaysHidden = options?.alwaysHidden ?? new Set<string>();
+  const alwaysVisible = options?.alwaysVisible ?? new Set<string>();
   const fill = new Map<string, number>();
   columns.forEach((column, index) => {
     let filled = 0;
@@ -333,7 +335,9 @@ export function sparseColumnKeys(
       if (value != null && comparable(value) !== '') filled += 1;
     }
     fill.set(column.key, filled / rows.length);
-    if (index !== 0 && filled / rows.length < threshold) sparse.add(column.key);
+    if (index !== 0 && !alwaysVisible.has(column.key) && filled / rows.length < threshold) {
+      sparse.add(column.key);
+    }
   });
 
   const minVisible = options?.minVisible ?? 0;

@@ -284,13 +284,19 @@ describe('reduceAOPToTimeline', () => {
 
   it('surfaces AOP errors as system messages without closing the stream', () => {
     const items = reduceAOPToTimeline([
-      ev(1, 'error', { code: 'rate_limit', message: 'slow down', retryable: true }),
+      ev(1, 'error', { code: 'rate_limit', message: 'slow down', retryable: true }, {
+        ext: { 'aiscan.web': { params: { error: 'quota exceeded' } } },
+      }),
       ev(2, 'message', { message_id: 'a-1', role: 'assistant', parts: [{ type: 'text', text: 'recovered' }] }),
     ])
     const msgs = messages(items)
     const cards = responses(items)
     expect(msgs[0]).toMatchObject({ role: 'system', content: 'slow down' })
-    expect(msgs[0].metadata).toMatchObject({ code: 'rate_limit', retryable: true })
+    expect(msgs[0].metadata).toMatchObject({
+      code: 'rate_limit',
+      retryable: true,
+      ext: { 'aiscan.web': { params: { error: 'quota exceeded' } } },
+    })
     expect(cards[0]).toMatchObject({ response: { content: 'recovered' } })
   })
 

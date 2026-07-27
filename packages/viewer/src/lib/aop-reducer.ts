@@ -529,7 +529,7 @@ export function reduceAOPToTimeline(
           role: 'system',
           content: String(data.message ?? 'Agent error'),
           streaming: false,
-          metadata: { code: data.code, retryable: data.retryable },
+          metadata: { code: data.code, retryable: data.retryable, ext: event.ext },
         }
         items.push(message)
         break

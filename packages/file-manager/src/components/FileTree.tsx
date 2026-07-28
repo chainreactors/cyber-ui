@@ -22,7 +22,7 @@ interface FileTreeProps {
   selection: { selectedIds: Set<string> }
   treeWidth: number
   treeHeight: number
-  treeContainerRef: React.RefObject<HTMLDivElement | null>
+  treeContainerRef: React.Ref<HTMLDivElement>
   treeSearchQuery: string
   setTreeSearchQuery: (query: string) => void
   matchedCount: number

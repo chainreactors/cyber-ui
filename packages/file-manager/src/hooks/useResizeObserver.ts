@@ -1,11 +1,11 @@
-import { useRef, useState, useEffect } from "react"
+import { useCallback, useState, useEffect } from "react"
 
 export const useResizeObserver = () => {
-  const ref = useRef<HTMLDivElement>(null)
+  const [element, setElement] = useState<HTMLDivElement | null>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
+  const ref = useCallback((node: HTMLDivElement | null) => setElement(node), [])
 
   useEffect(() => {
-    const element = ref.current
     if (!element) return
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0]
@@ -15,7 +15,7 @@ export const useResizeObserver = () => {
     })
     observer.observe(element)
     return () => observer.disconnect()
-  }, [])
+  }, [element])
 
   return { ref, width: size.width, height: size.height }
 }

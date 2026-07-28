@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useRef } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useHotkeys } from "react-hotkeys-hook"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./ui"
 import type { FileNode } from "./types"
@@ -28,6 +28,9 @@ interface FileManagerCoreProps {
   onOpenTab?: (title: string, module: string, subModule?: string, component?: unknown) => void
   className?: string
   showTree?: boolean
+  splitDirection?: 'horizontal' | 'vertical'
+  allowTreeOnly?: boolean
+  defaultLayoutMode?: 'split' | 'tree'
 }
 
 const FileManagerCore: React.FC<FileManagerCoreProps> = ({
@@ -36,8 +39,12 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
   onOpenTab,
   className,
   showTree = true,
+  splitDirection = 'horizontal',
+  allowTreeOnly = false,
+  defaultLayoutMode = 'split',
 }) => {
   const { capabilities } = useFileManagerRuntime()
+  const [layoutMode, setLayoutMode] = useState<'split' | 'tree'>(defaultLayoutMode)
   const state = useFileManagerState(sessionId, session)
   const actions = useFileActions(state)
   const sanitizeFileNodesRef = useRef(state.sanitizeFileNodes)
@@ -296,6 +303,10 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
 
   // Ensure nodes are expanded when expandedNodes or treeData changes
   useEffect(() => {
+    setLayoutMode(defaultLayoutMode)
+  }, [defaultLayoutMode, sessionId])
+
+  useEffect(() => {
     if (state.expandedNodes.size === 0 || !state.treeRef.current) return
 
     const expandNodes = () => {
@@ -318,80 +329,100 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     }
   }, [state.expandedNodes, state.treeData])
 
+  const fileToolbar = (
+    <FileToolbar
+      isMobile={state.isMobile}
+      isWindowsSession={state.isWindowsSession}
+      currentPath={state.currentPath}
+      currentDirPath={state.currentDirPath}
+      pathInputValue={state.pathInputValue}
+      isEditingPath={state.isEditingPath}
+      viewMode={state.viewMode}
+      selection={state.selection}
+      refreshing={state.refreshing}
+      uploading={state.uploading}
+      downloading={state.downloading}
+      deleting={state.deleting}
+      enumeratingDrivers={state.enumeratingDrivers}
+      isAtRoot={state.isAtRoot}
+      cacheMode={state.cacheMode}
+      layoutMode={layoutMode}
+      setLayoutMode={allowTreeOnly ? setLayoutMode : undefined}
+      navigateToPath={state.navigateToPath}
+      navigateUp={state.navigateUp}
+      navigateHome={state.navigateHome}
+      handleRefresh={actions.handleRefreshCurrentDirectory}
+      setPathInputValue={state.setPathInputValue}
+      setIsEditingPath={state.setIsEditingPath}
+      setViewMode={state.setViewMode}
+      setCacheMode={state.setCacheMode}
+      setShowCreateFolder={state.setShowCreateFolder}
+      setShowCreateFile={state.setShowCreateFile}
+      setShowUploadDialog={state.setShowUploadDialog}
+      setContextMenuTargetPath={state.setContextMenuTargetPath}
+      setUploadTargetPath={state.setUploadTargetPath}
+      setSelectedUploadFile={state.setSelectedUploadFile}
+      handleBatchDownload={actions.handleBatchDownload}
+      handleBatchDelete={actions.handleBatchDelete}
+      handleEnumDrivers={actions.handleEnumDrivers}
+      treeRef={state.treeRef}
+      filteredTreeData={state.filteredTreeData}
+      treeData={state.treeData}
+      treeHeight={state.treeHeight}
+      treeSearchQuery={state.treeSearchQuery}
+      setTreeSearchQuery={state.setTreeSearchQuery}
+      matchedCount={state.matchedCount}
+      rpcError={state.rpcError}
+      FileNodeRenderer={FileNodeRenderer}
+    />
+  )
+
+  const fileTree = (
+    <FileTree
+      treeRef={state.treeRef}
+      filteredTreeData={state.filteredTreeData}
+      treeData={state.treeData}
+      expandedNodes={state.expandedNodes}
+      selection={state.selection}
+      treeWidth={state.treeWidth}
+      treeHeight={state.treeHeight}
+      treeContainerRef={state.treeContainerRef}
+      treeSearchQuery={state.treeSearchQuery}
+      setTreeSearchQuery={state.setTreeSearchQuery}
+      matchedCount={state.matchedCount}
+      rpcError={state.rpcError}
+      isWindowsSession={state.isWindowsSession}
+      isMobile={state.isMobile}
+      initializeFileSystem={state.initializeFileSystem}
+      handleNodeSelect={state.handleNodeSelect}
+      handleTreeToggle={state.handleTreeToggle}
+      FileNodeRenderer={FileNodeRenderer}
+    />
+  )
+
   return (
     <div className={`h-full flex flex-col file-manager-container ${className}`}>
+      {showTree && !state.isMobile && (splitDirection === 'vertical' || layoutMode === 'tree') && fileToolbar}
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {showTree && !state.isMobile ? (
-          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={22} minSize={15} maxSize={40}>
-              <FileTree
-                treeRef={state.treeRef}
-                filteredTreeData={state.filteredTreeData}
-                treeData={state.treeData}
-                expandedNodes={state.expandedNodes}
-                selection={state.selection}
-                treeWidth={state.treeWidth}
-                treeHeight={state.treeHeight}
-                treeContainerRef={state.treeContainerRef}
-                treeSearchQuery={state.treeSearchQuery}
-                setTreeSearchQuery={state.setTreeSearchQuery}
-                matchedCount={state.matchedCount}
-                rpcError={state.rpcError}
-                isWindowsSession={state.isWindowsSession}
-                isMobile={state.isMobile}
-                initializeFileSystem={state.initializeFileSystem}
-                handleNodeSelect={state.handleNodeSelect}
-                handleTreeToggle={state.handleTreeToggle}
-                FileNodeRenderer={FileNodeRenderer}
-              />
+          layoutMode === 'tree' ? (
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {fileTree}
+            </div>
+          ) : (
+          <ResizablePanelGroup direction={splitDirection}>
+            <ResizablePanel
+              defaultSize={splitDirection === 'vertical' ? 34 : 22}
+              minSize={splitDirection === 'vertical' ? 24 : 15}
+              maxSize={splitDirection === 'vertical' ? 55 : 40}
+            >
+              {fileTree}
             </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize={78}>
-              <div className="h-full flex flex-col min-w-0">
-                <FileToolbar
-                  isMobile={state.isMobile}
-                  isWindowsSession={state.isWindowsSession}
-                  currentPath={state.currentPath}
-                  currentDirPath={state.currentDirPath}
-                  pathInputValue={state.pathInputValue}
-                  isEditingPath={state.isEditingPath}
-                  viewMode={state.viewMode}
-                  selection={state.selection}
-                  refreshing={state.refreshing}
-                  uploading={state.uploading}
-                  downloading={state.downloading}
-                  deleting={state.deleting}
-                  enumeratingDrivers={state.enumeratingDrivers}
-                  isAtRoot={state.isAtRoot}
-                  cacheMode={state.cacheMode}
-                  navigateToPath={state.navigateToPath}
-                  navigateUp={state.navigateUp}
-                  navigateHome={state.navigateHome}
-                  handleRefresh={actions.handleRefreshCurrentDirectory}
-                  setPathInputValue={state.setPathInputValue}
-                  setIsEditingPath={state.setIsEditingPath}
-                  setViewMode={state.setViewMode}
-                  setCacheMode={state.setCacheMode}
-                  setShowCreateFolder={state.setShowCreateFolder}
-                  setShowCreateFile={state.setShowCreateFile}
-                  setShowUploadDialog={state.setShowUploadDialog}
-                  setContextMenuTargetPath={state.setContextMenuTargetPath}
-                  setUploadTargetPath={state.setUploadTargetPath}
-                  setSelectedUploadFile={state.setSelectedUploadFile}
-                  handleBatchDownload={actions.handleBatchDownload}
-                  handleBatchDelete={actions.handleBatchDelete}
-                  handleEnumDrivers={actions.handleEnumDrivers}
-                  treeRef={state.treeRef}
-                  filteredTreeData={state.filteredTreeData}
-                  treeData={state.treeData}
-                  treeHeight={state.treeHeight}
-                  treeSearchQuery={state.treeSearchQuery}
-                  setTreeSearchQuery={state.setTreeSearchQuery}
-                  matchedCount={state.matchedCount}
-                  rpcError={state.rpcError}
-                  FileNodeRenderer={FileNodeRenderer}
-                />
+            <ResizableHandle orientation={splitDirection === 'vertical' ? 'horizontal' : 'vertical'} />
+            <ResizablePanel defaultSize={splitDirection === 'vertical' ? 66 : 78}>
+              <div className="h-full min-h-0 flex flex-col min-w-0">
+                {splitDirection === 'horizontal' && fileToolbar}
 
                 <FileListView
                   currentDirFiles={state.currentDirFiles}
@@ -419,51 +450,10 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
+          )
         ) : (
           <div className="flex-1 flex flex-col min-w-0">
-            <FileToolbar
-              isMobile={state.isMobile}
-              isWindowsSession={state.isWindowsSession}
-              currentPath={state.currentPath}
-              currentDirPath={state.currentDirPath}
-              pathInputValue={state.pathInputValue}
-              isEditingPath={state.isEditingPath}
-              viewMode={state.viewMode}
-              selection={state.selection}
-              refreshing={state.refreshing}
-              uploading={state.uploading}
-              downloading={state.downloading}
-              deleting={state.deleting}
-              enumeratingDrivers={state.enumeratingDrivers}
-              isAtRoot={state.isAtRoot}
-              cacheMode={state.cacheMode}
-              navigateToPath={state.navigateToPath}
-              navigateUp={state.navigateUp}
-              navigateHome={state.navigateHome}
-              handleRefresh={actions.handleRefreshCurrentDirectory}
-              setPathInputValue={state.setPathInputValue}
-              setIsEditingPath={state.setIsEditingPath}
-              setViewMode={state.setViewMode}
-              setCacheMode={state.setCacheMode}
-              setShowCreateFolder={state.setShowCreateFolder}
-              setShowCreateFile={state.setShowCreateFile}
-              setShowUploadDialog={state.setShowUploadDialog}
-              setContextMenuTargetPath={state.setContextMenuTargetPath}
-              setUploadTargetPath={state.setUploadTargetPath}
-              setSelectedUploadFile={state.setSelectedUploadFile}
-              handleBatchDownload={actions.handleBatchDownload}
-              handleBatchDelete={actions.handleBatchDelete}
-              handleEnumDrivers={actions.handleEnumDrivers}
-              treeRef={state.treeRef}
-              filteredTreeData={state.filteredTreeData}
-              treeData={state.treeData}
-              treeHeight={state.treeHeight}
-              treeSearchQuery={state.treeSearchQuery}
-              setTreeSearchQuery={state.setTreeSearchQuery}
-              matchedCount={state.matchedCount}
-              rpcError={state.rpcError}
-              FileNodeRenderer={FileNodeRenderer}
-            />
+            {fileToolbar}
 
             <FileListView
               currentDirFiles={state.currentDirFiles}
@@ -553,7 +543,9 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
 
 export interface FileManagerProps {
   adapter: FileManagerAdapter
+  allowTreeOnly?: boolean
   className?: string
+  defaultLayoutMode?: 'split' | 'tree'
   historyKey?: string
   initialPath?: string
   isWindows?: boolean
@@ -565,13 +557,16 @@ export interface FileManagerProps {
   onOperationSuccess?: (operation: Exclude<FileManagerOperation, 'list' | 'roots'>, entries: FileNode[]) => void
   renderPreview?: (entry: FileNode) => React.ReactNode
   showTree?: boolean
+  splitDirection?: 'horizontal' | 'vertical'
   sourceKey?: string | number
   translate?: (key: string, values?: Record<string, unknown>) => string
 }
 
 export function FileManager({
   adapter,
+  allowTreeOnly = false,
   className,
+  defaultLayoutMode = 'split',
   historyKey,
   initialPath: initialPathInput = '',
   isWindows: isWindowsInput,
@@ -583,6 +578,7 @@ export function FileManager({
   onOperationSuccess,
   renderPreview,
   showTree = true,
+  splitDirection = 'horizontal',
   sourceKey = 'default',
   translate: translateInput,
 }: FileManagerProps) {
@@ -626,6 +622,9 @@ export function FileManager({
         session={{ workdir: initialPath, type: isWindows ? 'windows' : 'unix' }}
         className={className}
         showTree={showTree}
+        splitDirection={splitDirection}
+        allowTreeOnly={allowTreeOnly}
+        defaultLayoutMode={defaultLayoutMode}
       />
     </FileManagerRuntimeProvider>
   )
@@ -677,6 +676,8 @@ const DEFAULT_MESSAGES: Record<string, string> = {
   recentPaths: 'Recent paths',
   listView: 'List view',
   gridView: 'Grid view',
+  compactMode: 'Compact mode',
+  fullMode: 'Full mode',
   enumDrivers: 'List drives',
   currentSystem: 'System: {system}',
   system: 'System',

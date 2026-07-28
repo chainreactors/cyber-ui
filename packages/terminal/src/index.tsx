@@ -176,7 +176,7 @@ export function TerminalHeader({ actions, status, title }: {
   title: string
 }) {
   return (
-    <div className="flex h-11 min-w-0 shrink-0 items-center justify-between border-b border-border px-3">
+    <div className="flex h-11 min-w-0 shrink-0 items-center justify-between border-b border-border bg-card px-3 text-card-foreground">
       <div className="flex min-w-0 items-center gap-2" title={title}>
         <Monitor className="h-4 w-4 shrink-0 text-primary" />
         <span className="truncate text-sm font-medium text-foreground">{title}</span>

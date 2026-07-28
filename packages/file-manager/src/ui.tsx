@@ -77,8 +77,15 @@ export function ResizablePanelGroup({ className, children, ...props }: { classNa
 export function ResizablePanel({ children, ...props }: { children?: React.ReactNode; defaultSize?: number; minSize?: number; maxSize?: number; [key: string]: unknown }) {
   return <PanelPrimitive {...props}>{children}</PanelPrimitive>
 }
-export function ResizableHandle({ className, ...props }: { className?: string; [key: string]: unknown }) {
-  return <PanelResizeHandlePrimitive className={cn('relative w-px bg-border after:absolute after:inset-y-0 after:-left-1 after:w-2', className)} {...props} />
+export function ResizableHandle({ className, orientation = 'vertical', ...props }: {
+  className?: string
+  orientation?: 'horizontal' | 'vertical'
+  [key: string]: unknown
+}) {
+  const hitArea = orientation === 'horizontal'
+    ? 'relative h-px w-full bg-border after:absolute after:-top-1 after:left-0 after:h-2 after:w-full'
+    : 'relative h-full w-px bg-border after:absolute after:inset-y-0 after:-left-1 after:w-2'
+  return <PanelResizeHandlePrimitive className={cn(hitArea, className)} {...props} />
 }
 
 export interface ContextMenuAction {

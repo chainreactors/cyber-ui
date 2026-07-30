@@ -186,6 +186,17 @@ function renderNodes(nodes: (RootContent | ElementContent)[], context: RenderCon
   return nodes.map((node, index) => <Fragment key={index}>{renderNode(node, context)}</Fragment>)
 }
 
+// Pretty-printed report HTML contains indentation text between table elements.
+// Browsers ignore that formatting whitespace, but React renders it as a text
+// child and warns because table, row-group, and row elements only accept their
+// structural descendants.
+function renderTableNodes(nodes: (RootContent | ElementContent)[], context: RenderContext): ReactNode[] {
+  return renderNodes(
+    nodes.filter((node) => node.type !== 'text' || node.value.trim() !== ''),
+    context,
+  )
+}
+
 /**
  * Evidence is shown verbatim rather than through a syntax highlighter: an HTTP
  * packet or shell transcript has no language to colour, and highlighting would
@@ -305,7 +316,7 @@ function ReportTable({ node, context }: { node: Element; context: RenderContext 
   return (
     <div className="my-3 overflow-x-auto rounded-md border border-border">
       <table {...passthroughProps(node)} className="w-full border-collapse text-left text-xs">
-        {renderNodes(node.children, context)}
+        {renderTableNodes(node.children, context)}
       </table>
     </div>
   )
@@ -498,12 +509,12 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'pre': return <EvidencePre node={node} />
     case 'table': return <ReportTable node={node} context={context} />
     case 'caption': return <caption {...props} className="px-3 py-2 text-left text-xs font-semibold">{children()}</caption>
-    case 'colgroup': return <colgroup {...props}>{children()}</colgroup>
+    case 'colgroup': return <colgroup {...props}>{renderTableNodes(node.children, context)}</colgroup>
     case 'col': return <col {...props} span={positiveInteger(node.properties?.span)} />
-    case 'thead': return <thead {...props} className="bg-muted text-xs font-semibold text-muted-foreground">{children()}</thead>
-    case 'tbody': return <tbody {...props}>{children()}</tbody>
-    case 'tfoot': return <tfoot {...props}>{children()}</tfoot>
-    case 'tr': return <tr {...props} className="border-b border-border last:border-0">{children()}</tr>
+    case 'thead': return <thead {...props} className="bg-muted text-xs font-semibold text-muted-foreground">{renderTableNodes(node.children, context)}</thead>
+    case 'tbody': return <tbody {...props}>{renderTableNodes(node.children, context)}</tbody>
+    case 'tfoot': return <tfoot {...props}>{renderTableNodes(node.children, context)}</tfoot>
+    case 'tr': return <tr {...props} className="border-b border-border last:border-0">{renderTableNodes(node.children, context)}</tr>
     case 'th': {
       const scope = stringProp(node, 'scope')
       return (

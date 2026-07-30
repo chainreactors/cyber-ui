@@ -1121,7 +1121,7 @@ export function CSTXTable({
       )}>
         {/* Left: title + count */}
         {title && (
-          <h3 className={cn('shrink-0 font-medium text-slate-900 dark:text-slate-100', compact ? 'text-xs' : 'text-sm')}>
+          <h3 className={cn('shrink-0 font-medium text-[var(--c-accent-deep,var(--c-fg,#334155))] dark:text-[var(--c-accent-deep,var(--c-fg,#cbd5e1))]', compact ? 'text-xs' : 'text-sm')}>
             {title}
           </h3>
         )}

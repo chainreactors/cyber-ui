@@ -374,6 +374,9 @@ importers:
       '@cyber/cstx':
         specifier: workspace:*
         version: link:../cstx
+      '@cyber/template':
+        specifier: workspace:*
+        version: link:../template
       '@cyber/theme':
         specifier: workspace:*
         version: link:../theme

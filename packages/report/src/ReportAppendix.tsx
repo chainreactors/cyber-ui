@@ -1,18 +1,31 @@
+import type { ReactNode } from 'react'
 import { CSTXTable, type CstxReportPreview, type CstxReportPreviewSheet } from '@cyber/cstx'
-import { Badge } from '@cyber/ui'
-import type { ReportSubreport } from './appendix'
+import type { TrafficHttpView } from '@cyber/traffic'
+import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from '@cyber/ui'
+import { VulnerabilityExplorer } from './VulnerabilityExplorer'
+import type { ReportVulnerabilityRecord } from './vulnerability'
 
-const SEVERITY_VARIANT = {
-  critical: 'destructive',
-  high: 'caution',
-  medium: 'warning',
-  low: 'info',
-  info: 'secondary',
+const COPY = {
+  zh: {
+    kicker: '任务产物',
+    assets: '资产',
+    findings: '漏洞',
+    noAssets: '暂无资产',
+    previewLimited: (limit: number) => `当前预览前 ${limit} 条。`,
+  },
+  en: {
+    kicker: 'Task results',
+    assets: 'assets',
+    findings: 'findings',
+    noAssets: 'No assets',
+    previewLimited: (limit: number) => `Preview limited to ${limit} rows.`,
+  },
 } as const
 
-function PreviewSheet({ sheet }: { sheet: CstxReportPreviewSheet }) {
+function PreviewSheet({ sheet, lang }: { sheet: CstxReportPreviewSheet; lang: 'zh' | 'en' }) {
   const rows = Array.isArray(sheet.rows) ? sheet.rows : []
   const columns = Array.isArray(sheet.columns) ? sheet.columns : []
+  const text = COPY[lang]
   return (
     <div className="space-y-2">
       <CSTXTable
@@ -23,126 +36,124 @@ function PreviewSheet({ sheet }: { sheet: CstxReportPreviewSheet }) {
         config={{
           title: sheet.title,
           columns,
-          enableSearch: false,
-          enablePagination: false,
-          enableSorting: false,
-          enableFieldSearch: false,
+          enableSearch: true,
+          enablePagination: rows.length > 25,
+          pageSize: 25,
+          pageSizeOptions: [25, 50, 100],
+          enableSorting: true,
+          enableFieldSearch: true,
           enableRowSelection: false,
+          enableColumnResize: columns.length > 3,
+          columnSelector: columns.length > 5,
           enableColoredTypes: true,
+          enableExport: true,
+          exportFormats: ['csv'],
           compact: true,
           layout: 'auto',
+          typeFilterKey: 'type',
           rowIdKey: 'cstx_id',
           showRowCount: true,
-          emptyText: 'No assets',
+          emptyText: text.noAssets,
         }}
       />
       {sheet.preview_limit && sheet.total > rows.length && (
         <div className="rounded-md border border-primary/10 bg-primary/[0.035] px-3 py-2 text-[11px] text-muted-foreground">
-          Preview limited to {sheet.preview_limit} rows.
+          {text.previewLimited(sheet.preview_limit)}
         </div>
       )}
     </div>
   )
 }
 
-export function CSTXPreview({ preview }: { preview?: CstxReportPreview | null }) {
-  if (!preview?.sheets?.length) return null
-  const total = preview.sheets.reduce((sum, sheet) => sum + Math.max(0, Number(sheet.total) || 0), 0)
+/**
+ * One task-owned result browser. Assets stay in the mature interactive
+ * CSTXTable; vulnerability records are read directly from their CSTX payload
+ * and browsed as report, traffic, and template views.
+ */
+export function ReportTaskPreview({
+  preview,
+  vulnerabilities,
+  vulnerabilitiesTitle = 'Vulnerabilities',
+  vulnerabilitiesDescription,
+  lang = 'en',
+  renderHttpView,
+}: {
+  preview?: CstxReportPreview | null
+  vulnerabilities?: readonly ReportVulnerabilityRecord[] | null
+  vulnerabilitiesTitle?: string
+  vulnerabilitiesDescription?: string
+  lang?: 'zh' | 'en'
+  renderHttpView?: (view: TrafficHttpView) => ReactNode
+}) {
+  const sheets = preview?.sheets?.length ? preview.sheets : []
+  const records = vulnerabilities?.length ? vulnerabilities : []
+  if (!sheets.length && !records.length) return null
+
+  const assetTotal = sheets.reduce((sum, sheet) => sum + Math.max(0, Number(sheet.total) || 0), 0)
+  const hasAssets = sheets.length > 0
+  const hasVulnerabilities = records.length > 0
+  const text = COPY[lang]
+  const title = preview?.title || vulnerabilitiesTitle
+  const assetTabTitle = sheets.length === 1 ? sheets[0].title : (lang === 'zh' ? 'CSTX 资产' : 'CSTX assets')
+
+  const assetsPanel = (
+    <div data-report-preview="assets" className="space-y-3">
+      {sheets.map((sheet) => <PreviewSheet key={sheet.id} sheet={sheet} lang={lang} />)}
+    </div>
+  )
+  const vulnerabilitiesPanel = (
+    <div data-report-preview="vulnerabilities">
+      {vulnerabilitiesDescription && <p className="mb-3 text-xs text-muted-foreground">{vulnerabilitiesDescription}</p>}
+      <VulnerabilityExplorer records={records} lang={lang} renderHttpView={renderHttpView} />
+    </div>
+  )
+
   return (
     <section
-      data-report-appendix="asset-preview"
+      data-report-appendix="task-preview"
       className="my-5 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-card shadow-sm"
     >
       <header className="flex flex-wrap items-start gap-3 border-b border-primary/15 px-4 py-3.5">
         <div>
           <div className="mb-1 flex items-center gap-2">
             <Badge variant="info" size="sm">CSTX</Badge>
-            <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-primary">Asset preview</span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-primary">{text.kicker}</span>
           </div>
-          <h2 className="m-0 border-0 p-0 text-base font-semibold text-foreground">{preview.title}</h2>
-          {preview.query && <p className="mt-1 font-mono text-[11px] text-muted-foreground">{preview.query}</p>}
-        </div>
-        <div className="ml-auto rounded-lg border border-primary/15 bg-background/75 px-3 py-1.5 text-right">
-          <div className="text-lg font-semibold tabular-nums text-primary">{total}</div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">assets</div>
-        </div>
-      </header>
-      <div className="space-y-3 p-3.5">
-        {preview.sheets.map((sheet) => <PreviewSheet key={sheet.id} sheet={sheet} />)}
-      </div>
-    </section>
-  )
-}
-
-function Subreport({ report }: { report: ReportSubreport }) {
-  const severity = (report.severity || 'info').toLowerCase()
-  const variant = SEVERITY_VARIANT[severity as keyof typeof SEVERITY_VARIANT] ?? 'secondary'
-  return (
-    <details
-      data-report-appendix="subreport"
-      data-report-severity={severity}
-      className="group overflow-hidden rounded-xl border border-border bg-card open:border-primary/25 open:shadow-sm"
-    >
-      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 marker:hidden hover:bg-primary/[0.035]">
-        <span className="text-xs text-muted-foreground transition-transform group-open:rotate-90" aria-hidden="true">›</span>
-        <Badge variant={variant} size="sm">{severity}</Badge>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{report.title}</span>
-      </summary>
-      <div className="border-t border-border px-4 py-4">
-        {report.summary && <p className="mb-3 whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground">{report.summary}</p>}
-        {!!report.fields?.length && (
-          <dl className="grid gap-x-5 gap-y-2 rounded-lg border border-primary/10 bg-primary/[0.025] px-3 py-2.5 text-xs sm:grid-cols-2">
-            {report.fields.map((field) => (
-              <div key={`${field.label}-${field.value}`} className="min-w-0">
-                <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{field.label}</dt>
-                <dd className="mt-0.5 break-words text-foreground">{field.value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-        {!!report.evidence?.length && (
-          <div className="mt-3 space-y-3">
-            {report.evidence.map((evidence) => (
-              <section key={evidence.label}>
-                <h4 className="mb-1 text-xs font-semibold text-foreground">{evidence.label}</h4>
-                <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-primary/10 bg-primary/[0.025] px-3 py-2 font-mono text-xs leading-relaxed text-muted-foreground">
-                  {evidence.content}
-                </pre>
-              </section>
-            ))}
-          </div>
-        )}
-        {report.href && (
-          <a className="mt-3 inline-flex text-xs font-semibold text-primary hover:underline" href={report.href}>
-            {report.hrefLabel || 'Open subreport'}
-          </a>
-        )}
-      </div>
-    </details>
-  )
-}
-
-export function ReportSubreports({
-  reports,
-  title = 'Subreports',
-  description,
-}: {
-  reports?: readonly ReportSubreport[] | null
-  title?: string
-  description?: string
-}) {
-  if (!reports?.length) return null
-  return (
-    <section data-report-appendix="subreports" className="my-6">
-      <header className="mb-3 border-b border-primary/20 pb-2">
-        <div className="flex items-baseline gap-2">
           <h2 className="m-0 border-0 p-0 text-base font-semibold text-primary">{title}</h2>
-          <span className="text-xs tabular-nums text-muted-foreground">{reports.length}</span>
+          {preview?.query && <p className="mt-1 font-mono text-[11px] text-muted-foreground">{preview.query}</p>}
         </div>
-        {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+        <div className="ml-auto flex gap-2">
+          {hasAssets && (
+            <div className="rounded-lg border border-primary/15 bg-background/75 px-3 py-1.5 text-right">
+              <div className="text-lg font-semibold tabular-nums text-primary">{assetTotal}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{text.assets}</div>
+            </div>
+          )}
+          {hasVulnerabilities && (
+            <div className="rounded-lg border border-primary/15 bg-background/75 px-3 py-1.5 text-right">
+              <div className="text-lg font-semibold tabular-nums text-primary">{records.length}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{text.findings}</div>
+            </div>
+          )}
+        </div>
       </header>
-      <div className="space-y-2.5">
-        {reports.map((report) => <Subreport key={report.id} report={report} />)}
+      <div className="p-3.5">
+        {hasAssets && hasVulnerabilities ? (
+          <Tabs defaultValue="assets">
+            <TabsList className="h-auto w-full justify-start gap-1 rounded-lg border border-primary/10 bg-primary/[0.035] p-1">
+              <TabsTrigger value="assets" className="gap-2 px-3 py-1.5 text-xs data-[state=active]:text-primary">
+                {assetTabTitle}
+                <span className="text-[10px] tabular-nums text-muted-foreground">{assetTotal}</span>
+              </TabsTrigger>
+              <TabsTrigger value="vulnerabilities" className="gap-2 px-3 py-1.5 text-xs data-[state=active]:text-primary">
+                {vulnerabilitiesTitle}
+                <span className="text-[10px] tabular-nums text-muted-foreground">{records.length}</span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="assets" forceMount className="mt-3 data-[state=inactive]:hidden">{assetsPanel}</TabsContent>
+            <TabsContent value="vulnerabilities" forceMount className="mt-3 data-[state=inactive]:hidden">{vulnerabilitiesPanel}</TabsContent>
+          </Tabs>
+        ) : hasAssets ? assetsPanel : vulnerabilitiesPanel}
       </div>
     </section>
   )

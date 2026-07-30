@@ -1,13 +1,13 @@
 import type { CstxReportPreview } from '@cyber/cstx'
-import type { ReportSubreport } from './appendix'
+import { normalizeReportVulnerability, type ReportVulnerabilityRecord } from './vulnerability'
 
 export interface StandaloneReportOptions {
   title?: string
   lang?: string
   assetPreview?: CstxReportPreview | null
-  subreports?: readonly ReportSubreport[] | null
-  subreportsTitle?: string
-  subreportsDescription?: string
+  vulnerabilities?: readonly ReportVulnerabilityRecord[] | null
+  vulnerabilitiesTitle?: string
+  vulnerabilitiesDescription?: string
 }
 
 const REPORT_EXPORT_CSP = [
@@ -36,10 +36,11 @@ export const STANDALONE_REPORT_CSS = `
   --report-card: #f3f7fc;
   --report-border: rgba(59, 111, 206, 0.16);
   --report-border-subtle: rgba(59, 111, 206, 0.09);
-  --report-text: #16243a;
-  --report-muted: #45566e;
-  --report-dim: #64748b;
-  --report-accent: #3b6fce;
+  --report-text: #23456f;
+  --report-muted: #4f6685;
+  --report-dim: #6b7f99;
+  --report-heading: #24519a;
+  --report-accent: #1d5fd6;
   --report-accent-soft: rgba(59, 111, 206, 0.08);
   --report-green: #0f8a6e;
   --report-yellow: #947614;
@@ -82,18 +83,18 @@ body {
 .cyber-report h4,
 .cyber-report h5,
 .cyber-report h6 {
-  color: var(--report-text);
+  color: var(--report-heading);
   line-height: 1.3;
   text-wrap: balance;
 }
 .cyber-report h1 { margin: 4px 0 12px; color: var(--report-accent); font-size: 28px; letter-spacing: -0.02em; }
-.cyber-report h2 { margin: 28px 0 10px; padding-bottom: 7px; border-bottom: 1px solid rgba(59, 111, 206, 0.2); color: #1d3f78; font-size: 19px; }
+.cyber-report h2 { margin: 28px 0 10px; padding-bottom: 7px; border-bottom: 1px solid rgba(59, 111, 206, 0.2); font-size: 19px; }
 .cyber-report h3 { margin: 22px 0 8px; font-size: 16px; }
 .cyber-report h4 { margin: 18px 0 6px; font-size: 14px; }
 .cyber-report h5,
 .cyber-report h6 { margin: 14px 0 6px; color: var(--report-muted); font-size: 12px; }
 .cyber-report p { margin: 10px 0; color: var(--report-muted); }
-.cyber-report strong { color: var(--report-text); }
+.cyber-report strong { color: var(--report-heading); }
 .cyber-report a { color: var(--report-accent); text-underline-offset: 2px; }
 .cyber-report a:hover { text-decoration-thickness: 2px; }
 .cyber-report hr { margin: 24px 0; border: 0; border-top: 1px solid var(--report-border); }
@@ -114,7 +115,7 @@ body {
   border: 1px solid var(--report-border-subtle);
   border-radius: 5px;
   background: var(--report-card);
-  color: var(--report-text);
+  color: var(--report-accent);
 }
 .cyber-report pre {
   margin: 10px 0;
@@ -146,7 +147,7 @@ body {
 .cyber-report thead { background: var(--report-card); color: var(--report-muted); }
 .cyber-report th,
 .cyber-report td { padding: 9px 12px; border-bottom: 1px solid var(--report-border); text-align: left; vertical-align: top; }
-.cyber-report th { color: var(--report-text); font-weight: 650; }
+.cyber-report th { color: var(--report-heading); font-weight: 650; }
 .cyber-report td { color: var(--report-muted); }
 .cyber-report tr:last-child > th,
 .cyber-report tr:last-child > td { border-bottom: 0; }
@@ -162,26 +163,8 @@ body {
 .cyber-report blockquote > :first-child { margin-top: 0; }
 .cyber-report blockquote > :last-child { margin-bottom: 0; }
 .cyber-report details { margin: 12px 0; padding: 10px 13px; border: 1px solid var(--report-border); border-radius: 8px; background: var(--report-card); }
-.cyber-report summary { cursor: pointer; color: var(--report-text); font-weight: 650; }
+.cyber-report summary { cursor: pointer; color: var(--report-heading); font-weight: 650; }
 
-.cyber-report [data-report-component="report-header"] {
-  position: relative;
-  margin-bottom: 22px;
-  padding: 22px 24px 20px 28px;
-  overflow: hidden;
-  border: 1px solid rgba(59, 111, 206, 0.2);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(59, 111, 206, 0.12), rgba(59, 111, 206, 0.035) 58%, #fff);
-  box-shadow: 0 8px 24px rgba(59, 111, 206, 0.08);
-}
-.cyber-report [data-report-component="report-header"]::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 5px;
-  background: linear-gradient(180deg, #3b6fce, #6f8fe0);
-  content: "";
-}
-.cyber-report [data-report-component="report-header"] p { max-width: 72ch; }
 .cyber-report [data-report-component="section"] { margin: 18px 0; }
 .cyber-report [data-report-component="finding-card"] { margin: 16px 0; padding: 16px 18px; border: 1px solid var(--report-border); border-top: 3px solid var(--report-dim); border-radius: 10px; background: var(--report-surface); }
 .cyber-report [data-report-component="finding-card"][data-report-severity="critical"] { border-top-color: var(--report-red); }
@@ -203,14 +186,14 @@ body {
 .cyber-report [data-report-component="callout"][data-report-tone="info"],
 .cyber-report [data-report-component="callout"][data-report-tone="note"] { border-left-color: var(--report-accent); background: var(--report-accent-soft); }
 
-.cyber-report [data-report-appendix="asset-preview"] {
+.cyber-report [data-report-appendix="task-preview"] {
   margin: 22px 0;
   overflow: hidden;
   border: 1px solid rgba(59, 111, 206, 0.2);
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(59, 111, 206, 0.1), rgba(59, 111, 206, 0.025) 44%, #fff);
 }
-.cyber-report [data-report-appendix="asset-preview"] > header {
+.cyber-report [data-report-appendix="task-preview"] > header {
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -219,43 +202,53 @@ body {
   border: 0;
   border-bottom: 1px solid rgba(59, 111, 206, 0.16);
 }
-.cyber-report [data-report-appendix="asset-preview"] h2 { margin: 2px 0 0; padding: 0; border: 0; color: #1d3f78; font-size: 18px; }
+.cyber-report [data-report-appendix="task-preview"] h2 { margin: 2px 0 0; padding: 0; border: 0; color: var(--report-heading); font-size: 18px; }
 .cyber-report .report-appendix-kicker { color: var(--report-accent); font-size: 10px; font-weight: 750; letter-spacing: 0.14em; text-transform: uppercase; }
-.cyber-report .report-appendix-count { margin-left: auto; padding: 5px 10px; border: 1px solid rgba(59, 111, 206, 0.18); border-radius: 8px; background: rgba(255, 255, 255, 0.72); color: var(--report-accent); font-size: 18px; font-weight: 700; line-height: 1.1; text-align: center; }
+.cyber-report .report-appendix-counts { display: flex; gap: 8px; margin-left: auto; }
+.cyber-report .report-appendix-count { min-width: 62px; padding: 5px 10px; border: 1px solid rgba(59, 111, 206, 0.18); border-radius: 8px; background: rgba(255, 255, 255, 0.72); color: var(--report-accent); font-size: 18px; font-weight: 700; line-height: 1.1; text-align: center; }
 .cyber-report .report-appendix-count small { display: block; margin-top: 3px; color: var(--report-dim); font-size: 9px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; }
 .cyber-report .report-appendix-body { padding: 14px; }
+.cyber-report .report-preview-tab-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.cyber-report .report-preview-tab-list { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--report-border-subtle); border-radius: 9px; background: var(--report-accent-soft); }
+.cyber-report .report-preview-tab-label { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 6px; color: var(--report-muted); cursor: pointer; font-size: 11px; font-weight: 650; }
+.cyber-report .report-preview-tab-label span { color: var(--report-dim); font-size: 10px; font-variant-numeric: tabular-nums; }
+.cyber-report #report-preview-assets:checked ~ .report-preview-tab-list label[for="report-preview-assets"],
+.cyber-report #report-preview-vulnerabilities:checked ~ .report-preview-tab-list label[for="report-preview-vulnerabilities"] { background: var(--report-surface); color: var(--report-accent); box-shadow: 0 1px 4px rgba(59, 111, 206, 0.12); }
+.cyber-report .report-preview-panel { display: none; margin-top: 12px; }
+.cyber-report #report-preview-assets:checked ~ .report-preview-panels [data-report-preview-panel="assets"],
+.cyber-report #report-preview-vulnerabilities:checked ~ .report-preview-panels [data-report-preview-panel="vulnerabilities"] { display: block; }
 .cyber-report .report-preview-sheet { margin: 0 0 12px; overflow: hidden; border: 1px solid var(--report-border); border-radius: 9px; background: #fff; }
 .cyber-report .report-preview-sheet:last-child { margin-bottom: 0; }
 .cyber-report .report-preview-sheet > header { display: flex; align-items: baseline; gap: 10px; margin: 0; padding: 9px 11px; border: 0; border-bottom: 1px solid var(--report-border); background: var(--report-card); }
-.cyber-report .report-preview-sheet > header strong { font-size: 12px; }
+.cyber-report .report-preview-sheet > header strong { color: var(--report-heading); font-size: 12px; }
 .cyber-report .report-preview-sheet > header span { margin-left: auto; color: var(--report-dim); font-size: 10px; }
 .cyber-report .report-preview-sheet table { margin: 0; border: 0; border-radius: 0; }
 .cyber-report .report-preview-note { margin: 0; padding: 7px 11px; border-top: 1px solid var(--report-border); color: var(--report-dim); font-size: 10px; }
 
-.cyber-report [data-report-appendix="subreports"] { margin: 28px 0 0; }
-.cyber-report [data-report-appendix="subreports"] > header { margin: 0 0 12px; padding: 0 0 8px; border: 0; border-bottom: 1px solid rgba(59, 111, 206, 0.2); }
-.cyber-report [data-report-appendix="subreports"] > header h2 { display: inline; margin: 0; padding: 0; border: 0; color: var(--report-accent); font-size: 19px; }
-.cyber-report [data-report-appendix="subreports"] > header span { margin-left: 7px; color: var(--report-dim); font-size: 11px; }
-.cyber-report [data-report-appendix="subreport"] { margin: 10px 0; padding: 0; overflow: hidden; border: 1px solid var(--report-border); border-radius: 10px; background: #fff; }
-.cyber-report [data-report-appendix="subreport"] > summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: var(--report-card); }
-.cyber-report [data-report-appendix="subreport"] > summary strong { min-width: 0; flex: 1; color: var(--report-text); }
+.cyber-report [data-report-preview="vulnerabilities"] > p:first-child { margin-top: 0; font-size: 11px; }
+.cyber-report [data-report-vulnerability] { margin: 10px 0; padding: 0; overflow: hidden; border: 1px solid var(--report-border); border-radius: 10px; background: #fff; }
+.cyber-report [data-report-vulnerability] > summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: var(--report-card); }
+.cyber-report [data-report-vulnerability] > summary strong { min-width: 0; flex: 1; color: var(--report-heading); }
 .cyber-report .report-severity { display: inline-flex; padding: 2px 7px; border-radius: 999px; background: var(--report-card); color: var(--report-muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
 .cyber-report .report-severity[data-severity="critical"] { background: rgba(197, 53, 84, 0.12); color: var(--report-red); }
 .cyber-report .report-severity[data-severity="high"] { background: rgba(166, 108, 18, 0.12); color: var(--report-orange); }
 .cyber-report .report-severity[data-severity="medium"] { background: rgba(148, 118, 20, 0.12); color: var(--report-yellow); }
 .cyber-report .report-severity[data-severity="low"] { background: var(--report-accent-soft); color: var(--report-accent); }
-.cyber-report .report-subreport-body { padding: 13px 15px 15px; border-top: 1px solid var(--report-border); }
-.cyber-report .report-subreport-body > p { white-space: pre-wrap; }
-.cyber-report .report-subreport-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 18px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--report-border); border-radius: 8px; background: rgba(240, 242, 245, 0.5); }
-.cyber-report .report-subreport-fields dt { margin: 0; color: var(--report-dim); font-size: 9px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
-.cyber-report .report-subreport-fields dd { margin: 2px 0 0; color: var(--report-text); font-size: 11px; }
+.cyber-report .report-vulnerability-body { padding: 13px 15px 15px; border-top: 1px solid var(--report-border); }
+.cyber-report .report-vulnerability-narrative { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--report-border-subtle); border-radius: 8px; background: var(--report-accent-soft); white-space: pre-wrap; }
+.cyber-report .report-vulnerability-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 18px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--report-border); border-radius: 8px; background: rgba(240, 242, 245, 0.5); }
+.cyber-report .report-vulnerability-fields dt { margin: 0; color: var(--report-dim); font-size: 9px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
+.cyber-report .report-vulnerability-fields dd { margin: 2px 0 0; color: var(--report-text); font-size: 11px; }
+.cyber-report .report-vulnerability-detail { margin-top: 10px; border: 1px solid var(--report-border); border-radius: 8px; background: #fbfdff; }
+.cyber-report .report-vulnerability-detail > summary { padding: 8px 10px; color: var(--report-heading); font-size: 11px; }
+.cyber-report .report-vulnerability-detail > div { padding: 0 10px 10px; }
 
 @media (max-width: 680px) {
   body { padding: 0; }
   .cyber-report { padding: 26px 20px 34px; border: 0; border-radius: 0; box-shadow: none; }
   .cyber-report h1 { font-size: 23px; }
   .cyber-report table { display: block; overflow-x: auto; }
-  .cyber-report .report-subreport-fields { grid-template-columns: 1fr; }
+  .cyber-report .report-vulnerability-fields { grid-template-columns: 1fr; }
 }
 
 @media print {
@@ -268,8 +261,8 @@ body {
   .cyber-report table,
   .cyber-report [data-report-component="finding-card"],
   .cyber-report [data-report-component="http-evidence"],
-  .cyber-report [data-report-appendix="asset-preview"],
-  .cyber-report [data-report-appendix="subreport"] { break-inside: avoid; }
+  .cyber-report [data-report-appendix="task-preview"],
+  .cyber-report [data-report-vulnerability] { break-inside: avoid; }
 }
 `.trim()
 
@@ -295,10 +288,62 @@ function valueText(value: unknown): string {
   return String(value)
 }
 
-function renderAssetPreview(preview: CstxReportPreview | null | undefined): string {
+function renderExchange(exchange: Record<string, unknown>, index: number): string {
+  const request = exchange.request && typeof exchange.request === 'object' ? exchange.request as Record<string, unknown> : {}
+  const response = exchange.response && typeof exchange.response === 'object' ? exchange.response as Record<string, unknown> : {}
+  const requestText = Object.keys(request).length ? JSON.stringify(request, null, 2) : ''
+  const responseText = Object.keys(response).length ? JSON.stringify(response, null, 2) : ''
+  return [
+    `<section><h4>Exchange ${index + 1}</h4>`,
+    requestText ? `<h5>Request</h5><pre><code>${escapeHtml(requestText)}</code></pre>` : '',
+    responseText ? `<h5>Response</h5><pre><code>${escapeHtml(responseText)}</code></pre>` : '',
+    '</section>',
+  ].join('')
+}
+
+function renderVulnerability(record: ReportVulnerabilityRecord): string {
+  const item = normalizeReportVulnerability(record)
+  const narratives = [
+    item.description ? `<section class="report-vulnerability-narrative"><h4>Description</h4>${escapeHtml(item.description)}</section>` : '',
+    item.evidence.summary ? `<section class="report-vulnerability-narrative"><h4>Validation conclusion</h4>${escapeHtml(item.evidence.summary)}</section>` : '',
+    item.evidence.impact ? `<section class="report-vulnerability-narrative"><h4>Impact</h4>${escapeHtml(item.evidence.impact)}</section>` : '',
+    item.evidence.remediation ? `<section class="report-vulnerability-narrative"><h4>Remediation</h4>${escapeHtml(item.evidence.remediation)}</section>` : '',
+  ].join('')
+  const fields = [
+    ['Target', item.target],
+    ['Source', item.source],
+    ['Rule', item.ruleId],
+    ['Status', item.kind],
+    ['Baseline', item.baselineState],
+    ['Affected asset', item.assetId],
+    ['Discovered', record.created_at],
+    ['Updated', record.updated_at],
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]))
+  const metadata = fields.length
+    ? `<dl class="report-vulnerability-fields">${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('')}</dl>`
+    : ''
+  const traffic = item.evidence.exchanges.length
+    ? `<details class="report-vulnerability-detail"><summary>Traffic evidence · ${item.evidence.exchanges.length}</summary><div>${item.evidence.exchanges.map((exchange, index) => renderExchange(exchange as Record<string, unknown>, index)).join('')}</div></details>`
+    : ''
+  const template = item.evidence.template || item.evidence.templateRaw
+    ? `<details class="report-vulnerability-detail"><summary>Rule template</summary><div><pre><code>${escapeHtml(item.evidence.templateRaw || JSON.stringify(item.evidence.template, null, 2))}</code></pre></div></details>`
+    : ''
+  return [
+    `<details data-report-vulnerability="${escapeHtml(item.id)}" data-report-severity="${escapeHtml(item.severity)}">`,
+    `<summary><span class="report-severity" data-severity="${escapeHtml(item.severity)}">${escapeHtml(item.severity)}</span><strong>${escapeHtml(item.title)}</strong></summary>`,
+    '<div class="report-vulnerability-body">',
+    narratives,
+    metadata,
+    traffic,
+    template,
+    '</div>',
+    '</details>',
+  ].join('')
+}
+
+function renderAssetSheets(preview: CstxReportPreview | null | undefined): string {
   if (!preview?.sheets?.length) return ''
-  const total = preview.sheets.reduce((sum, sheet) => sum + Math.max(0, Number(sheet.total) || 0), 0)
-  const sheets = preview.sheets.map((sheet) => {
+  return preview.sheets.map((sheet) => {
     const columns = Array.isArray(sheet.columns) ? sheet.columns : []
     const rows = Array.isArray(sheet.rows) ? sheet.rows : []
     const head = columns.map((column) => `<th>${escapeHtml(column.title)}</th>`).join('')
@@ -314,71 +359,75 @@ function renderAssetPreview(preview: CstxReportPreview | null | undefined): stri
       '</section>',
     ].join('')
   }).join('')
-  return [
-    '<section data-report-appendix="asset-preview">',
-    '<header>',
-    `<div><div class="report-appendix-kicker">CSTX · Asset preview</div><h2>${escapeHtml(preview.title)}</h2>${preview.query ? `<p><code>${escapeHtml(preview.query)}</code></p>` : ''}</div>`,
-    `<div class="report-appendix-count">${total}<small>assets</small></div>`,
-    '</header>',
-    `<div class="report-appendix-body">${sheets}</div>`,
-    '</section>',
-  ].join('')
 }
 
-function safeHref(value: string | undefined): string | undefined {
-  const href = value?.trim()
-  if (!href) return undefined
-  if (/^https?:\/\//i.test(href) || /^\/(?!\/)/.test(href) || href.startsWith('#')) return href
-  return undefined
-}
-
-function renderSubreport(report: ReportSubreport): string {
-  const severity = (report.severity || 'info').toLowerCase()
-  const fields = report.fields?.length
-    ? `<dl class="report-subreport-fields">${report.fields.map((field) => `<div><dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(field.value)}</dd></div>`).join('')}</dl>`
-    : ''
-  const evidence = report.evidence?.map((item) => `<section><h4>${escapeHtml(item.label)}</h4><pre><code>${escapeHtml(item.content)}</code></pre></section>`).join('') ?? ''
-  const href = safeHref(report.href)
-  const link = href ? `<a href="${escapeHtml(href)}">${escapeHtml(report.hrefLabel || 'Open subreport')}</a>` : ''
-  return [
-    `<details data-report-appendix="subreport" data-report-severity="${escapeHtml(severity)}">`,
-    `<summary><span class="report-severity" data-severity="${escapeHtml(severity)}">${escapeHtml(severity)}</span><strong>${escapeHtml(report.title)}</strong></summary>`,
-    '<div class="report-subreport-body">',
-    report.summary ? `<p>${escapeHtml(report.summary)}</p>` : '',
-    fields,
-    evidence,
-    link,
-    '</div>',
-    '</details>',
-  ].join('')
-}
-
-function renderSubreports(
-  reports: readonly ReportSubreport[] | null | undefined,
-  title: string | undefined,
+function renderVulnerabilityList(
+  records: readonly ReportVulnerabilityRecord[],
   description: string | undefined,
 ): string {
-  if (!reports?.length) return ''
   return [
-    '<section data-report-appendix="subreports">',
-    `<header><h2>${escapeHtml(title || 'Subreports')}</h2><span>${reports.length}</span>${description ? `<p>${escapeHtml(description)}</p>` : ''}</header>`,
-    reports.map(renderSubreport).join(''),
+    '<div data-report-preview="vulnerabilities">',
+    description ? `<p>${escapeHtml(description)}</p>` : '',
+    records.map(renderVulnerability).join(''),
+    '</div>',
+  ].join('')
+}
+
+function renderTaskPreview(options: StandaloneReportOptions): string {
+  const preview = options.assetPreview
+  const vulnerabilities = options.vulnerabilities?.length ? options.vulnerabilities : []
+  const hasAssets = Boolean(preview?.sheets?.length)
+  const hasVulnerabilities = vulnerabilities.length > 0
+  if (!hasAssets && !hasVulnerabilities) return ''
+
+  const assetTotal = preview?.sheets?.reduce(
+    (sum, sheet) => sum + Math.max(0, Number(sheet.total) || 0),
+    0,
+  ) ?? 0
+  const vulnerabilitiesTitle = options.vulnerabilitiesTitle || 'Vulnerabilities'
+  const title = preview?.title || vulnerabilitiesTitle
+  const assetTabTitle = preview?.sheets?.length === 1
+    ? preview.sheets[0].title
+    : 'CSTX assets'
+  const assetSheets = renderAssetSheets(preview)
+  const vulnerabilityList = renderVulnerabilityList(vulnerabilities, options.vulnerabilitiesDescription)
+  const counts = [
+    hasAssets ? `<div class="report-appendix-count">${assetTotal}<small>assets</small></div>` : '',
+    hasVulnerabilities ? `<div class="report-appendix-count">${vulnerabilities.length}<small>findings</small></div>` : '',
+  ].join('')
+
+  const body = hasAssets && hasVulnerabilities
+    ? [
+        '<input class="report-preview-tab-input" type="radio" name="report-preview-tab" id="report-preview-assets" checked>',
+        '<input class="report-preview-tab-input" type="radio" name="report-preview-tab" id="report-preview-vulnerabilities">',
+        '<div class="report-preview-tab-list" role="tablist">',
+        `<label class="report-preview-tab-label" for="report-preview-assets">${escapeHtml(assetTabTitle)}<span>${assetTotal}</span></label>`,
+        `<label class="report-preview-tab-label" for="report-preview-vulnerabilities">${escapeHtml(vulnerabilitiesTitle)}<span>${vulnerabilities.length}</span></label>`,
+        '</div>',
+        '<div class="report-preview-panels">',
+        `<section class="report-preview-panel" data-report-preview-panel="assets">${assetSheets}</section>`,
+        `<section class="report-preview-panel" data-report-preview-panel="vulnerabilities">${vulnerabilityList}</section>`,
+        '</div>',
+      ].join('')
+    : hasAssets ? assetSheets : vulnerabilityList
+
+  return [
+    '<section data-report-appendix="task-preview">',
+    '<header>',
+    `<div><div class="report-appendix-kicker">CSTX · Task preview</div><h2>${escapeHtml(title)}</h2>${preview?.query ? `<p><code>${escapeHtml(preview.query)}</code></p>` : ''}</div>`,
+    `<div class="report-appendix-counts">${counts}</div>`,
+    '</header>',
+    `<div class="report-appendix-body">${body}</div>`,
     '</section>',
   ].join('')
 }
 
 function appendReportData(fragment: string, options: StandaloneReportOptions): string {
-  const preview = renderAssetPreview(options.assetPreview)
-  const subreports = renderSubreports(
-    options.subreports,
-    options.subreportsTitle,
-    options.subreportsDescription,
-  )
-  if (!preview && !subreports) return fragment.trim()
+  const preview = renderTaskPreview(options)
   const normalized = fragment.trim()
-  const header = /^(<header\b(?=[^>]*data-report-component=["']report-header["'])[^>]*>[\s\S]*?<\/header>)/i.exec(normalized)
-  if (!header) return `${preview}${normalized}${subreports}`
-  return `${header[1]}${preview}${normalized.slice(header[1].length)}${subreports}`
+  const header = /^<header\b(?=[^>]*data-report-component=["']report-header["'])[^>]*>([\s\S]*?)<\/header>/i.exec(normalized)
+  if (!header) return `${preview}${normalized}`
+  return `${header[1]}${preview}${normalized.slice(header[0].length)}`
 }
 
 /** Wrap a sanitized report-contract fragment as a portable HTML document. */

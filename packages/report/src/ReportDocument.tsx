@@ -5,8 +5,8 @@ import { Badge, Callout, type BadgeProps, type CalloutTone } from '@cyber/ui'
 import type { TrafficHttpView } from '@cyber/traffic'
 import type { CstxReportPreview } from '@cyber/cstx'
 import { parseHttpExchange } from './http'
-import { CSTXPreview, ReportSubreports } from './ReportAppendix'
-import type { ReportSubreport } from './appendix'
+import { ReportTaskPreview } from './ReportAppendix'
+import type { ReportVulnerabilityRecord } from './vulnerability'
 
 // A report reaches this renderer as an already-sanitized hast tree: the owner of
 // the document decides the security policy, and this package decides how the
@@ -419,15 +419,10 @@ function Toc({ node, context }: { node: Element; context: RenderContext }) {
 type ComponentRenderer = (node: Element, context: RenderContext) => ReactNode
 
 const COMPONENT_RENDERERS: Record<KnownReportComponentName, ComponentRenderer> = {
-  'report-header': (node, context) => (
-    <header
-      {...passthroughProps(node)}
-      className="relative mb-5 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-card px-5 py-4 shadow-sm"
-    >
-      <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden="true" />
-      {renderNodes(node.children, context)}
-    </header>
-  ),
+  // The authored report header is content, not a second card around the
+  // document title. Keep its h1/summary in flow and let the task preview own
+  // the only structured header surface.
+  'report-header': (node, context) => <>{renderNodes(node.children, context)}</>,
   section: (node, context) => (
     <section {...passthroughProps(node)} className="my-3">
       {renderNodes(node.children, context)}
@@ -461,9 +456,9 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
 
   switch (node.tagName) {
     case 'h1': return <h1 {...props} id={headingId} className="mb-2 mt-1 text-xl font-bold tracking-[-0.015em] text-primary">{children()}</h1>
-    case 'h2': return <h2 {...props} id={headingId} className="mb-2 mt-5 border-b border-primary/20 pb-1 text-base font-semibold text-foreground">{children()}</h2>
-    case 'h3': return <h3 {...props} id={headingId} className="mb-1.5 mt-4 text-sm font-semibold">{children()}</h3>
-    case 'h4': return <h4 {...props} id={headingId} className="mb-1 mt-3 text-sm font-semibold">{children()}</h4>
+    case 'h2': return <h2 {...props} id={headingId} className="mb-2 mt-5 border-b border-primary/20 pb-1 text-base font-semibold text-primary">{children()}</h2>
+    case 'h3': return <h3 {...props} id={headingId} className="mb-1.5 mt-4 text-sm font-semibold text-primary">{children()}</h3>
+    case 'h4': return <h4 {...props} id={headingId} className="mb-1 mt-3 text-sm font-semibold text-primary/90">{children()}</h4>
     case 'h5': return <h5 {...props} id={headingId} className="mb-1 mt-2 text-xs font-semibold text-muted-foreground">{children()}</h5>
     case 'h6': return <h6 {...props} id={headingId} className="mb-1 mt-2 text-xs font-semibold text-muted-foreground">{children()}</h6>
     case 'p': return <p {...props} className="my-2 text-[13px] leading-relaxed">{children()}</p>
@@ -518,7 +513,7 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'caption': return <caption {...props} className="px-3 py-2 text-left text-xs font-semibold">{children()}</caption>
     case 'colgroup': return <colgroup {...props}>{renderTableNodes(node.children, context)}</colgroup>
     case 'col': return <col {...props} span={positiveInteger(node.properties?.span)} />
-    case 'thead': return <thead {...props} className="bg-primary/[0.045] text-xs font-semibold text-foreground">{renderTableNodes(node.children, context)}</thead>
+    case 'thead': return <thead {...props} className="bg-primary/[0.045] text-xs font-semibold text-primary">{renderTableNodes(node.children, context)}</thead>
     case 'tbody': return <tbody {...props}>{renderTableNodes(node.children, context)}</tbody>
     case 'tfoot': return <tfoot {...props}>{renderTableNodes(node.children, context)}</tfoot>
     case 'tr': return <tr {...props} className="border-b border-border last:border-0">{renderTableNodes(node.children, context)}</tr>
@@ -578,10 +573,11 @@ export interface ReportDocumentProps {
   renderHttpView?: (view: TrafficHttpView) => ReactNode
   /** CSTX assets associated with the report's task. */
   assetPreview?: CstxReportPreview | null
-  /** Vulnerabilities or other task results rendered as collapsible child reports. */
-  subreports?: readonly ReportSubreport[] | null
-  subreportsTitle?: string
-  subreportsDescription?: string
+  /** Raw CSTX vulnerability records associated with the report's task. */
+  vulnerabilities?: readonly ReportVulnerabilityRecord[] | null
+  vulnerabilitiesTitle?: string
+  vulnerabilitiesDescription?: string
+  lang?: 'zh' | 'en'
   className?: string
 }
 
@@ -591,9 +587,10 @@ export function ReportDocument({
   componentNames,
   renderHttpView,
   assetPreview,
-  subreports,
-  subreportsTitle,
-  subreportsDescription,
+  vulnerabilities,
+  vulnerabilitiesTitle,
+  vulnerabilitiesDescription,
+  lang,
   className,
 }: ReportDocumentProps) {
   const rendered = useMemo(() => {
@@ -615,15 +612,17 @@ export function ReportDocument({
   }, [tree, componentNames, renderHttpView])
 
   return (
-    <div className={cn('cyber-report', className)}>
+    <div className={cn('cyber-report text-muted-foreground', className)}>
       {rendered.header}
-      <CSTXPreview preview={assetPreview} />
-      {rendered.body}
-      <ReportSubreports
-        reports={subreports}
-        title={subreportsTitle}
-        description={subreportsDescription}
+      <ReportTaskPreview
+        preview={assetPreview}
+        vulnerabilities={vulnerabilities}
+        vulnerabilitiesTitle={vulnerabilitiesTitle}
+        vulnerabilitiesDescription={vulnerabilitiesDescription}
+        lang={lang}
+        renderHttpView={renderHttpView}
       />
+      {rendered.body}
     </div>
   )
 }

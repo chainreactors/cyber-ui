@@ -1,10 +1,11 @@
 export { ReportDocument, type ReportDocumentProps } from './ReportDocument'
-export { CSTXPreview, ReportSubreports } from './ReportAppendix'
+export { ReportTaskPreview } from './ReportAppendix'
 export type {
-  ReportSubreport,
-  ReportSubreportEvidence,
-  ReportSubreportField,
-} from './appendix'
+  ReportVulnerabilityRecord,
+  ReportVulnerabilityEvidence,
+  NormalizedReportVulnerability,
+} from './vulnerability'
+export { normalizeReportVulnerability, reportSeverity } from './vulnerability'
 export {
   renderStandaloneReportHtml,
   STANDALONE_REPORT_CSS,

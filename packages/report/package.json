@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@cyber/cstx": "workspace:*",
+    "@cyber/template": "workspace:*",
     "@cyber/theme": "workspace:*",
     "@cyber/traffic": "workspace:*",
     "@cyber/ui": "workspace:*"

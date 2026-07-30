@@ -371,6 +371,9 @@ importers:
 
   packages/report:
     dependencies:
+      '@cyber/cstx':
+        specifier: workspace:*
+        version: link:../cstx
       '@cyber/theme':
         specifier: workspace:*
         version: link:../theme

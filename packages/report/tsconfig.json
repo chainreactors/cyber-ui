@@ -4,6 +4,7 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
+      "@cyber/cstx": ["../cstx/src/index.ts"],
       "@cyber/theme": ["../theme/src/index.ts"],
       "@cyber/ui": ["../ui/src/index.ts"],
       "@cyber/traffic": ["../traffic/src/index.tsx"]

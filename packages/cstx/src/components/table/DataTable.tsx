@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import * as LucideIcons from 'lucide-react';
 import {
   useReactTable,
@@ -58,6 +58,7 @@ import { useUrlSlot } from './hooks/useUrlState';
 import type {CSTXNode} from '../../types/transport.gen';
 
 type Row = Record<string, unknown>;
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 type TableActionVariant = 'default' | 'danger' | 'secondary';
 interface TableActionConfig {
   id: string;
@@ -1011,7 +1012,7 @@ export function CSTXTable({
   ) + (enableRowSelection ? 72 : 0) + (diffMode ? 90 : 0) + (enableExpanding ? 32 : 0) + actionsColumnWidth;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (layoutMode !== 'auto') return;
     const el = scrollRef.current;
     if (!el) return;

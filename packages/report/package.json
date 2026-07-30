@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cyber/cstx": "workspace:*",
     "@cyber/theme": "workspace:*",
     "@cyber/traffic": "workspace:*",
     "@cyber/ui": "workspace:*"

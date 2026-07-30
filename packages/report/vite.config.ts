@@ -15,6 +15,7 @@ export default defineConfig({
         'react',
         'react-dom',
         'react/jsx-runtime',
+        '@cyber/cstx',
         '@cyber/theme',
         '@cyber/ui',
         '@cyber/traffic',

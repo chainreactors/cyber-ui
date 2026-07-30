@@ -22,19 +22,30 @@ export interface SelectionState {
   selectRange: boolean
 }
 
-// Upload progress types
+export type UploadItemStatus =
+  | 'pending'
+  | 'uploading'
+  | 'staged'
+  | 'delivering'
+  | 'completed'
+  | 'error'
+  | 'canceled'
+
 export interface UploadProgress {
+  /** Stable queue identity; file names are not unique within a batch. */
+  id: string
   fileName: string
-  progress: number // 0-100
-  status: 'pending' | 'uploading' | 'completed' | 'error'
+  totalSize?: number
+  progress: number
+  status: UploadItemStatus
   error?: string
 }
 
 export interface UploadQueueState {
-  files: File[]
   progresses: Map<string, UploadProgress>
   currentIndex: number
   totalFiles: number
+  aborted?: boolean
 }
 
 // Download progress types

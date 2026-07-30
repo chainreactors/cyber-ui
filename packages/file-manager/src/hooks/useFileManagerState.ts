@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
-import { useTranslations } from "../runtime"
+import { useFileManagerTranslations } from "../runtime"
 import { useToast } from "../ui"
-import { useIsMobile } from "../ui"
 import { TreeApi, NodeApi } from "react-arborist"
 import { useFileSystem, isFileNotFoundError, useFileManagerCache } from "../runtime"
 import type { FileNode, SelectionState, UploadQueueState, DownloadQueueState } from "../types"
 import {
-  normalizePath, formatPathForDisplay, parseFileSize,
+  normalizePath, formatPathForDisplay, parseFileSize, filterDirectoryTree,
   setBoundedMapEntry, getBoundedMapEntry,
   MAX_TREE_CACHE_DIRS, MAX_ALL_FILES_CACHE_DIRS,
   INITIAL_VISIBLE_FILES, VISIBLE_FILES_LOAD_STEP,
@@ -17,33 +16,40 @@ import {
 } from "../utils/file-manager-utils"
 import { useFileSort } from "./useFileSort"
 import { useResizeObserver } from "./useResizeObserver"
+import { isFileManagerAbortError } from "../contracts"
+import type { PathStyle } from "../path-strategy"
 import React from "react"
 
-export function useFileManagerState(sessionId: string, session: any) {
-  const t = useTranslations('Sessions.fileManagement')
+export function useFileManagerState(
+  scopeKey: string,
+  initialPath: string,
+  pathStyle: PathStyle,
+  isCompact: boolean,
+) {
+  const t = useFileManagerTranslations()
   const { toast } = useToast()
+  const usesWindowsPaths = pathStyle === 'windows'
+  const normalizedInitialPath = normalizePath(initialPath, usesWindowsPaths)
 
   // File system hooks
   const {
-    listFiles,
-    enumDriversFromAPI,
-    mkdir,
-    touchFile,
+    listDirectory,
+    listRoots,
+    createDirectory,
+    createFileEntry,
     uploadFile,
     downloadFile,
-    catFile,
-    rmFile,
-    mvFile,
-    cpFile,
-    chmodFile,
-    chownFile,
-    pwd,
-    cd,
-    loading: rpcLoading,
-    error: rpcError
+    removeEntry,
+    renameEntry,
+    copyEntry,
+    changeMode,
+    getCurrentDirectory,
+    loading: operationLoading,
+    pendingMutationPaths,
+    error: fileSystemError
   } = useFileSystem()
 
-  // Global cache for session persistence
+  // Persisted state is isolated by the runtime scope.
   const { getFileTreeCache, setFileTreeCache, loadFileTreeCache, flushFileTreeCache } = useFileManagerCache()
   const [shouldUpdateCache, setShouldUpdateCache] = useState(false)
   const triggerCacheUpdate = useCallback(() => setShouldUpdateCache(true), [])
@@ -52,6 +58,7 @@ export function useFileManagerState(sessionId: string, session: any) {
   const treeRef = useRef<TreeApi<FileNode>>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isNavigatingRef = useRef(false)
+  const navigationSequenceRef = useRef(0)
 
   // Tree state
   const [treeData, setTreeData] = useState<FileNode[]>([])
@@ -66,8 +73,10 @@ export function useFileManagerState(sessionId: string, session: any) {
   })
 
   // Navigation state
-  const [currentPath, setCurrentPath] = useState<string>('/')
-  const [pathInputValue, setPathInputValue] = useState<string>('/')
+  const [currentPath, setCurrentPath] = useState<string>(normalizedInitialPath)
+  const [pathInputValue, setPathInputValue] = useState<string>(
+    formatPathForDisplay(normalizedInitialPath, usesWindowsPaths)
+  )
   const [isEditingPath, setIsEditingPath] = useState(false)
 
   // Operation states
@@ -75,7 +84,7 @@ export function useFileManagerState(sessionId: string, session: any) {
   const [deleting, setDeleting] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [enumeratingDrivers, setEnumeratingDrivers] = useState(false)
+  const [loadingRoots, setLoadingRoots] = useState(false)
   const [operatingFiles, setOperatingFiles] = useState<Set<string>>(new Set())
   // Dialog operation states
   const [creatingFolder, setCreatingFolder] = useState(false)
@@ -113,7 +122,6 @@ export function useFileManagerState(sessionId: string, session: any) {
 
   // New states for P0/P2 features
   const [uploadQueue, setUploadQueue] = useState<UploadQueueState>({
-    files: [],
     progresses: new Map(),
     currentIndex: 0,
     totalFiles: 0,
@@ -136,16 +144,6 @@ export function useFileManagerState(sessionId: string, session: any) {
 
   // Resize observer for tree container
   const { ref: treeContainerRef, width: treeWidth, height: treeHeight } = useResizeObserver()
-
-  // Responsive hook
-  const isMobile = useIsMobile()
-
-  // System detection based on session
-  const isWindowsSession = useMemo(() => {
-    if (!session) return false
-    const sessionOS = session?.os?.name?.toLowerCase() || session?.type?.toLowerCase() || ''
-    return sessionOS.includes('windows') || sessionOS.includes('win32') || sessionOS.includes('winnt')
-  }, [session])
 
   // File sorting hook
   const { sortedFiles, sortKey, sortDirection, handleSort } = useFileSort(currentDirFiles)
@@ -180,7 +178,7 @@ export function useFileManagerState(sessionId: string, session: any) {
   const cacheTimestamps = useRef<Map<string, number>>(new Map())
 
   // Cache mode: 'cached' uses memory cache with TTL, 'live' always fetches from server
-  const CACHE_MODE_KEY = 'iom.fileManager.cacheMode'
+  const CACHE_MODE_KEY = `cyber.fileManager.cacheMode.${encodeURIComponent(scopeKey)}`
   const [cacheMode, setCacheMode] = useState<'cached' | 'live'>(() => {
     if (typeof window === 'undefined') return 'cached'
     try {
@@ -199,42 +197,42 @@ export function useFileManagerState(sessionId: string, session: any) {
   }, [cacheMode])
 
   const isAbsoluteFileNodePath = useCallback((path: string): boolean => {
-    if (isWindowsSession) {
+    if (usesWindowsPaths) {
       return /^[A-Za-z]:(?:\/|$)/.test(path) || path.startsWith('//')
     }
     return path.startsWith('/')
-  }, [isWindowsSession])
+  }, [usesWindowsPaths])
 
   const joinFileNodePath = useCallback((parentPath: string, childName: string): string => {
-    const parent = normalizePath(parentPath, isWindowsSession)
+    const parent = normalizePath(parentPath, usesWindowsPaths)
     const child = childName.replace(/^[\\/]+/, '')
     if (!child) return parent
-    if (isWindowsSession) {
+    if (usesWindowsPaths) {
       return normalizePath(parent.endsWith('/') ? `${parent}${child}` : `${parent}/${child}`, true)
     }
     return normalizePath(parent === '/' ? `/${child}` : `${parent}/${child}`, false)
-  }, [isWindowsSession])
+  }, [usesWindowsPaths])
 
   const getFileNodeName = useCallback((path: string): string => {
     if (path === '/') return '/'
-    const normalized = normalizePath(path, isWindowsSession)
+    const normalized = normalizePath(path, usesWindowsPaths)
     const parts = normalized.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean)
     return parts[parts.length - 1] || normalized
-  }, [isWindowsSession])
+  }, [usesWindowsPaths])
 
   const getCanonicalFileNodePath = useCallback((node: FileNode, parentPath?: string): string => {
     const rawPath = (node.fullPath || node.id || '').trim()
     const rawName = (node.name || '').trim()
 
     if (rawPath) {
-      const normalizedRawPath = normalizePath(rawPath, isWindowsSession)
+      const normalizedRawPath = normalizePath(rawPath, usesWindowsPaths)
       if (isAbsoluteFileNodePath(normalizedRawPath) || normalizedRawPath === '/') {
         return normalizedRawPath
       }
       if (parentPath) {
         return joinFileNodePath(parentPath, rawName || normalizedRawPath)
       }
-      if (!isWindowsSession) {
+      if (!usesWindowsPaths) {
         return normalizePath(`/${normalizedRawPath}`, false)
       }
       return normalizedRawPath
@@ -244,12 +242,12 @@ export function useFileManagerState(sessionId: string, session: any) {
       return joinFileNodePath(parentPath, rawName)
     }
 
-    if (rawName && !isWindowsSession) {
+    if (rawName && !usesWindowsPaths) {
       return normalizePath(`/${rawName}`, false)
     }
 
-    return rawName ? normalizePath(rawName, isWindowsSession) : ''
-  }, [getFileNodeName, isAbsoluteFileNodePath, isWindowsSession, joinFileNodePath])
+    return rawName ? normalizePath(rawName, usesWindowsPaths) : ''
+  }, [getFileNodeName, isAbsoluteFileNodePath, usesWindowsPaths, joinFileNodePath])
 
   const dedupeFileNodes = useCallback((nodes: FileNode[], parentPath?: string): FileNode[] => {
     const seen = new Map<string, FileNode>()
@@ -285,10 +283,11 @@ export function useFileManagerState(sessionId: string, session: any) {
     return Array.from(seen.values())
   }, [getCanonicalFileNodePath, getFileNodeName])
 
-  // Unified tree update API - updates a specific node's children by node ID
+  // Updates a specific node's children by node ID.
   const updateTreeNode = useCallback((nodeId: string, children: FileNode[]) => {
+    const directoryChildren = filterDirectoryTree(children)
     setTreeData(prevData => {
-      const normalizeForComparison = (path: string) => normalizePath(path, isWindowsSession)
+      const normalizeForComparison = (path: string) => normalizePath(path, usesWindowsPaths)
       const normalizedTargetId = normalizeForComparison(nodeId)
 
       const updateNode = (nodes: FileNode[]): FileNode[] => {
@@ -296,7 +295,7 @@ export function useFileManagerState(sessionId: string, session: any) {
           const normalizedNId = normalizeForComparison(n.id)
 
           if (normalizedNId === normalizedTargetId) {
-            const dedupedChildren = dedupeFileNodes(children, normalizedNId)
+            const dedupedChildren = dedupeFileNodes(directoryChildren, normalizedNId)
             return { ...n, children: dedupedChildren, isLazy: false }
           }
           if (n.children && n.children.length > 0) {
@@ -307,11 +306,11 @@ export function useFileManagerState(sessionId: string, session: any) {
       }
       return updateNode(prevData)
     })
-  }, [dedupeFileNodes, isWindowsSession])
+  }, [dedupeFileNodes, usesWindowsPaths])
 
   // Unified tree replacement API - replaces entire tree
   const replaceTree = useCallback((newTree: FileNode[]) => {
-    setTreeData(dedupeFileNodes(newTree))
+    setTreeData(dedupeFileNodes(filterDirectoryTree(newTree)))
   }, [dedupeFileNodes])
 
   // Determine if file is viewable as text
@@ -332,7 +331,7 @@ export function useFileManagerState(sessionId: string, session: any) {
     forceFresh: boolean = false,
     throwOnNotFound: boolean = false
   ): Promise<FileNode[]> => {
-    const normalizedPath = normalizePath(path, isWindowsSession)
+    const normalizedPath = normalizePath(path, usesWindowsPaths)
 
     if (!forceFresh && cacheMode === 'cached' && allFilesCache.current.has(normalizedPath)) {
       const tsKey = `all:${normalizedPath}`
@@ -348,7 +347,7 @@ export function useFileManagerState(sessionId: string, session: any) {
     }
 
     try {
-      const files = await listFiles(sessionId, normalizedPath)
+      const files = await listDirectory(normalizedPath, forceFresh)
 
       files.sort((a, b) => {
         if (a.isDirectory !== b.isDirectory) {
@@ -358,10 +357,10 @@ export function useFileManagerState(sessionId: string, session: any) {
       })
 
       const fileNodes: FileNode[] = dedupeFileNodes(files.map(file => ({
-        id: normalizePath(file.fullPath || `${normalizedPath}/${file.name}`, isWindowsSession),
+        id: normalizePath(file.fullPath || `${normalizedPath}/${file.name}`, usesWindowsPaths),
         name: file.name,
         isDirectory: file.isDirectory ?? false,
-        fullPath: file.fullPath ? normalizePath(file.fullPath, isWindowsSession) : undefined,
+        fullPath: file.fullPath ? normalizePath(file.fullPath, usesWindowsPaths) : undefined,
         isLazy: file.isDirectory,
         children: file.isDirectory ? [] : [],
         size: file.size,
@@ -378,17 +377,18 @@ export function useFileManagerState(sessionId: string, session: any) {
         console.warn(`Path not found (silent): ${normalizedPath}`)
         return []
       }
+      if (isFileManagerAbortError(err)) throw err
       console.error(`Failed to load all files from ${normalizedPath}:`, err)
       throw err
     }
-  }, [sessionId, listFiles, isWindowsSession, cacheMode, dedupeFileNodes])
+  }, [listDirectory, usesWindowsPaths, cacheMode, dedupeFileNodes])
 
   const loadPath = useCallback(async (
     path: string,
     forceFresh: boolean = false,
     throwOnNotFound: boolean = false
   ): Promise<FileNode[]> => {
-    const normalizedPath = normalizePath(path, isWindowsSession)
+    const normalizedPath = normalizePath(path, usesWindowsPaths)
 
     if (!forceFresh && cacheMode === 'cached' && fileCache.current.has(normalizedPath)) {
       const tsKey = `tree:${normalizedPath}`
@@ -405,7 +405,7 @@ export function useFileManagerState(sessionId: string, session: any) {
 
     try {
       setLoadingNodes(prev => new Set(prev).add(normalizedPath))
-      const files = await listFiles(sessionId, normalizedPath)
+      const files = await listDirectory(normalizedPath, forceFresh)
 
       files.sort((a, b) => {
         if (a.isDirectory !== b.isDirectory) {
@@ -414,18 +414,18 @@ export function useFileManagerState(sessionId: string, session: any) {
         return a.name.localeCompare(b.name)
       })
 
-      const fileNodes: FileNode[] = dedupeFileNodes(files
+      const fileNodes: FileNode[] = filterDirectoryTree(dedupeFileNodes(files
         .map(file => ({
-          id: normalizePath(file.fullPath || `${normalizedPath}/${file.name}`, isWindowsSession),
+          id: normalizePath(file.fullPath || `${normalizedPath}/${file.name}`, usesWindowsPaths),
           name: file.name,
           isDirectory: file.isDirectory ?? false,
-          fullPath: file.fullPath ? normalizePath(file.fullPath, isWindowsSession) : undefined,
+          fullPath: file.fullPath ? normalizePath(file.fullPath, usesWindowsPaths) : undefined,
           isLazy: file.isDirectory,
           children: file.isDirectory ? [] : undefined,
           size: file.size,
           mode: file.mode,
           time: file.time
-        })))
+        }))))
 
       setBoundedMapEntry(fileCache.current, normalizedPath, fileNodes, MAX_TREE_CACHE_DIRS)
       cacheTimestamps.current.set(`tree:${normalizedPath}`, Date.now())
@@ -436,6 +436,7 @@ export function useFileManagerState(sessionId: string, session: any) {
         console.warn(`Path not found (silent): ${normalizedPath}`)
         return []
       }
+      if (isFileManagerAbortError(err)) throw err
       console.error(`Failed to load path ${normalizedPath}:`, err)
       throw err
     } finally {
@@ -445,11 +446,11 @@ export function useFileManagerState(sessionId: string, session: any) {
         return newSet
       })
     }
-  }, [sessionId, listFiles, isWindowsSession, cacheMode, dedupeFileNodes])
+  }, [listDirectory, usesWindowsPaths, cacheMode, dedupeFileNodes])
 
   // Build tree from root to target path
   const buildTreeFromPath = useCallback(async (targetPath: string, isInitialLoad: boolean = false) => {
-    const normalizedTarget = normalizePath(targetPath, isWindowsSession)
+    const normalizedTarget = normalizePath(targetPath, usesWindowsPaths)
     const pathParts = normalizedTarget.split('/').filter(p => p.trim())
 
     if (pathParts.length === 0) {
@@ -463,7 +464,7 @@ export function useFileManagerState(sessionId: string, session: any) {
         children: files
       }
 
-      if (isInitialLoad || !isWindowsSession) {
+      if (isInitialLoad || !usesWindowsPaths) {
         replaceTree([rootNode])
       } else {
         setTreeData(prevData => {
@@ -472,7 +473,7 @@ export function useFileManagerState(sessionId: string, session: any) {
           }
 
           const existingRootIndex = prevData.findIndex(n =>
-            normalizePath(n.id, isWindowsSession) === normalizePath(rootNode.id, isWindowsSession)
+            normalizePath(n.id, usesWindowsPaths) === normalizePath(rootNode.id, usesWindowsPaths)
           )
           if (existingRootIndex === -1) {
             return dedupeFileNodes([...prevData, rootNode])
@@ -490,13 +491,13 @@ export function useFileManagerState(sessionId: string, session: any) {
       return
     }
 
-    const normalizeForComparison = (path: string) => normalizePath(path, isWindowsSession)
+    const normalizeForComparison = (path: string) => normalizePath(path, usesWindowsPaths)
 
     let rootPath: string
     let rootName: string
     let startIndex: number
 
-    if (isWindowsSession) {
+    if (usesWindowsPaths) {
       const driveLetter = pathParts[0].replace(':', '')
       rootPath = `${driveLetter}:`
       rootName = rootPath
@@ -518,7 +519,7 @@ export function useFileManagerState(sessionId: string, session: any) {
     const buildPathNodes = (index: number): FileNode[] => {
       if (index >= pathParts.length) return []
 
-      const currentPathStr = isWindowsSession
+      const currentPathStr = usesWindowsPaths
         ? pathParts.slice(0, index + 1).join('/')
         : (normalizedTarget.startsWith('/') ? '/' : '') + pathParts.slice(0, index + 1).join('/')
 
@@ -647,24 +648,24 @@ export function useFileManagerState(sessionId: string, session: any) {
       }
     }
 
-  }, [loadPath, isWindowsSession, replaceTree, loadAllFiles])
+  }, [loadPath, usesWindowsPaths, replaceTree, loadAllFiles])
 
   // Initialize file system
   const initializeFileSystem = useCallback(async () => {
     try {
-      let workdir = session?.workdir
+      let workdir = initialPath
 
       if (!workdir) {
-        workdir = await pwd(sessionId)
+        workdir = await getCurrentDirectory()
       }
 
       if (!workdir) {
-        throw new Error('Cannot get current working directory from session')
+        throw new Error('Cannot determine the initial file manager path')
       }
 
-      const normalizedPath = normalizePath(workdir, isWindowsSession)
+      const normalizedPath = normalizePath(workdir, usesWindowsPaths)
       setCurrentPath(normalizedPath)
-      setPathInputValue(formatPathForDisplay(normalizedPath, isWindowsSession))
+      setPathInputValue(formatPathForDisplay(normalizedPath, usesWindowsPaths))
 
       await buildTreeFromPath(normalizedPath, true)
 
@@ -677,7 +678,7 @@ export function useFileManagerState(sessionId: string, session: any) {
         description: err instanceof Error ? err.message : t('unknownError')
       })
     }
-  }, [sessionId, session, pwd, isWindowsSession, buildTreeFromPath, toast, t, triggerCacheUpdate])
+  }, [initialPath, getCurrentDirectory, usesWindowsPaths, buildTreeFromPath, toast, t, triggerCacheUpdate])
 
   // Refresh file system with loading state and toast
   const handleRefresh = useCallback(async () => {
@@ -727,13 +728,13 @@ export function useFileManagerState(sessionId: string, session: any) {
         lastSelectedId: nodeId,
         selectRange: false
       })
-      const directoryPath = normalizePath(node.data.fullPath || nodeId, isWindowsSession)
+      const directoryPath = normalizePath(node.data.fullPath || nodeId, usesWindowsPaths)
       try {
         const files = await loadAllFiles(directoryPath)
         setCurrentDirFiles(files)
         setCurrentDirPath(directoryPath)
         setCurrentPath(directoryPath)
-        setPathInputValue(formatPathForDisplay(directoryPath, isWindowsSession))
+        setPathInputValue(formatPathForDisplay(directoryPath, usesWindowsPaths))
       } catch (error: unknown) {
         if (!isFileNotFoundError(error)) {
           console.error('Failed to load directory files:', error)
@@ -785,7 +786,7 @@ export function useFileManagerState(sessionId: string, session: any) {
         selectRange: isRangeSelect
       }
     })
-  }, [selection.selectedIds, selection.lastSelectedId, loadAllFiles, isWindowsSession, toast, t])
+  }, [selection.selectedIds, selection.lastSelectedId, loadAllFiles, usesWindowsPaths, toast, t])
 
   const handleCheckboxToggle = useCallback((node: NodeApi<FileNode>) => {
     const nodeId = node.data.id
@@ -849,12 +850,12 @@ export function useFileManagerState(sessionId: string, session: any) {
     if (!node.data.isDirectory) return
 
     const rawPath = node.data.fullPath || node.data.id
-    const normalizedPath = normalizePath(rawPath, isWindowsSession)
+    const normalizedPath = normalizePath(rawPath, usesWindowsPaths)
 
     const expandedDescendants = Array.from(expandedNodes)
       .map(id => ({
         id,
-        normalized: normalizePath(id, isWindowsSession)
+        normalized: normalizePath(id, usesWindowsPaths)
       }))
       .filter(item =>
         item.normalized !== normalizedPath && item.normalized.startsWith(`${normalizedPath}/`)
@@ -862,14 +863,14 @@ export function useFileManagerState(sessionId: string, session: any) {
       .sort((a, b) => a.normalized.length - b.normalized.length)
 
     for (const key of Array.from(fileCache.current.keys())) {
-      const normalizedKey = normalizePath(key, isWindowsSession)
+      const normalizedKey = normalizePath(key, usesWindowsPaths)
       if (normalizedKey === normalizedPath || normalizedKey.startsWith(`${normalizedPath}/`)) {
         fileCache.current.delete(key)
         cacheTimestamps.current.delete(`tree:${normalizedKey}`)
       }
     }
     for (const key of Array.from(allFilesCache.current.keys())) {
-      const normalizedKey = normalizePath(key, isWindowsSession)
+      const normalizedKey = normalizePath(key, usesWindowsPaths)
       if (normalizedKey === normalizedPath || normalizedKey.startsWith(`${normalizedPath}/`)) {
         allFilesCache.current.delete(key)
         cacheTimestamps.current.delete(`all:${normalizedKey}`)
@@ -887,8 +888,8 @@ export function useFileManagerState(sessionId: string, session: any) {
         })
       }
 
-      const shouldRefreshCurrentDir = normalizePath(currentDirPath, isWindowsSession) === normalizedPath ||
-        normalizePath(currentDirPath, isWindowsSession).startsWith(`${normalizedPath}/`)
+      const shouldRefreshCurrentDir = normalizePath(currentDirPath, usesWindowsPaths) === normalizedPath ||
+        normalizePath(currentDirPath, usesWindowsPaths).startsWith(`${normalizedPath}/`)
       const allFiles = shouldRefreshCurrentDir ? await loadAllFiles(currentDirPath, true) : null
 
       updateTreeNode(node.data.id, children)
@@ -912,7 +913,7 @@ export function useFileManagerState(sessionId: string, session: any) {
         description: error instanceof Error ? error.message : t('unknownError')
       })
     }
-  }, [expandedNodes, isWindowsSession, loadPath, loadAllFiles, updateTreeNode, currentDirPath, setCurrentDirFiles, toast, t, triggerCacheUpdate])
+  }, [expandedNodes, usesWindowsPaths, loadPath, loadAllFiles, updateTreeNode, currentDirPath, setCurrentDirFiles, toast, t, triggerCacheUpdate])
 
   // Handle node toggle for react-arborist (string ID parameter)
   const handleTreeToggle = useCallback(async (id: string) => {
@@ -934,7 +935,7 @@ export function useFileManagerState(sessionId: string, session: any) {
 
     if (isExpanded && node.data.children?.length === 0) {
       const pathToLoad = node.data.fullPath || nodeId
-      const normalizedPathToLoad = normalizePath(pathToLoad, isWindowsSession)
+      const normalizedPathToLoad = normalizePath(pathToLoad, usesWindowsPaths)
       const hadCache = fileCache.current.has(normalizedPathToLoad)
 
       try {
@@ -950,18 +951,19 @@ export function useFileManagerState(sessionId: string, session: any) {
     }
 
     triggerCacheUpdate()
-  }, [loadPath, updateTreeNode, isWindowsSession, triggerCacheUpdate])
+  }, [loadPath, updateTreeNode, usesWindowsPaths, triggerCacheUpdate])
 
   // Navigate to path
   const navigateToPath = useCallback(async (path: string) => {
     if (!path || !path.trim()) return
 
+    const navigationSequence = ++navigationSequenceRef.current
     isNavigatingRef.current = true
 
-    const normalizedPath = normalizePath(path, isWindowsSession)
-    const displayPath = formatPathForDisplay(normalizedPath, isWindowsSession)
+    const normalizedPath = normalizePath(path, usesWindowsPaths)
+    const displayPath = formatPathForDisplay(normalizedPath, usesWindowsPaths)
     const previousPath = currentPath
-    const previousDisplayPath = formatPathForDisplay(previousPath, isWindowsSession)
+    const previousDisplayPath = formatPathForDisplay(previousPath, usesWindowsPaths)
 
     try {
       const pathParts = normalizedPath.split('/').filter(p => p.trim())
@@ -969,6 +971,7 @@ export function useFileManagerState(sessionId: string, session: any) {
       if (pathParts.length === 0) {
         const files = await loadPath(normalizedPath, true, true)
         const allFiles = await loadAllFiles(normalizedPath, true, true)
+        if (navigationSequence !== navigationSequenceRef.current) return
         const rootNode: FileNode = {
           id: normalizedPath,
           name: normalizedPath,
@@ -978,7 +981,7 @@ export function useFileManagerState(sessionId: string, session: any) {
           children: files
         }
 
-        if (!isWindowsSession) {
+        if (!usesWindowsPaths) {
           replaceTree([rootNode])
         } else {
           setTreeData(prevData => {
@@ -987,7 +990,7 @@ export function useFileManagerState(sessionId: string, session: any) {
             }
 
             const existingRootIndex = prevData.findIndex(n =>
-              normalizePath(n.id, isWindowsSession) === normalizePath(rootNode.id, isWindowsSession)
+              normalizePath(n.id, usesWindowsPaths) === normalizePath(rootNode.id, usesWindowsPaths)
             )
             if (existingRootIndex === -1) {
               return dedupeFileNodes([...prevData, rootNode])
@@ -1009,7 +1012,7 @@ export function useFileManagerState(sessionId: string, session: any) {
       let rootPath: string
       let startIndex: number
 
-      if (isWindowsSession) {
+      if (usesWindowsPaths) {
         const driveLetter = pathParts[0].replace(':', '')
         rootPath = `${driveLetter}:`
         startIndex = 1
@@ -1025,7 +1028,7 @@ export function useFileManagerState(sessionId: string, session: any) {
 
       const pathsToEnsure: string[] = [rootPath]
       for (let i = startIndex; i < pathParts.length; i++) {
-        const p = isWindowsSession
+        const p = usesWindowsPaths
           ? pathParts.slice(0, i + 1).join('/')
           : (normalizedPath.startsWith('/') ? '/' : '') + pathParts.slice(0, i + 1).join('/')
         pathsToEnsure.push(p)
@@ -1035,15 +1038,15 @@ export function useFileManagerState(sessionId: string, session: any) {
         if (pathIndex >= pathsToEnsure.length) return nodes
 
         const targetPathStr = pathsToEnsure[pathIndex]
-        const normalizedTarget = normalizePath(targetPathStr, isWindowsSession)
+        const normalizedTarget = normalizePath(targetPathStr, usesWindowsPaths)
 
         const existingNode = nodes.find(n =>
-          normalizePath(n.id, isWindowsSession) === normalizedTarget
+          normalizePath(n.id, usesWindowsPaths) === normalizedTarget
         )
 
         if (existingNode) {
           return nodes.map(n => {
-            if (normalizePath(n.id, isWindowsSession) === normalizedTarget) {
+            if (normalizePath(n.id, usesWindowsPaths) === normalizedTarget) {
               return {
                 ...n,
                 children: n.children ? ensurePathExists(n.children, pathIndex + 1) : []
@@ -1053,7 +1056,7 @@ export function useFileManagerState(sessionId: string, session: any) {
           })
         } else {
           const pathName = pathIndex === 0
-            ? (isWindowsSession ? `${pathParts[0]}` : rootPath)
+            ? (usesWindowsPaths ? `${pathParts[0]}` : rootPath)
             : pathParts[pathIndex]
 
           const newNode: FileNode = {
@@ -1073,6 +1076,7 @@ export function useFileManagerState(sessionId: string, session: any) {
 
       const targetFiles = await loadPath(normalizedPath, true, true)
       const allFiles = await loadAllFiles(normalizedPath, true, true)
+      if (navigationSequence !== navigationSequenceRef.current) return
 
       setTreeData(prevData => {
         if (prevData.length === 0) {
@@ -1098,6 +1102,7 @@ export function useFileManagerState(sessionId: string, session: any) {
 
       requestAnimationFrame(() => {
         setTimeout(() => {
+          if (navigationSequence !== navigationSequenceRef.current) return
           pathsToEnsure.forEach(id => {
             const node = treeRef.current?.get(id)
             if (node) {
@@ -1124,6 +1129,7 @@ export function useFileManagerState(sessionId: string, session: any) {
         description: t('pathChangedDesc', { path: displayPath })
       })
     } catch (err) {
+      if (navigationSequence !== navigationSequenceRef.current) return
       setPathInputValue(previousDisplayPath)
 
       toast({
@@ -1132,41 +1138,43 @@ export function useFileManagerState(sessionId: string, session: any) {
         description: err instanceof Error ? err.message : t('unknownError')
       })
     } finally {
-      isNavigatingRef.current = false
+      if (navigationSequence === navigationSequenceRef.current) {
+        isNavigatingRef.current = false
+      }
     }
-  }, [currentPath, isWindowsSession, loadPath, loadAllFiles, replaceTree, updateTreeNode, toast, t, triggerCacheUpdate])
+  }, [currentPath, usesWindowsPaths, loadPath, loadAllFiles, replaceTree, updateTreeNode, toast, t, triggerCacheUpdate])
 
   // Navigate to parent directory
   const navigateUp = useCallback(() => {
     if (!currentPath) return
 
-    const isRoot = isWindowsSession
+    const isRoot = usesWindowsPaths
       ? !!currentPath.match(/^[A-Z]:[\\/]?$/)
       : currentPath === '/'
 
     if (isRoot) return
 
     const parts = currentPath.split(/[/\\]/).filter(Boolean)
-    const parentPath = isWindowsSession
+    const parentPath = usesWindowsPaths
       ? (parts.length === 1 ? parts[0] + '/' : parts.slice(0, -1).join('/'))
       : ('/' + parts.slice(0, -1).join('/'))
 
     navigateToPath(parentPath)
-  }, [currentPath, isWindowsSession, navigateToPath])
+  }, [currentPath, usesWindowsPaths, navigateToPath])
 
   // Navigate to home directory
   const navigateHome = useCallback(() => {
-    const homePath = isWindowsSession ? 'C:/' : '/'
+    const homePath = usesWindowsPaths ? 'C:/' : '/'
     navigateToPath(homePath)
-  }, [isWindowsSession, navigateToPath])
+  }, [usesWindowsPaths, navigateToPath])
 
   // Check if at root directory
   const isAtRoot = useMemo(() => {
     if (!currentPath) return true
-    return isWindowsSession
+    return usesWindowsPaths
       ? !!currentPath.match(/^[A-Z]:[\\/]?$/)
       : currentPath === '/'
-  }, [currentPath, isWindowsSession])
+  }, [currentPath, usesWindowsPaths])
 
   // Filter tree data based on search query
   const filterTreeData = useCallback((
@@ -1226,30 +1234,25 @@ export function useFileManagerState(sessionId: string, session: any) {
   }, [matchedIds, searchMatchedCount])
 
   return {
-    // Props
-    sessionId,
-
     // Translation & toast
     t,
     toast,
 
     // File system hooks
-    listFiles,
-    enumDriversFromAPI,
-    mkdir,
-    touchFile,
+    listDirectory,
+    listRoots,
+    createDirectory,
+    createFileEntry,
     uploadFile,
     downloadFile,
-    catFile,
-    rmFile,
-    mvFile,
-    cpFile,
-    chmodFile,
-    chownFile,
-    pwd,
-    cd,
-    rpcLoading,
-    rpcError,
+    removeEntry,
+    renameEntry,
+    copyEntry,
+    changeMode,
+    getCurrentDirectory,
+    operationLoading,
+    pendingMutationPaths,
+    fileSystemError,
 
     // Cache
     getFileTreeCache,
@@ -1298,8 +1301,8 @@ export function useFileManagerState(sessionId: string, session: any) {
     setDownloading,
     refreshing,
     setRefreshing,
-    enumeratingDrivers,
-    setEnumeratingDrivers,
+    loadingRoots,
+    setLoadingRoots,
     operatingFiles,
     setOperatingFiles,
     creatingFolder,
@@ -1383,10 +1386,10 @@ export function useFileManagerState(sessionId: string, session: any) {
     treeHeight,
 
     // Responsive
-    isMobile,
+    isMobile: isCompact,
 
     // System
-    isWindowsSession,
+    usesWindowsPaths,
 
     // Sorting
     sortedFiles,

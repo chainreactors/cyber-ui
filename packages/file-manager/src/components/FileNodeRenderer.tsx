@@ -22,6 +22,7 @@ interface UseFileNodeRendererParams {
   generateContextMenu: (node: FileNode) => ContextMenuSection[]
   matchedNodeIds: Set<string>
   treeSearchQuery: string
+  onDirectoryNavigate?: () => void
 }
 
 export function useFileNodeRenderer({
@@ -32,12 +33,14 @@ export function useFileNodeRenderer({
   generateContextMenu,
   matchedNodeIds,
   treeSearchQuery,
+  onDirectoryNavigate,
 }: UseFileNodeRendererParams) {
   const FileNodeRenderer = useCallback(({ node, style, dragHandle }: NodeRendererProps<FileNode>) => {
     const { data } = node
     const isLoading = loadingNodes.has(data.id)
     const isCurrentDir = currentDirPath === data.id || currentDirPath === data.fullPath
     const isOperating = operatingFiles.has(data.id)
+      || (!!data.fullPath && operatingFiles.has(data.fullPath))
     const isMatched = (node.data as FileNode & { _isMatched?: boolean })._isMatched || matchedNodeIds.has(node.id)
 
     // Helper function to highlight matched text
@@ -72,10 +75,10 @@ export function useFileNodeRenderer({
             isCurrentDir && "bg-muted text-foreground font-normal",
             isMatched && "font-normal"
           )}
-          onDoubleClick={(e) => {
-            e.stopPropagation()
+          onClick={() => {
             if (data.isDirectory && data.fullPath) {
               navigateToPath(data.fullPath)
+              onDirectoryNavigate?.()
             }
           }}
         >
@@ -111,7 +114,7 @@ export function useFileNodeRenderer({
               })()}
             </>
           )}
-          <span className="min-w-0 flex-1 truncate whitespace-nowrap" title={data.name}>
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap">
             {highlightText(data.name, treeSearchQuery)}
           </span>
               {isOperating && (
@@ -127,7 +130,8 @@ export function useFileNodeRenderer({
     navigateToPath,
     generateContextMenu,
     matchedNodeIds,
-    treeSearchQuery
+    treeSearchQuery,
+    onDirectoryNavigate,
   ])
 
   return FileNodeRenderer

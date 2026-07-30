@@ -1,0 +1,69 @@
+@import "tailwindcss";
+@source "./**/*.{ts,tsx}";
+
+@theme inline {
+  --color-background: var(--cyber-fm-background);
+  --color-foreground: var(--cyber-fm-foreground);
+  --color-card: var(--cyber-fm-card);
+  --color-card-foreground: var(--cyber-fm-card-foreground);
+  --color-popover: var(--cyber-fm-popover);
+  --color-popover-foreground: var(--cyber-fm-popover-foreground);
+  --color-primary: var(--cyber-fm-primary);
+  --color-primary-foreground: var(--cyber-fm-primary-foreground);
+  --color-secondary: var(--cyber-fm-secondary);
+  --color-secondary-foreground: var(--cyber-fm-secondary-foreground);
+  --color-muted: var(--cyber-fm-muted);
+  --color-muted-foreground: var(--cyber-fm-muted-foreground);
+  --color-accent: var(--cyber-fm-accent);
+  --color-accent-foreground: var(--cyber-fm-accent-foreground);
+  --color-destructive: var(--cyber-fm-destructive);
+  --color-destructive-foreground: var(--cyber-fm-destructive-foreground);
+  --color-border: var(--cyber-fm-border);
+  --color-input: var(--cyber-fm-input);
+  --color-ring: var(--cyber-fm-ring);
+  --color-sidebar: var(--cyber-fm-sidebar);
+  --color-sidebar-foreground: var(--cyber-fm-sidebar-foreground);
+  --color-sidebar-border: var(--cyber-fm-sidebar-border);
+  --color-chart-4: var(--cyber-fm-chart-4);
+  --color-menu: var(--cyber-fm-muted-foreground);
+}
+
+[data-cyber-file-manager],
+.cyber-file-manager-portal {
+  --cyber-fm-background: var(--cyber-file-manager-background, #ffffff);
+  --cyber-fm-foreground: var(--cyber-file-manager-foreground, #18181b);
+  --cyber-fm-card: var(--cyber-file-manager-card, #ffffff);
+  --cyber-fm-card-foreground: var(--cyber-file-manager-card-foreground, #18181b);
+  --cyber-fm-popover: var(--cyber-file-manager-popover, #ffffff);
+  --cyber-fm-popover-foreground: var(--cyber-file-manager-popover-foreground, #18181b);
+  --cyber-fm-primary: var(--cyber-file-manager-primary, #463acb);
+  --cyber-fm-primary-foreground: var(--cyber-file-manager-primary-foreground, #ffffff);
+  --cyber-fm-secondary: var(--cyber-file-manager-secondary, #f1f2f6);
+  --cyber-fm-secondary-foreground: var(--cyber-file-manager-secondary-foreground, #3d3f4c);
+  --cyber-fm-muted: var(--cyber-file-manager-muted, #f1f2f6);
+  --cyber-fm-muted-foreground: var(--cyber-file-manager-muted-foreground, #6b6f80);
+  --cyber-fm-accent: var(--cyber-file-manager-accent, #f0f0f3);
+  --cyber-fm-accent-foreground: var(--cyber-file-manager-accent-foreground, #18181b);
+  --cyber-fm-destructive: var(--cyber-file-manager-destructive, #dc2626);
+  --cyber-fm-destructive-foreground: var(--cyber-file-manager-destructive-foreground, #ffffff);
+  --cyber-fm-border: var(--cyber-file-manager-border, #e3e5ec);
+  --cyber-fm-input: var(--cyber-file-manager-input, #e3e5ec);
+  --cyber-fm-ring: var(--cyber-file-manager-ring, #463acb);
+  --cyber-fm-sidebar: var(--cyber-file-manager-sidebar, #f7f8fb);
+  --cyber-fm-sidebar-foreground: var(--cyber-file-manager-sidebar-foreground, #3d3f4c);
+  --cyber-fm-sidebar-border: var(--cyber-file-manager-sidebar-border, #e3e5ec);
+  --cyber-fm-chart-4: var(--cyber-file-manager-chart-4, #f59e0b);
+
+  box-sizing: border-box;
+  color: var(--cyber-fm-foreground);
+}
+
+[data-cyber-file-manager] :where(*),
+.cyber-file-manager-portal :where(*) {
+  box-sizing: border-box;
+  border-color: var(--cyber-fm-border);
+}
+
+[data-cyber-file-manager] [role="treeitem"] {
+  min-width: 0 !important;
+}

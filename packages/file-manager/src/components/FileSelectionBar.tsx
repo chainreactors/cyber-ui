@@ -1,6 +1,6 @@
 "use client"
 
-import { useTranslations } from "../runtime"
+import { useFileManagerTranslations } from "../runtime"
 import { Button, Separator } from "../ui"
 import { Download, Trash2, X } from "../icons"
 
@@ -17,7 +17,7 @@ export function FileSelectionBar({
   onDelete,
   onClear,
 }: FileSelectionBarProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">

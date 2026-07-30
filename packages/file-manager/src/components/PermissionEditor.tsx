@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { useTranslations } from '../runtime'
+import { useFileManagerTranslations } from '../runtime'
 import { FormDialog } from '../ui'
 import { Checkbox } from '../ui'
 import { Label } from '../ui'
@@ -32,7 +32,7 @@ export function PermissionEditor({
   file,
   onSave,
 }: PermissionEditorProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
   const [permissions, setPermissions] = useState<Permissions>({
     owner: { read: false, write: false, execute: false },
     group: { read: false, write: false, execute: false },

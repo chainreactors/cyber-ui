@@ -175,39 +175,110 @@ export function useColumnResize({ columns, tableRef }: {
   tableRef: React.RefObject<HTMLTableElement | null>
 }) {
   const [resizingKey, setResizingKey] = useState<string | null>(null)
-  const widths = useRef<Record<string, number>>({})
+  const [widths, setWidths] = useState<Record<string, number>>({})
+  const cleanupRef = useRef<(() => void) | null>(null)
+  const columnSignature = columns.map(({ key, minWidth }) => `${key}:${minWidth ?? 40}`).join('|')
 
-  const getColumnStyle = useCallback((key: string, fallback: string) => ({ width: widths.current[key] ? `${widths.current[key]}px` : fallback }), [])
+  useEffect(() => {
+    setWidths({})
+  }, [columnSignature])
+
+  useEffect(() => () => cleanupRef.current?.(), [])
+
+  const measureColumns = useCallback((): Record<string, number> => {
+    const headers = tableRef.current?.querySelectorAll('thead th')
+    return Object.fromEntries(columns.map((column, index) => [
+      column.key,
+      headers?.[index]?.getBoundingClientRect().width || column.minWidth || 40,
+    ]))
+  }, [columns, tableRef])
+
+  const resizePair = useCallback((
+    measured: Record<string, number>,
+    key: string,
+    delta: number,
+  ): Record<string, number> => {
+    const index = columns.findIndex((column) => column.key === key)
+    const nextColumn = columns[index + 1]
+    if (index < 0 || !nextColumn) return measured
+
+    const column = columns[index]
+    const currentWidth = measured[key]
+    const nextWidth = measured[nextColumn.key]
+    const pairWidth = currentWidth + nextWidth
+    const minimum = column.minWidth || 40
+    const nextMinimum = nextColumn.minWidth || 40
+    const width = Math.min(
+      Math.max(minimum, currentWidth + delta),
+      Math.max(minimum, pairWidth - nextMinimum),
+    )
+
+    return {
+      ...measured,
+      [key]: width,
+      [nextColumn.key]: pairWidth - width,
+    }
+  }, [columns])
+
+  const getColumnStyle = useCallback((key: string, fallback: string) => ({
+    width: widths[key] !== undefined ? `${widths[key]}px` : fallback,
+  }), [widths])
   const getResizeHandler = useCallback((key: string) => ({
     isResizing: resizingKey === key,
     onMouseDown: (event: React.MouseEvent) => {
       event.preventDefault()
-      const header = (event.currentTarget as HTMLElement).closest('th')
       const start = event.clientX
-      const startWidth = header?.getBoundingClientRect().width || 120
-      const minimum = columns.find((column) => column.key === key)?.minWidth || 40
+      const measured = measureColumns()
+      setWidths(measured)
       setResizingKey(key)
       const move = (next: MouseEvent) => {
-        const width = Math.max(minimum, startWidth + next.clientX - start)
-        widths.current[key] = width
-        tableRef.current?.style.setProperty(`--col-${key}`, `${width}px`)
-        if (header) header.style.width = `${width}px`
+        setWidths(resizePair(measured, key, next.clientX - start))
       }
       const up = () => {
         setResizingKey(null)
         document.removeEventListener('mousemove', move)
         document.removeEventListener('mouseup', up)
+        cleanupRef.current = null
       }
+      cleanupRef.current?.()
+      cleanupRef.current = up
       document.addEventListener('mousemove', move)
       document.addEventListener('mouseup', up)
     },
-  }), [columns, resizingKey, tableRef])
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+      event.preventDefault()
+      const measured = Object.keys(widths).length ? widths : measureColumns()
+      setWidths(resizePair(measured, key, event.key === 'ArrowLeft' ? -12 : 12))
+    },
+  }), [measureColumns, resizePair, resizingKey, widths])
 
-  return { columnWidths: widths.current, getColumnStyle, getResizeHandler, isResizing: resizingKey !== null }
+  return { columnWidths: widths, getColumnStyle, getResizeHandler, isResizing: resizingKey !== null }
 }
 
-export function ColumnResizeHandle({ onMouseDown, isResizing }: { onMouseDown: (event: React.MouseEvent) => void; isResizing?: boolean }) {
-  return <div role="separator" aria-orientation="vertical" onMouseDown={onMouseDown} className="absolute right-0 top-[20%] z-10 flex h-[60%] w-2 cursor-col-resize justify-center"><div className={cn('h-full w-px bg-border', isResizing && 'w-0.5 bg-primary')} /></div>
+export function ColumnResizeHandle({
+  onKeyDown,
+  onMouseDown,
+  isResizing,
+  ...props
+}: {
+  onKeyDown: (event: React.KeyboardEvent) => void
+  onMouseDown: (event: React.MouseEvent) => void
+  isResizing?: boolean
+} & React.AriaAttributes) {
+  return (
+    <div
+      {...props}
+      role="separator"
+      aria-orientation="vertical"
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onMouseDown={onMouseDown}
+      className="absolute right-0 top-[20%] z-10 flex h-[60%] w-2 cursor-col-resize justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className={cn('h-full w-px bg-border', isResizing && 'w-0.5 bg-primary')} />
+    </div>
+  )
 }
 
 export function SortableTableHead<K extends string>({ label, sortKey, currentSortKey, currentDirection, onSort }: {

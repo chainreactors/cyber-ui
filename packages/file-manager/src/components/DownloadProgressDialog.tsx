@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { useTranslations } from '../runtime'
+import { useFileManagerTranslations } from '../runtime'
 import { FormDialog } from '../ui'
 import { Progress } from '../ui'
 import { CheckCircle2, XCircle, Loader2, X } from '../icons'
@@ -23,7 +23,7 @@ export function DownloadProgressDialog({
   totalFiles,
   onCancel,
 }: DownloadProgressDialogProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
 
   const progressArray = Array.from(progresses.values())
   const completedCount = progressArray.filter((p) => p.status === 'completed').length

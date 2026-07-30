@@ -1,5 +1,5 @@
 import React from "react"
-import { useTranslations } from "../runtime"
+import { useFileManagerTranslations } from "../runtime"
 import { Button, Input } from "../ui"
 import { Dialog, DialogContent, DialogTitle } from "../ui"
 import {
@@ -16,8 +16,7 @@ import { FilePropertiesDialog } from "./FilePropertiesDialog"
 import { PermissionEditor } from "./PermissionEditor"
 
 interface FileManagerDialogsProps {
-  sessionId: string
-  isWindowsSession: boolean
+  usesWindowsPaths: boolean
   // File preview
   selectedFile: FileNode | null
   setSelectedFile: (file: FileNode | null) => void
@@ -65,7 +64,7 @@ interface FileManagerDialogsProps {
   showUploadProgress: boolean
   setShowUploadProgress: (show: boolean) => void
   uploadQueue: UploadQueueState
-  setUploadQueue: (queue: UploadQueueState) => void
+  cancelUploads: () => void
   // Download progress
   showDownloadProgress: boolean
   setShowDownloadProgress: (show: boolean) => void
@@ -83,8 +82,7 @@ interface FileManagerDialogsProps {
 }
 
 export function FileManagerDialogs({
-  sessionId,
-  isWindowsSession,
+  usesWindowsPaths,
   selectedFile,
   setSelectedFile,
   fileInputRef,
@@ -124,7 +122,7 @@ export function FileManagerDialogs({
   showUploadProgress,
   setShowUploadProgress,
   uploadQueue,
-  setUploadQueue,
+  cancelUploads,
   showDownloadProgress,
   setShowDownloadProgress,
   downloadQueue,
@@ -137,7 +135,7 @@ export function FileManagerDialogs({
   selectedPermissionFile,
   handleSavePermissions,
 }: FileManagerDialogsProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
   const { renderPreview } = useFileManagerRuntime()
 
   return (
@@ -166,7 +164,17 @@ export function FileManagerDialogs({
 
       {/* Create folder dialog */}
       {showCreateFolder && (
-        <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-background/80 flex items-center justify-center z-50"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            event.stopPropagation()
+            setShowCreateFolder(false)
+            setNewFolderName('')
+            setContextMenuTargetPath(null)
+          }}
+        >
           <div className="bg-card rounded-lg p-6 w-96">
             <h3 className="text-lg font-normal mb-4">{t('createFolder')}</h3>
             <Input
@@ -178,10 +186,6 @@ export function FileManagerDialogs({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && newFolderName.trim() && !creatingFolder) {
                   handleCreateFolder(contextMenuTargetPath || undefined)
-                } else if (e.key === 'Escape') {
-                  setShowCreateFolder(false)
-                  setNewFolderName('')
-                  setContextMenuTargetPath(null)
                 }
               }}
               autoFocus
@@ -218,7 +222,17 @@ export function FileManagerDialogs({
 
       {/* Create file dialog */}
       {showCreateFile && (
-        <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-background/80 flex items-center justify-center z-50"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            event.stopPropagation()
+            setShowCreateFile(false)
+            setNewFileName('')
+            setContextMenuTargetPath(null)
+          }}
+        >
           <div className="bg-card rounded-lg p-6 w-96">
             <h3 className="text-lg font-normal mb-4">{t('newFile')}</h3>
             <Input
@@ -230,10 +244,6 @@ export function FileManagerDialogs({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && newFileName.trim() && !creatingFile) {
                   handleCreateFile(contextMenuTargetPath || undefined)
-                } else if (e.key === 'Escape') {
-                  setShowCreateFile(false)
-                  setNewFileName('')
-                  setContextMenuTargetPath(null)
                 }
               }}
               autoFocus
@@ -270,7 +280,17 @@ export function FileManagerDialogs({
 
       {/* Rename dialog */}
       {showRenameDialog && renameTarget && (
-        <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-background/80 flex items-center justify-center z-50"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            event.stopPropagation()
+            setShowRenameDialog(false)
+            setRenameTarget(null)
+            setNewName('')
+          }}
+        >
           <div className="bg-card rounded-lg p-6 w-96">
             <h3 className="text-lg font-normal mb-4">{t('renameFile')}</h3>
             <Input
@@ -282,10 +302,6 @@ export function FileManagerDialogs({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && newName.trim() && newName !== renameTarget.name && !renaming) {
                   executeRename()
-                } else if (e.key === 'Escape') {
-                  setShowRenameDialog(false)
-                  setRenameTarget(null)
-                  setNewName('')
                 }
               }}
               autoFocus
@@ -325,7 +341,18 @@ export function FileManagerDialogs({
 
       {/* Upload dialog */}
       {showUploadDialog && (
-        <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-background/80 flex items-center justify-center z-50"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            event.stopPropagation()
+            setShowUploadDialog(false)
+            setSelectedUploadFile(null)
+            setUploadTargetPath('')
+            setContextMenuTargetPath(null)
+          }}
+        >
           <div className="bg-card rounded-lg p-6 w-96">
             <h3 className="text-lg font-normal mb-4">{t('upload')}</h3>
 
@@ -366,11 +393,6 @@ export function FileManagerDialogs({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && selectedUploadFile && !uploading) {
                     executeUpload()
-                  } else if (e.key === 'Escape') {
-                    setShowUploadDialog(false)
-                    setSelectedUploadFile(null)
-                    setUploadTargetPath('')
-                    setContextMenuTargetPath(null)
                   }
                 }}
               />
@@ -409,7 +431,15 @@ export function FileManagerDialogs({
 
       {/* File Size Warning Dialog */}
       {fileSizeWarning && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/85 px-4 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-background/85 px-4 backdrop-blur-sm"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            event.stopPropagation()
+            setFileSizeWarning(null)
+          }}
+        >
           <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl">
             <div className="flex items-center gap-2 text-lg font-normal text-card-foreground">
               <AlertTriangle className="h-5 w-5 text-chart-4" />
@@ -455,15 +485,7 @@ export function FileManagerDialogs({
         progresses={uploadQueue.progresses}
         currentIndex={uploadQueue.currentIndex}
         totalFiles={uploadQueue.totalFiles}
-        onCancel={() => {
-          setShowUploadProgress(false)
-          setUploadQueue({
-            files: [],
-            progresses: new Map(),
-            currentIndex: 0,
-            totalFiles: 0,
-          })
-        }}
+        onCancel={cancelUploads}
       />
 
       {/* File Properties Dialog */}
@@ -471,7 +493,7 @@ export function FileManagerDialogs({
         open={showProperties}
         onOpenChange={setShowProperties}
         file={selectedPropertyFile}
-        isWindows={isWindowsSession}
+        isWindows={usesWindowsPaths}
       />
 
       {/* Permission Editor Dialog */}

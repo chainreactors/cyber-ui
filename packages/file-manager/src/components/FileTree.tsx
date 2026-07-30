@@ -1,18 +1,17 @@
 import React from "react"
-import { useTranslations } from "../runtime"
+import { isFileNotFoundError, useFileManagerTranslations } from "../runtime"
 import { Button } from "../ui"
-import { Sheet, SheetContent, SheetTrigger, useIsMobile } from "../ui"
 import {
   Folder,
   Search,
   RefreshCw,
   AlertTriangle,
   X,
-  Menu,
 } from "../icons"
 import { Tree, TreeApi, NodeRendererProps } from "react-arborist"
 import type { NodeApi } from "react-arborist"
 import type { FileNode } from "../types"
+import { useResizeObserver } from "../hooks/useResizeObserver"
 
 interface FileTreeProps {
   treeRef: React.RefObject<TreeApi<FileNode> | null>
@@ -26,8 +25,8 @@ interface FileTreeProps {
   treeSearchQuery: string
   setTreeSearchQuery: (query: string) => void
   matchedCount: number
-  rpcError: string | null
-  isWindowsSession: boolean
+  fileSystemError: string | null
+  usesWindowsPaths: boolean
   isMobile: boolean
   initializeFileSystem: () => Promise<void>
   handleNodeSelect: (nodes: NodeApi<FileNode>[], event?: React.MouseEvent) => void
@@ -47,19 +46,18 @@ export function FileTree({
   treeSearchQuery,
   setTreeSearchQuery,
   matchedCount,
-  rpcError,
-  isWindowsSession,
+  fileSystemError,
+  usesWindowsPaths,
   isMobile,
   initializeFileSystem,
   handleNodeSelect,
   handleTreeToggle,
   FileNodeRenderer,
 }: FileTreeProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
   const hasTreeData = treeData.length > 0
-  const shouldShowBlockingError = !!rpcError &&
-    !rpcError.includes('not found') &&
-    !rpcError.includes('Task content not found') &&
+  const shouldShowBlockingError = !!fileSystemError &&
+    !isFileNotFoundError(fileSystemError) &&
     !hasTreeData
 
   const searchBox = (
@@ -100,7 +98,9 @@ export function FileTree({
   const statusBar = (
     <div className="flex-shrink-0 border-t border-sidebar-border text-xs text-sidebar-foreground flex items-center justify-between p-2">
       <div>
-        {t('system')}: {isWindowsSession ? 'Windows' : 'Unix/Linux'}
+        {t('pathFormatLabel', {
+          format: usesWindowsPaths ? t('windowsPathFormat') : t('posixPathFormat'),
+        })}
       </div>
     </div>
   )
@@ -117,7 +117,7 @@ export function FileTree({
               <div>
                 <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
                 <p className="text-destructive mb-2">{t('loadError')}</p>
-                <p className="text-sm text-muted-foreground mb-4">{rpcError}</p>
+                <p className="text-sm text-muted-foreground mb-4">{fileSystemError}</p>
                 <Button onClick={initializeFileSystem} variant="outline">
                   <RefreshCw className="w-4 h-4 mr-2" />
                   {t('common.retry')}
@@ -161,35 +161,45 @@ export function FileTree({
   return null
 }
 
-/** Mobile tree sheet content - used inside FileToolbar for mobile */
+/** Compact tree sheet content used inside FileToolbar. */
 export function MobileTreeContent({
   treeRef,
   filteredTreeData,
   treeData,
-  treeHeight,
+  expandedNodes,
   treeSearchQuery,
   setTreeSearchQuery,
   matchedCount,
-  rpcError,
-  isWindowsSession,
+  fileSystemError,
+  usesWindowsPaths,
+  selection,
+  handleNodeSelect,
+  handleTreeToggle,
   FileNodeRenderer,
 }: {
   treeRef: React.RefObject<TreeApi<FileNode> | null>
   filteredTreeData: FileNode[]
   treeData: FileNode[]
-  treeHeight: number
+  expandedNodes: Set<string>
   treeSearchQuery: string
   setTreeSearchQuery: (query: string) => void
   matchedCount: number
-  rpcError: string | null
-  isWindowsSession: boolean
+  fileSystemError: string | null
+  usesWindowsPaths: boolean
+  selection: { selectedIds: Set<string> }
+  handleNodeSelect: (nodes: NodeApi<FileNode>[], event?: React.MouseEvent) => void
+  handleTreeToggle: (id: string) => Promise<void>
   FileNodeRenderer: (props: NodeRendererProps<FileNode>) => React.ReactElement | null
 }) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
+  const {
+    ref: mobileTreeContainerRef,
+    width: mobileTreeWidth,
+    height: mobileTreeHeight,
+  } = useResizeObserver()
   const hasTreeData = treeData.length > 0
-  const shouldShowBlockingError = !!rpcError &&
-    !rpcError.includes('not found') &&
-    !rpcError.includes('Task content not found') &&
+  const shouldShowBlockingError = !!fileSystemError &&
+    !isFileNotFoundError(fileSystemError) &&
     !hasTreeData
 
   return (
@@ -228,12 +238,15 @@ export function MobileTreeContent({
         )}
       </div>
 
-      <div className="flex-1 relative min-h-0 overflow-x-auto">
+      <div
+        className="flex-1 relative min-h-0 overflow-x-auto"
+        ref={mobileTreeContainerRef as React.Ref<HTMLDivElement>}
+      >
         {shouldShowBlockingError ? (
           <div className="absolute inset-0 flex items-center justify-center text-center p-4">
             <div>
               <p className="text-sm text-destructive mb-2">{t('fileError')}</p>
-              <p className="text-xs text-muted-foreground">{rpcError}</p>
+              <p className="text-xs text-muted-foreground">{fileSystemError}</p>
             </div>
           </div>
         ) : !hasTreeData ? (
@@ -243,27 +256,40 @@ export function MobileTreeContent({
               <p className="text-sm text-muted-foreground">{t('noFiles')}</p>
             </div>
           </div>
-        ) : (
-          <Tree
+        ) : mobileTreeWidth > 0 && mobileTreeHeight > 0 ? (
+          <Tree<FileNode>
             ref={treeRef}
             data={filteredTreeData}
+            width={mobileTreeWidth}
+            height={mobileTreeHeight}
+            childrenAccessor={(node) => (node.children as FileNode[]) || []}
             openByDefault={false}
-            width="100%"
-            height={treeHeight}
+            initialOpenState={Object.fromEntries(
+              Array.from(expandedNodes).map(id => [id, true])
+            )}
+            selection={Array.from(selection.selectedIds).filter(id => id != null)[0] || ''}
+            disableMultiSelection={false}
+            selectionFollowsFocus={false}
+            disableEdit={true}
+            onSelect={handleNodeSelect}
+            onToggle={handleTreeToggle}
             indent={16}
-            rowHeight={28}
+            rowHeight={32}
+            paddingTop={8}
             paddingBottom={8}
             overscanCount={10}
           >
             {FileNodeRenderer}
           </Tree>
-        )}
+        ) : null}
       </div>
 
       {/* Status bar */}
       <div className="flex-shrink-0 border-t border-sidebar-border text-xs text-sidebar-foreground flex items-center justify-between p-2">
         <div>
-          {t('system')}: {isWindowsSession ? 'Windows' : 'Unix/Linux'}
+          {t('pathFormatLabel', {
+            format: usesWindowsPaths ? t('windowsPathFormat') : t('posixPathFormat'),
+          })}
         </div>
       </div>
     </div>

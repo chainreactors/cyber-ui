@@ -1,18 +1,29 @@
 "use client"
 
-import { useCallback } from "react"
-import type { FileNode, UploadProgress, DownloadProgress } from "../types"
+import { useCallback, useRef } from "react"
+import type { FileNode, UploadProgress, DownloadProgress, UploadQueueState } from "../types"
 import {
   normalizePath, formatPathForDisplay,
 } from "../utils/file-manager-utils"
 import type { FileManagerState } from "./useFileManagerState"
+import { isFileManagerAbortError } from "../contracts"
+import { pathsEqual } from "../path-strategy"
+
+function newUploadQueueId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  return `up-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
 
 export function useFileActions(state: FileManagerState) {
+  const uploadAbortControllerRef = useRef<AbortController | null>(null)
+  const uploadRunIdRef = useRef(0)
+
   const {
     t,
     toast,
-    sessionId,
-    isWindowsSession,
+    usesWindowsPaths,
     currentPath,
     currentDirPath,
     selection,
@@ -34,15 +45,15 @@ export function useFileActions(state: FileManagerState) {
     allFilesCache,
     cacheTimestamps,
     // File system
-    rmFile,
-    mvFile,
-    cpFile,
+    removeEntry,
+    renameEntry,
+    copyEntry,
     downloadFile,
     uploadFile,
-    mkdir,
-    touchFile,
-    chmodFile,
-    enumDriversFromAPI,
+    createDirectory,
+    createFileEntry,
+    changeMode,
+    listRoots,
     // Setters
     setSelection,
     setSelectedFile,
@@ -51,7 +62,7 @@ export function useFileActions(state: FileManagerState) {
     setDeleting,
     setDownloading,
     setRefreshing,
-    setEnumeratingDrivers,
+    setLoadingRoots,
     setCreatingFolder,
     setCreatingFile,
     setRenaming,
@@ -80,11 +91,8 @@ export function useFileActions(state: FileManagerState) {
     triggerCacheUpdate,
   } = state
 
-  // We need to accept sessionId from state
-  const sid = sessionId
-
   const handleRename = useCallback((node: FileNode) => {
-    const targetPath = normalizePath(node.fullPath || node.id, isWindowsSession)
+    const targetPath = normalizePath(node.fullPath || node.id, usesWindowsPaths)
     setRenameTarget({
       id: node.id,
       name: node.name,
@@ -92,17 +100,17 @@ export function useFileActions(state: FileManagerState) {
     })
     setNewName(node.name)
     setShowRenameDialog(true)
-  }, [isWindowsSession, setRenameTarget, setNewName, setShowRenameDialog])
+  }, [usesWindowsPaths, setRenameTarget, setNewName, setShowRenameDialog])
 
   const handleCopy = useCallback(async (node: FileNode) => {
     try {
       if (!node.fullPath) return
 
       const filename = node.name
-      const sourcePath = normalizePath(node.fullPath, isWindowsSession)
+      const sourcePath = normalizePath(node.fullPath, usesWindowsPaths)
       const newPath = `${sourcePath}.copy`
 
-      await cpFile(sid, sourcePath, newPath)
+      await copyEntry(sourcePath, newPath)
 
       toast({
         title: t('copySuccess'),
@@ -114,18 +122,19 @@ export function useFileActions(state: FileManagerState) {
       const refreshPath = parentPath || currentPath
       const treeChildren = await loadPath(refreshPath, true)
       updateTreeNode(refreshPath, treeChildren)
-      if (normalizePath(refreshPath, isWindowsSession) === normalizePath(currentDirPath, isWindowsSession)) {
+      if (pathsEqual(refreshPath, currentDirPath, usesWindowsPaths ? 'windows' : 'posix')) {
         const allFiles = await loadAllFiles(refreshPath, true)
         setCurrentDirFiles(allFiles)
       }
     } catch (error) {
+      if (isFileManagerAbortError(error)) return
       toast({
         variant: "destructive",
         title: t('copyFailed'),
         description: error instanceof Error ? error.message : t('unknownError')
       })
     }
-  }, [sid, cpFile, toast, t, loadPath, loadAllFiles, updateTreeNode, isWindowsSession, currentPath, currentDirPath, setCurrentDirFiles])
+  }, [copyEntry, toast, t, loadPath, loadAllFiles, updateTreeNode, usesWindowsPaths, currentPath, currentDirPath, setCurrentDirFiles])
 
   const handleCopyName = useCallback(async (node: FileNode) => {
     try {
@@ -145,8 +154,8 @@ export function useFileActions(state: FileManagerState) {
 
   const handleCopyPath = useCallback(async (node: FileNode) => {
     try {
-      const path = normalizePath(node.fullPath || node.id, isWindowsSession)
-      const displayPath = formatPathForDisplay(path, isWindowsSession)
+      const path = normalizePath(node.fullPath || node.id, usesWindowsPaths)
+      const displayPath = formatPathForDisplay(path, usesWindowsPaths)
       await navigator.clipboard.writeText(displayPath)
       toast({
         title: t('copySuccess'),
@@ -159,15 +168,15 @@ export function useFileActions(state: FileManagerState) {
         description: error instanceof Error ? error.message : t('unknownError')
       })
     }
-  }, [isWindowsSession, toast, t])
+  }, [usesWindowsPaths, toast, t])
 
   const handleDelete = useCallback(async (node: FileNode) => {
     if (!node.fullPath) return
 
     try {
       setOperatingFiles(prev => new Set(prev).add(node.id))
-      const targetPath = normalizePath(node.fullPath, isWindowsSession)
-      await rmFile(sid, targetPath)
+      const targetPath = normalizePath(node.fullPath, usesWindowsPaths)
+      await removeEntry(targetPath)
 
       toast({
         title: t('deleteSuccess'),
@@ -185,7 +194,7 @@ export function useFileActions(state: FileManagerState) {
       const refreshPath = parentPath || currentPath
       const treeChildren = await loadPath(refreshPath, true)
       updateTreeNode(refreshPath, treeChildren)
-      if (normalizePath(refreshPath, isWindowsSession) === normalizePath(currentDirPath, isWindowsSession)) {
+      if (pathsEqual(refreshPath, currentDirPath, usesWindowsPaths ? 'windows' : 'posix')) {
         const allFiles = await loadAllFiles(refreshPath, true)
         setCurrentDirFiles(allFiles)
       }
@@ -194,6 +203,7 @@ export function useFileActions(state: FileManagerState) {
         setSelectedFile(null)
       }
     } catch (error) {
+      if (isFileManagerAbortError(error)) return
       toast({
         variant: "destructive",
         title: t('deleteFailed'),
@@ -206,7 +216,7 @@ export function useFileActions(state: FileManagerState) {
         return newSet
       })
     }
-  }, [sid, rmFile, toast, t, selectedFile, loadPath, loadAllFiles, updateTreeNode, isWindowsSession, currentPath, currentDirPath, setOperatingFiles, setSelection, setSelectedFile, setCurrentDirFiles])
+  }, [removeEntry, toast, t, selectedFile, loadPath, loadAllFiles, updateTreeNode, usesWindowsPaths, currentPath, currentDirPath, setOperatingFiles, setSelection, setSelectedFile, setCurrentDirFiles])
 
   const handleDownload = useCallback(async (node: FileNode) => {
     if (!node.fullPath) return
@@ -214,7 +224,7 @@ export function useFileActions(state: FileManagerState) {
     try {
       setOperatingFiles(prev => new Set(prev).add(node.id))
 
-      await downloadFile(sid, node.fullPath, {
+      await downloadFile(node.fullPath, {
         name: node.name,
         bufferSize: 1024 * 1024,
         dir: node.isDirectory || false
@@ -237,7 +247,7 @@ export function useFileActions(state: FileManagerState) {
         return newSet
       })
     }
-  }, [sid, downloadFile, setOperatingFiles, toast, t])
+  }, [downloadFile, setOperatingFiles, toast, t])
 
   // Batch operations
   const handleBatchDownload = useCallback(async () => {
@@ -269,7 +279,7 @@ export function useFileActions(state: FileManagerState) {
     try {
       for (const item of nodesToDownload) {
         try {
-          await downloadFile(sid, item.fullPath, {
+          await downloadFile(item.fullPath, {
             name: item.name,
             bufferSize: 1024 * 1024,
             dir: item.isDirectory,
@@ -288,7 +298,7 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setDownloading(false)
     }
-  }, [selection.selectedIds, sid, downloadFile, treeRef, setDownloading, toast, t])
+  }, [selection.selectedIds, downloadFile, treeRef, setDownloading, toast, t])
 
   const handleBatchDelete = useCallback(async () => {
     if (selection.selectedIds.size === 0) return
@@ -308,8 +318,8 @@ export function useFileActions(state: FileManagerState) {
           const node = tree?.get(nodeId)
 
           if (node && node.data.fullPath) {
-            const targetPath = normalizePath(node.data.fullPath, isWindowsSession)
-            await rmFile(sid, targetPath)
+            const targetPath = normalizePath(node.data.fullPath, usesWindowsPaths)
+            await removeEntry(targetPath)
             successCount++
           }
         } catch (error) {
@@ -335,6 +345,7 @@ export function useFileActions(state: FileManagerState) {
         setCurrentDirFiles(allFiles)
       }
     } catch (error) {
+      if (isFileManagerAbortError(error)) return
       toast({
         variant: "destructive",
         title: t('batchDeleteFailed'),
@@ -343,7 +354,7 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setDeleting(false)
     }
-  }, [selection.selectedIds, sid, rmFile, toast, t, currentPath, loadPath, loadAllFiles, updateTreeNode, treeRef, setDeleting, setSelection, setSelectedFile, setCurrentDirFiles])
+  }, [selection.selectedIds, removeEntry, toast, t, currentPath, loadPath, loadAllFiles, updateTreeNode, treeRef, setDeleting, setSelection, setSelectedFile, setCurrentDirFiles])
 
   // Handle file selection for upload dialog
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -352,17 +363,30 @@ export function useFileActions(state: FileManagerState) {
       const file = files[0]
       setSelectedUploadFile(file)
       if (!uploadTargetPath) {
-        const defaultDir = normalizePath(contextMenuTargetPath || currentPath, isWindowsSession)
-        const defaultTarget = normalizePath(`${defaultDir}/${file.name}`, isWindowsSession)
-        setUploadTargetPath(formatPathForDisplay(defaultTarget, isWindowsSession))
+        const defaultDir = normalizePath(contextMenuTargetPath || currentPath, usesWindowsPaths)
+        const defaultTarget = normalizePath(`${defaultDir}/${file.name}`, usesWindowsPaths)
+        setUploadTargetPath(formatPathForDisplay(defaultTarget, usesWindowsPaths))
       }
     }
     event.target.value = ''
-  }, [uploadTargetPath, contextMenuTargetPath, currentPath, isWindowsSession, setSelectedUploadFile, setUploadTargetPath])
+  }, [uploadTargetPath, contextMenuTargetPath, currentPath, usesWindowsPaths, setSelectedUploadFile, setUploadTargetPath])
 
   // Execute file upload from dialog
   const executeUpload = useCallback(async () => {
     if (!selectedUploadFile) return
+
+    const file = selectedUploadFile
+    uploadAbortControllerRef.current?.abort()
+    const runId = uploadRunIdRef.current + 1
+    uploadRunIdRef.current = runId
+    const abortController = new AbortController()
+    uploadAbortControllerRef.current = abortController
+    const id = newUploadQueueId()
+    const updateQueue = (updater: (prev: UploadQueueState) => UploadQueueState) => {
+      setUploadQueue((prev) => uploadRunIdRef.current === runId ? updater(prev) : prev)
+    }
+    let uploaded = false
+    let targetDir = ''
 
     try {
       setUploading(true)
@@ -370,137 +394,319 @@ export function useFileActions(state: FileManagerState) {
       let targetPath = uploadTargetPath.trim()
 
       if (!targetPath) {
-        const targetDir = normalizePath(contextMenuTargetPath || currentPath, isWindowsSession)
-        targetPath = normalizePath(`${targetDir}/${selectedUploadFile.name}`, isWindowsSession)
+        const targetDir = normalizePath(contextMenuTargetPath || currentPath, usesWindowsPaths)
+        targetPath = normalizePath(`${targetDir}/${file.name}`, usesWindowsPaths)
       } else {
-        targetPath = normalizePath(targetPath, isWindowsSession)
+        targetPath = normalizePath(targetPath, usesWindowsPaths)
 
         if (!targetPath.includes('/')) {
-          const targetDir = normalizePath(contextMenuTargetPath || currentPath, isWindowsSession)
-          targetPath = normalizePath(`${targetDir}/${targetPath}`, isWindowsSession)
+          const targetDir = normalizePath(contextMenuTargetPath || currentPath, usesWindowsPaths)
+          targetPath = normalizePath(`${targetDir}/${targetPath}`, usesWindowsPaths)
         }
       }
 
       const lastSepIndex = targetPath.lastIndexOf('/')
-      const targetDir = lastSepIndex === 0 ? '/' : lastSepIndex > 0 ? targetPath.slice(0, lastSepIndex) : (isWindowsSession ? 'C:' : '/')
-      const displayTargetDir = formatPathForDisplay(targetDir, isWindowsSession)
+      targetDir = lastSepIndex === 0 ? '/' : lastSepIndex > 0 ? targetPath.slice(0, lastSepIndex) : (usesWindowsPaths ? 'C:' : '/')
+      const displayTargetDir = formatPathForDisplay(targetDir, usesWindowsPaths)
 
-      toast({
-        title: t('uploading'),
-        description: t('uploadingTo', { filename: selectedUploadFile.name, path: displayTargetDir })
+      setUploadQueue({
+        progresses: new Map([[
+          id,
+          {
+            id,
+            fileName: file.name,
+            totalSize: file.size,
+            progress: 0,
+            status: 'uploading',
+          },
+        ]]),
+        currentIndex: 0,
+        totalFiles: 1,
+        aborted: false,
       })
-
-      const fileBuffer = await selectedUploadFile.arrayBuffer()
-      await uploadFile(sid, selectedUploadFile.name, targetPath, fileBuffer, {
-        override: true
-      })
-
-      toast({
-        title: t('uploadSuccess'),
-        description: t('uploadSuccessDesc', { filename: selectedUploadFile.name, path: displayTargetDir })
-      })
-
-      const treeChildren = await loadPath(targetDir, true)
-      updateTreeNode(targetDir, treeChildren)
-      if (targetDir === currentPath || normalizePath(targetDir, isWindowsSession) === normalizePath(currentPath, isWindowsSession)) {
-        const allFiles = await loadAllFiles(targetDir, true)
-        setCurrentDirFiles(allFiles)
-      }
-
+      setShowUploadProgress(true)
       setShowUploadDialog(false)
       setSelectedUploadFile(null)
       setUploadTargetPath('')
       setContextMenuTargetPath(null)
-    } catch (error) {
+
       toast({
-        variant: "destructive",
-        title: t('uploadFailed'),
-        description: error instanceof Error ? error.message : t('unknownError')
+        title: t('uploading'),
+        description: t('uploadingTo', { filename: file.name, path: displayTargetDir })
       })
+
+      await uploadFile(file.name, targetPath, file, {
+        signal: abortController.signal,
+        onProgress: (info) => {
+          updateQueue((prev) => {
+            const progresses = new Map(prev.progresses)
+            progresses.set(id, {
+              id,
+              fileName: file.name,
+              totalSize: file.size,
+              progress: info.progress,
+              status:
+                info.phase === 'delivering'
+                  ? 'delivering'
+                  : info.phase === 'staged'
+                    ? 'staged'
+                    : 'uploading',
+            })
+            return { ...prev, progresses }
+          })
+        },
+      })
+
+      if (uploadRunIdRef.current !== runId || abortController.signal.aborted) {
+        return
+      }
+
+      updateQueue((prev) => {
+        const progresses = new Map(prev.progresses)
+        progresses.set(id, {
+          id,
+          fileName: file.name,
+          totalSize: file.size,
+          progress: 100,
+          status: 'completed',
+        })
+        return { ...prev, progresses }
+      })
+      uploaded = true
+
+      toast({
+        title: t('uploadSuccess'),
+        description: t('uploadSuccessDesc', { filename: file.name, path: displayTargetDir })
+      })
+    } catch (error) {
+      const aborted = abortController.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')
+      updateQueue((prev) => {
+        const progresses = new Map(prev.progresses)
+        progresses.set(id, {
+          id,
+          fileName: file.name,
+          totalSize: file.size,
+          progress: 0,
+          status: aborted ? 'canceled' : 'error',
+          error: error instanceof Error ? error.message : 'Upload failed',
+        })
+        return { ...prev, progresses }
+      })
+      if (!aborted && uploadRunIdRef.current === runId) {
+        toast({
+          variant: "destructive",
+          title: t('uploadFailed'),
+          description: error instanceof Error ? error.message : t('unknownError')
+        })
+      }
     } finally {
-      setUploading(false)
+      if (uploadAbortControllerRef.current === abortController) {
+        uploadAbortControllerRef.current = null
+        setUploading(false)
+      }
     }
-  }, [selectedUploadFile, uploadTargetPath, contextMenuTargetPath, currentPath, sid, uploadFile, toast, t, loadPath, loadAllFiles, updateTreeNode, isWindowsSession, setUploading, setShowUploadDialog, setSelectedUploadFile, setUploadTargetPath, setContextMenuTargetPath, setCurrentDirFiles])
+
+    if (!uploaded || uploadRunIdRef.current !== runId || abortController.signal.aborted) {
+      return
+    }
+
+    try {
+      const treeChildren = await loadPath(targetDir, true)
+      if (uploadRunIdRef.current !== runId) return
+      updateTreeNode(targetDir, treeChildren)
+      if (
+        pathsEqual(targetDir, currentPath, usesWindowsPaths ? 'windows' : 'posix')
+      ) {
+        const allFiles = await loadAllFiles(targetDir, true)
+        if (uploadRunIdRef.current === runId) {
+          setCurrentDirFiles(allFiles)
+        }
+      }
+    } catch (error) {
+      if (uploadRunIdRef.current === runId && !isFileManagerAbortError(error)) {
+        toast({
+          variant: "destructive",
+          title: t('refreshFailed'),
+          description: error instanceof Error ? error.message : t('unknownError')
+        })
+      }
+    }
+  }, [selectedUploadFile, uploadTargetPath, contextMenuTargetPath, currentPath, uploadFile, toast, t, loadPath, loadAllFiles, updateTreeNode, usesWindowsPaths, setUploading, setShowUploadDialog, setSelectedUploadFile, setUploadTargetPath, setContextMenuTargetPath, setUploadQueue, setShowUploadProgress, setCurrentDirFiles])
 
   // Handle files dropped for drag and drop upload
   const handleFilesDropped = useCallback(async (files: File[]) => {
+    uploadAbortControllerRef.current?.abort()
+    const runId = uploadRunIdRef.current + 1
+    uploadRunIdRef.current = runId
+
+    const items = files.map((file) => ({
+      id: newUploadQueueId(),
+      file,
+    }))
     const initialProgresses = new Map<string, UploadProgress>()
-    files.forEach((file) => {
-      initialProgresses.set(file.name, {
+    items.forEach(({ id, file }) => {
+      initialProgresses.set(id, {
+        id,
         fileName: file.name,
+        totalSize: file.size,
         progress: 0,
         status: 'pending',
       })
     })
 
+    const abortController = new AbortController()
+    uploadAbortControllerRef.current = abortController
+
+    const updateQueue = (updater: (prev: UploadQueueState) => UploadQueueState) => {
+      setUploadQueue((prev) => uploadRunIdRef.current === runId ? updater(prev) : prev)
+    }
+
     setUploadQueue({
-      files,
       progresses: initialProgresses,
       currentIndex: 0,
-      totalFiles: files.length,
+      totalFiles: items.length,
+      aborted: false,
     })
     setShowUploadProgress(true)
 
     let currentIndex = 0
-    for (const file of files) {
-      try {
-        setUploadQueue((prev) => {
-          const newProgresses = new Map(prev.progresses)
-          newProgresses.set(file.name, {
+    for (const { id, file } of items) {
+      if (abortController.signal.aborted) {
+        updateQueue((prev) => {
+          const progresses = new Map(prev.progresses)
+          progresses.set(id, {
+            id,
             fileName: file.name,
+            totalSize: file.size,
+            progress: 0,
+            status: 'canceled',
+          })
+          return { ...prev, progresses }
+        })
+        continue
+      }
+
+      try {
+        updateQueue((prev) => {
+          const progresses = new Map(prev.progresses)
+          progresses.set(id, {
+            id,
+            fileName: file.name,
+            totalSize: file.size,
             progress: 0,
             status: 'uploading',
           })
           return {
             ...prev,
-            progresses: newProgresses,
+            progresses,
             currentIndex,
           }
         })
 
-        const fileBuffer = await file.arrayBuffer()
-        const targetPath = normalizePath(`${currentPath}/${file.name}`, isWindowsSession)
+        const targetPath = normalizePath(`${currentPath}/${file.name}`, usesWindowsPaths)
 
-        await uploadFile(sid, file.name, targetPath, fileBuffer, {
-          override: true,
+        await uploadFile(file.name, targetPath, file, {
+          signal: abortController.signal,
+          onProgress: (info) => {
+            updateQueue((prev) => {
+              const progresses = new Map(prev.progresses)
+              progresses.set(id, {
+                id,
+                fileName: file.name,
+                totalSize: file.size,
+                progress: info.progress,
+                status:
+                  info.phase === 'delivering'
+                    ? 'delivering'
+                    : info.phase === 'staged'
+                      ? 'staged'
+                      : 'uploading',
+              })
+              return { ...prev, progresses }
+            })
+          },
         })
 
-        setUploadQueue((prev) => {
-          const newProgresses = new Map(prev.progresses)
-          newProgresses.set(file.name, {
+        updateQueue((prev) => {
+          const progresses = new Map(prev.progresses)
+          progresses.set(id, {
+            id,
             fileName: file.name,
+            totalSize: file.size,
             progress: 100,
-            status: 'completed',
+            status: prev.aborted ? 'canceled' : 'completed',
           })
           return {
             ...prev,
-            progresses: newProgresses,
+            progresses,
           }
         })
       } catch (error) {
-        setUploadQueue((prev) => {
-          const newProgresses = new Map(prev.progresses)
-          newProgresses.set(file.name, {
+        updateQueue((prev) => {
+          const progresses = new Map(prev.progresses)
+          const aborted = abortController.signal.aborted || prev.aborted || (error instanceof DOMException && error.name === 'AbortError')
+          progresses.set(id, {
+            id,
             fileName: file.name,
+            totalSize: file.size,
             progress: 0,
-            status: 'error',
+            status: aborted ? 'canceled' : 'error',
             error: error instanceof Error ? error.message : 'Upload failed',
           })
           return {
             ...prev,
-            progresses: newProgresses,
+            progresses,
           }
         })
       }
       currentIndex++
     }
 
+    if (uploadRunIdRef.current !== runId || abortController.signal.aborted) {
+      return
+    }
+    if (uploadAbortControllerRef.current === abortController) {
+      uploadAbortControllerRef.current = null
+    }
+
     // Refresh directory after all uploads complete
-    const treeChildren = await loadPath(currentPath, true)
-    updateTreeNode(currentPath, treeChildren)
-    const allFiles = await loadAllFiles(currentPath, true)
-    setCurrentDirFiles(allFiles)
-  }, [currentPath, sid, uploadFile, loadPath, loadAllFiles, updateTreeNode, isWindowsSession, setUploadQueue, setShowUploadProgress, setCurrentDirFiles])
+    try {
+      const treeChildren = await loadPath(currentPath, true)
+      if (uploadRunIdRef.current !== runId) return
+      updateTreeNode(currentPath, treeChildren)
+      const allFiles = await loadAllFiles(currentPath, true)
+      if (uploadRunIdRef.current === runId) {
+        setCurrentDirFiles(allFiles)
+      }
+    } catch (error) {
+      if (!isFileManagerAbortError(error)) throw error
+    }
+  }, [currentPath, uploadFile, loadPath, loadAllFiles, updateTreeNode, usesWindowsPaths, setUploadQueue, setShowUploadProgress, setCurrentDirFiles])
+
+  const cancelUploads = useCallback(() => {
+    uploadRunIdRef.current += 1
+    uploadAbortControllerRef.current?.abort()
+    uploadAbortControllerRef.current = null
+    setUploading(false)
+    setUploadQueue((prev) => {
+      const progresses = new Map(prev.progresses)
+      for (const [id, progress] of progresses) {
+        if (progress.status === 'completed' || progress.status === 'error' || progress.status === 'canceled') {
+          continue
+        }
+        progresses.set(id, {
+          ...progress,
+          status: 'canceled',
+        })
+      }
+      return {
+        ...prev,
+        progresses,
+        aborted: true,
+      }
+    })
+    setShowUploadProgress(false)
+  }, [setShowUploadProgress, setUploadQueue, setUploading])
 
   // Handle permission save
   const handleSavePermissions = useCallback(
@@ -508,7 +714,7 @@ export function useFileActions(state: FileManagerState) {
       if (!selectedPermissionFile) return
 
       try {
-        await chmodFile(sid, selectedPermissionFile.fullPath || '', mode.toString(8))
+        await changeMode(selectedPermissionFile.fullPath || '', mode.toString(8))
 
         toast({
           title: t('permissions.saveSuccess'),
@@ -520,6 +726,7 @@ export function useFileActions(state: FileManagerState) {
         const allFiles = await loadAllFiles(currentPath, true)
         setCurrentDirFiles(allFiles)
       } catch (error) {
+        if (isFileManagerAbortError(error)) return
         toast({
           variant: 'destructive',
           title: t('permissions.saveFailed'),
@@ -528,40 +735,40 @@ export function useFileActions(state: FileManagerState) {
         throw error
       }
     },
-    [selectedPermissionFile, sid, chmodFile, toast, t, loadPath, loadAllFiles, updateTreeNode, currentPath, setCurrentDirFiles]
+    [selectedPermissionFile, changeMode, toast, t, loadPath, loadAllFiles, updateTreeNode, currentPath, setCurrentDirFiles]
   )
 
-  // Enumerate drivers (Windows only)
-  const handleEnumDrivers = useCallback(async () => {
-    if (!isWindowsSession) return
+  // Load additional roots for Windows path spaces.
+  const handleLoadRoots = useCallback(async () => {
+    if (!usesWindowsPaths) return
 
-    setEnumeratingDrivers(true)
+    setLoadingRoots(true)
     try {
-      const driveInfos = await enumDriversFromAPI(sid)
+      const rootInfos = await listRoots()
 
-      if (!driveInfos || driveInfos.length === 0) {
+      if (!rootInfos || rootInfos.length === 0) {
         toast({
           variant: "destructive",
-          title: t('enumDriversFailed'),
-          description: t('noDriversFound')
+          title: t('loadRootsFailed'),
+          description: t('noRootsFound')
         })
         return
       }
 
-      const driverNodes: FileNode[] = driveInfos.map((driveInfo: Record<string, unknown>) => {
-        const drivePath = (driveInfo.path as string) || String(driveInfo)
-        const normalizedPath = typeof drivePath === 'string'
-          ? drivePath.replace(/\\/g, '').replace(/\/$/, '') + ':'
-          : String(drivePath)
+      const rootNodes: FileNode[] = rootInfos.map((rootInfo: Record<string, unknown>) => {
+        const rootPath = (rootInfo.path as string) || String(rootInfo)
+        const normalizedPath = typeof rootPath === 'string'
+          ? rootPath.replace(/\\/g, '').replace(/\/$/, '') + ':'
+          : String(rootPath)
 
-        const driveId = normalizedPath.match(/^[A-Z]:$/)
+        const rootId = normalizedPath.match(/^[A-Z]:$/)
           ? normalizedPath
           : normalizedPath.charAt(0).toUpperCase() + ':'
 
         return {
-          id: driveId,
-          name: driveId,
-          fullPath: driveId,
+          id: rootId,
+          name: rootId,
+          fullPath: rootId,
           isDirectory: true,
           isLazy: true,
           children: []
@@ -569,15 +776,15 @@ export function useFileActions(state: FileManagerState) {
       })
 
       setTreeData(prevData => {
-        const existingDriverIds = new Set(
+        const existingRootIds = new Set(
           prevData
             .filter(node => typeof node.id === 'string' && node.id.match(/^[A-Z]:$/))
             .map(node => node.id)
         )
 
-        const newDrivers = driverNodes.filter(driver => !existingDriverIds.has(driver.id))
+        const newRoots = rootNodes.filter(root => !existingRootIds.has(root.id))
 
-        return sanitizeFileNodes([...prevData, ...newDrivers].sort((a, b) => {
+        return sanitizeFileNodes([...prevData, ...newRoots].sort((a, b) => {
           const aIsDrive = typeof a.id === 'string' && a.id.match(/^[A-Z]:$/)
           const bIsDrive = typeof b.id === 'string' && b.id.match(/^[A-Z]:$/)
 
@@ -591,38 +798,38 @@ export function useFileActions(state: FileManagerState) {
       })
 
       toast({
-        title: t('enumDriversSuccess'),
-        description: t('enumDriversSuccessDesc', { count: driveInfos.length })
+        title: t('loadRootsSuccess'),
+        description: t('loadRootsSuccessDesc', { count: rootInfos.length })
       })
     } catch (error) {
-      console.error('Enumerate drivers error:', error)
+      console.error('Failed to load file roots:', error)
       toast({
         variant: "destructive",
-        title: t('enumDriversFailed'),
+        title: t('loadRootsFailed'),
         description: error instanceof Error ? error.message : t('unknownError')
       })
     } finally {
-      setEnumeratingDrivers(false)
+      setLoadingRoots(false)
     }
-  }, [sid, isWindowsSession, enumDriversFromAPI, toast, t, setEnumeratingDrivers, setTreeData, sanitizeFileNodes])
+  }, [usesWindowsPaths, listRoots, toast, t, setLoadingRoots, setTreeData, sanitizeFileNodes])
 
   // Create folder
   const handleCreateFolder = useCallback(async (targetPath?: string) => {
-    const pathToUse = normalizePath(targetPath || currentPath, isWindowsSession)
+    const pathToUse = normalizePath(targetPath || currentPath, usesWindowsPaths)
     if (!newFolderName.trim() || creatingFolder) return
 
     setCreatingFolder(true)
     try {
-      const displayPath = formatPathForDisplay(pathToUse, isWindowsSession)
+      const displayPath = formatPathForDisplay(pathToUse, usesWindowsPaths)
 
       toast({
         title: t('creating'),
         description: t('creatingFolder', { name: newFolderName.trim(), path: displayPath })
       })
 
-      const folderPath = normalizePath(`${pathToUse}/${newFolderName.trim()}`, isWindowsSession)
+      const folderPath = normalizePath(`${pathToUse}/${newFolderName.trim()}`, usesWindowsPaths)
 
-      await mkdir(sid, folderPath)
+      await createDirectory(folderPath)
 
       toast({
         title: t('folderCreateSuccess'),
@@ -635,13 +842,14 @@ export function useFileActions(state: FileManagerState) {
 
       const treeChildren = await loadPath(pathToUse, true)
       updateTreeNode(pathToUse, treeChildren)
-      if (normalizePath(pathToUse, isWindowsSession) === normalizePath(currentDirPath, isWindowsSession)) {
+      if (pathsEqual(pathToUse, currentDirPath, usesWindowsPaths ? 'windows' : 'posix')) {
         const allFiles = await loadAllFiles(currentDirPath, true)
         setCurrentDirFiles(allFiles)
       }
 
       triggerCacheUpdate()
     } catch (error) {
+      if (isFileManagerAbortError(error)) return
       toast({
         variant: "destructive",
         title: t('folderCreateFailed'),
@@ -650,24 +858,24 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setCreatingFolder(false)
     }
-  }, [newFolderName, currentPath, sid, mkdir, toast, t, loadPath, loadAllFiles, updateTreeNode, isWindowsSession, creatingFolder, triggerCacheUpdate, setCreatingFolder, setShowCreateFolder, setNewFolderName, setContextMenuTargetPath, setCurrentDirFiles])
+  }, [newFolderName, currentPath, createDirectory, toast, t, loadPath, loadAllFiles, updateTreeNode, usesWindowsPaths, creatingFolder, triggerCacheUpdate, setCreatingFolder, setShowCreateFolder, setNewFolderName, setContextMenuTargetPath, setCurrentDirFiles])
 
   // Create file
   const handleCreateFile = useCallback(async (targetPath?: string) => {
-    const pathToUse = normalizePath(targetPath || currentPath, isWindowsSession)
+    const pathToUse = normalizePath(targetPath || currentPath, usesWindowsPaths)
     if (!newFileName.trim() || creatingFile) return
 
     setCreatingFile(true)
     try {
-      const displayPath = formatPathForDisplay(pathToUse, isWindowsSession)
+      const displayPath = formatPathForDisplay(pathToUse, usesWindowsPaths)
 
       toast({
         title: t('creating'),
         description: t('creatingFile', { fileName: newFileName.trim(), path: displayPath })
       })
 
-      const filePath = normalizePath(`${pathToUse}/${newFileName.trim()}`, isWindowsSession)
-      await touchFile(sid, filePath)
+      const filePath = normalizePath(`${pathToUse}/${newFileName.trim()}`, usesWindowsPaths)
+      await createFileEntry(filePath)
 
       toast({
         title: t('fileCreateSuccess'),
@@ -680,13 +888,14 @@ export function useFileActions(state: FileManagerState) {
 
       const treeChildren = await loadPath(pathToUse, true)
       updateTreeNode(pathToUse, treeChildren)
-      if (normalizePath(pathToUse, isWindowsSession) === normalizePath(currentDirPath, isWindowsSession)) {
+      if (pathsEqual(pathToUse, currentDirPath, usesWindowsPaths ? 'windows' : 'posix')) {
         const allFiles = await loadAllFiles(currentDirPath, true)
         setCurrentDirFiles(allFiles)
       }
 
       triggerCacheUpdate()
     } catch (error) {
+      if (isFileManagerAbortError(error)) return
       toast({
         variant: "destructive",
         title: t('fileCreateFailed'),
@@ -695,14 +904,14 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setCreatingFile(false)
     }
-  }, [newFileName, currentPath, sid, touchFile, toast, t, loadPath, loadAllFiles, updateTreeNode, creatingFile, triggerCacheUpdate, isWindowsSession, setCreatingFile, setShowCreateFile, setNewFileName, setContextMenuTargetPath, setCurrentDirFiles])
+  }, [newFileName, currentPath, createFileEntry, toast, t, loadPath, loadAllFiles, updateTreeNode, creatingFile, triggerCacheUpdate, usesWindowsPaths, setCreatingFile, setShowCreateFile, setNewFileName, setContextMenuTargetPath, setCurrentDirFiles])
 
   // Refresh current directory
   const handleRefreshCurrentDirectory = useCallback(async (targetPath?: unknown) => {
     const refreshTarget = typeof targetPath === 'string' && targetPath.trim()
       ? targetPath
       : currentPath
-    const pathToUse = normalizePath(refreshTarget, isWindowsSession)
+    const pathToUse = normalizePath(refreshTarget, usesWindowsPaths)
     setRefreshing(true)
     try {
       fileCache.current.delete(pathToUse)
@@ -714,7 +923,7 @@ export function useFileActions(state: FileManagerState) {
       updateTreeNode(pathToUse, treeChildren)
       const allFiles = await loadAllFiles(pathToUse, true)
 
-      if (normalizePath(pathToUse, isWindowsSession) === normalizePath(currentDirPath, isWindowsSession)) {
+      if (pathsEqual(pathToUse, currentDirPath, usesWindowsPaths ? 'windows' : 'posix')) {
         setCurrentDirFiles(allFiles)
       }
 
@@ -725,6 +934,7 @@ export function useFileActions(state: FileManagerState) {
 
       triggerCacheUpdate()
     } catch (error) {
+      if (isFileManagerAbortError(error)) return
       toast({
         variant: "destructive",
         title: t('refreshFailed'),
@@ -733,7 +943,7 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setRefreshing(false)
     }
-  }, [currentPath, isWindowsSession, loadPath, loadAllFiles, updateTreeNode, toast, t, triggerCacheUpdate, fileCache, allFilesCache, setRefreshing, setCurrentDirFiles])
+  }, [currentPath, usesWindowsPaths, loadPath, loadAllFiles, updateTreeNode, toast, t, triggerCacheUpdate, fileCache, allFilesCache, setRefreshing, setCurrentDirFiles])
 
   // Execute rename
   const executeRename = useCallback(async () => {
@@ -741,12 +951,12 @@ export function useFileActions(state: FileManagerState) {
 
     setRenaming(true)
     try {
-      const normalizedPath = normalizePath(renameTarget.path, isWindowsSession)
+      const normalizedPath = normalizePath(renameTarget.path, usesWindowsPaths)
       const pathParts = normalizedPath.split('/')
       pathParts[pathParts.length - 1] = newName.trim()
-      const newPath = normalizePath(pathParts.join('/'), isWindowsSession)
+      const newPath = normalizePath(pathParts.join('/'), usesWindowsPaths)
 
-      await mvFile(sid, normalizedPath, newPath)
+      await renameEntry(normalizedPath, newPath)
 
       toast({
         title: t('renameSuccess'),
@@ -763,6 +973,7 @@ export function useFileActions(state: FileManagerState) {
 
       triggerCacheUpdate()
     } catch (error) {
+      if (isFileManagerAbortError(error)) return
       toast({
         variant: "destructive",
         title: t('renameFailed'),
@@ -771,7 +982,7 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setRenaming(false)
     }
-  }, [renameTarget, newName, sid, mvFile, toast, t, currentPath, loadPath, loadAllFiles, updateTreeNode, isWindowsSession, renaming, triggerCacheUpdate, setRenaming, setShowRenameDialog, setRenameTarget, setNewName, setCurrentDirFiles])
+  }, [renameTarget, newName, renameEntry, toast, t, currentPath, loadPath, loadAllFiles, updateTreeNode, usesWindowsPaths, renaming, triggerCacheUpdate, setRenaming, setShowRenameDialog, setRenameTarget, setNewName, setCurrentDirFiles])
 
   return {
     handleRename,
@@ -785,8 +996,9 @@ export function useFileActions(state: FileManagerState) {
     handleFileSelect,
     executeUpload,
     handleFilesDropped,
+    cancelUploads,
     handleSavePermissions,
-    handleEnumDrivers,
+    handleLoadRoots,
     handleCreateFolder,
     handleCreateFile,
     handleRefreshCurrentDirectory,

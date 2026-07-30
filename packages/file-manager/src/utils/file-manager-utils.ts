@@ -1,3 +1,5 @@
+import type { FileNode } from '../types'
+
 const stripWrappingQuotes = (value: string): string => {
   if (value.length < 2) return value
   const first = value[0]
@@ -127,6 +129,17 @@ export const normalizeCacheEntries = <T,>(entries: [string, T][], maxEntries: nu
 export const buildBoundedMapFromEntries = <T,>(entries: [string, T][], maxEntries: number): Map<string, T> => {
   return new Map(normalizeCacheEntries(entries, maxEntries))
 }
+
+export const filterDirectoryTree = (nodes: FileNode[]): FileNode[] => (
+  nodes
+    .filter((node) => node.isDirectory)
+    .map((node) => ({
+      ...node,
+      ...(node.children !== undefined
+        ? { children: filterDirectoryTree(node.children) }
+        : {}),
+    }))
+)
 
 // Constants
 export const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes

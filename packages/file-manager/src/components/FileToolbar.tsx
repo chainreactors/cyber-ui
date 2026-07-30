@@ -1,5 +1,5 @@
-import React, { useEffect, useId, useState } from "react"
-import { useFileManagerRuntime, useTranslations } from "../runtime"
+import React, { useEffect, useId, useRef, useState } from "react"
+import { useFileManagerRuntime, useFileManagerTranslations } from "../runtime"
 import { Button, Input } from "../ui"
 import { Separator, Tooltip, TooltipTrigger, TooltipContent } from "../ui"
 import { Sheet, SheetContent, SheetTrigger } from "../ui"
@@ -28,7 +28,7 @@ import { MobileTreeContent } from "./FileTree"
 
 interface FileToolbarProps {
   isMobile: boolean
-  isWindowsSession: boolean
+  usesWindowsPaths: boolean
   currentPath: string
   currentDirPath: string
   pathInputValue: string
@@ -39,7 +39,7 @@ interface FileToolbarProps {
   uploading: boolean
   downloading: boolean
   deleting: boolean
-  enumeratingDrivers: boolean
+  loadingRoots: boolean
   isAtRoot: boolean
   cacheMode: 'cached' | 'live'
   // Navigation
@@ -61,22 +61,26 @@ interface FileToolbarProps {
   // Actions
   handleBatchDownload: () => Promise<void>
   handleBatchDelete: () => Promise<void>
-  handleEnumDrivers: () => Promise<void>
-  // Mobile tree props
+  handleLoadRoots: () => Promise<void>
+  // Compact tree props
   treeRef: React.RefObject<TreeApi<FileNode> | null>
   filteredTreeData: FileNode[]
   treeData: FileNode[]
-  treeHeight: number
+  expandedNodes: Set<string>
   treeSearchQuery: string
   setTreeSearchQuery: (query: string) => void
   matchedCount: number
-  rpcError: string | null
+  fileSystemError: string | null
   FileNodeRenderer: (props: NodeRendererProps<FileNode>) => React.ReactElement | null
+  handleNodeSelect: (nodes: import("react-arborist").NodeApi<FileNode>[], event?: React.MouseEvent) => void
+  handleTreeToggle: (id: string) => Promise<void>
+  treeOpen: boolean
+  setTreeOpen: (open: boolean) => void
 }
 
 export function FileToolbar({
   isMobile,
-  isWindowsSession,
+  usesWindowsPaths,
   currentPath,
   currentDirPath,
   pathInputValue,
@@ -87,7 +91,7 @@ export function FileToolbar({
   uploading,
   downloading,
   deleting,
-  enumeratingDrivers,
+  loadingRoots,
   isAtRoot,
   cacheMode,
   navigateToPath,
@@ -106,22 +110,33 @@ export function FileToolbar({
   setSelectedUploadFile,
   handleBatchDownload,
   handleBatchDelete,
-  handleEnumDrivers,
+  handleLoadRoots,
   treeRef,
   filteredTreeData,
   treeData,
-  treeHeight,
+  expandedNodes,
   treeSearchQuery,
   setTreeSearchQuery,
   matchedCount,
-  rpcError,
+  fileSystemError,
   FileNodeRenderer,
+  handleNodeSelect,
+  handleTreeToggle,
+  treeOpen,
+  setTreeOpen,
 }: FileToolbarProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
   const { capabilities, historyKey, maxHistory } = useFileManagerRuntime()
   const historyListId = useId()
   const [recentPaths, setRecentPaths] = useState<string[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [sheetContainer, setSheetContainer] = useState<HTMLElement | null>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const toolbarButtonSize = isMobile ? 'icon-sm' : 'sm'
+
+  useEffect(() => {
+    setSheetContainer(toolbarRef.current?.closest<HTMLElement>('[data-cyber-file-manager]') ?? null)
+  }, [])
 
   useEffect(() => {
     if (!currentPath || typeof window === 'undefined') return
@@ -137,26 +152,42 @@ export function FileToolbar({
   }, [currentPath, historyKey, maxHistory])
 
   return (
-    <div className="relative flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/20 min-h-[40px]">
-      {/* Mobile menu button */}
+    <div
+      ref={toolbarRef}
+      className={cn(
+        "relative flex items-center border-b border-border bg-muted/20 min-h-[40px]",
+        isMobile ? "flex-wrap gap-1 px-2 py-1.5" : "gap-2 px-3 py-1.5",
+      )}
+    >
+      {/* Compact tree button */}
       {isMobile && (
-        <Sheet>
+        <Sheet modal={false} open={treeOpen} onOpenChange={setTreeOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Menu className="w-4 h-4" />
+            <Button aria-label={t('directoryTree')} className="order-1" variant="ghost" size={toolbarButtonSize}>
+              <Menu aria-hidden="true" className="w-4 h-4" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent
+            aria-label={t('directoryTree')}
+            closeLabel={t('common.close')}
+            contained
+            portalContainer={sheetContainer}
+            side="left"
+            className="w-72 max-w-full p-0"
+          >
             <MobileTreeContent
               treeRef={treeRef}
               filteredTreeData={filteredTreeData}
               treeData={treeData}
-              treeHeight={treeHeight}
+              expandedNodes={expandedNodes}
               treeSearchQuery={treeSearchQuery}
               setTreeSearchQuery={setTreeSearchQuery}
               matchedCount={matchedCount}
-              rpcError={rpcError}
-              isWindowsSession={isWindowsSession}
+              fileSystemError={fileSystemError}
+              usesWindowsPaths={usesWindowsPaths}
+              selection={selection}
+              handleNodeSelect={handleNodeSelect}
+              handleTreeToggle={handleTreeToggle}
               FileNodeRenderer={FileNodeRenderer}
             />
           </SheetContent>
@@ -164,10 +195,10 @@ export function FileToolbar({
       )}
 
       {/* Navigation buttons */}
-      <div className="flex items-center gap-0.5">
+      <div className={cn("flex items-center gap-0.5", isMobile && "order-5")}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={navigateHome} aria-label={t('goHome')}>
+            <Button size={toolbarButtonSize} variant="ghost" onClick={navigateHome} aria-label={t('goHome')}>
               <Home className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -175,7 +206,7 @@ export function FileToolbar({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={navigateUp} disabled={isAtRoot} aria-label={t('goUp')}>
+            <Button size={toolbarButtonSize} variant="ghost" onClick={navigateUp} disabled={isAtRoot} aria-label={t('goUp')}>
               <ArrowUp className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -183,7 +214,7 @@ export function FileToolbar({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={() => { void handleRefresh() }} disabled={refreshing} aria-label={t('refresh')}>
+            <Button size={toolbarButtonSize} variant="ghost" onClick={() => { void handleRefresh() }} disabled={refreshing} aria-label={t('refresh')}>
               <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
             </Button>
           </TooltipTrigger>
@@ -192,7 +223,7 @@ export function FileToolbar({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              size="sm"
+              size={toolbarButtonSize}
               variant={cacheMode === 'live' ? 'secondary' : 'ghost'}
               onClick={() => setCacheMode(cacheMode === 'cached' ? 'live' : 'cached')}
               aria-label={cacheMode === 'cached' ? t('cachedMode') : t('liveMode')}
@@ -209,10 +240,10 @@ export function FileToolbar({
         </Tooltip>
       </div>
 
-      <Separator orientation="vertical" className="h-6" />
+      <Separator orientation="vertical" className={cn("h-6", isMobile && "hidden")} />
 
       {/* Breadcrumb / Path Input combo widget */}
-      <div className="flex-1 min-w-0">
+      <div className={cn("flex-1 min-w-0", isMobile && "order-2")}>
         {isEditingPath ? (
           /* Edit mode: path input */
           <Input
@@ -229,13 +260,15 @@ export function FileToolbar({
                 }
                 setIsEditingPath(false)
               } else if (e.key === 'Escape') {
-                setPathInputValue(formatPathForDisplay(currentPath, isWindowsSession))
+                e.preventDefault()
+                e.stopPropagation()
+                setPathInputValue(formatPathForDisplay(currentPath, usesWindowsPaths))
                 setIsEditingPath(false)
               }
             }}
             onBlur={() => {
               setTimeout(() => {
-                setPathInputValue(formatPathForDisplay(currentPath, isWindowsSession))
+                setPathInputValue(formatPathForDisplay(currentPath, usesWindowsPaths))
                 setIsEditingPath(false)
               }, 150)
             }}
@@ -250,7 +283,7 @@ export function FileToolbar({
             tabIndex={0}
             aria-label={t('editPath')}
             onClick={() => {
-              setPathInputValue(formatPathForDisplay(currentPath, isWindowsSession))
+              setPathInputValue(formatPathForDisplay(currentPath, usesWindowsPaths))
               setIsEditingPath(true)
             }}
           >
@@ -261,20 +294,20 @@ export function FileToolbar({
                   className="flex-shrink-0 cursor-pointer p-0.5 text-muted-foreground hover:text-blue-500 transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
-                    navigateToPath(isWindowsSession ? 'C:/' : '/')
+                    navigateToPath(usesWindowsPaths ? 'C:/' : '/')
                   }}
                 >
                   <Home className="w-4 h-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6} className="bg-popover text-popover-foreground [&>svg]:hidden">
-                {isWindowsSession ? 'C:\\' : '/'}
+                {usesWindowsPaths ? 'C:\\' : '/'}
               </TooltipContent>
             </Tooltip>
 
             {/* Path segments */}
             {currentDirPath && (
-              isWindowsSession ? (
+              usesWindowsPaths ? (
                 currentDirPath.split(/[/\\]/).filter(Boolean).map((part, index, array) => {
                   const path = array.slice(0, index + 1).join('/')
                   const displayPath = array.slice(0, index + 1).join('\\')
@@ -332,12 +365,20 @@ export function FileToolbar({
       </div>
 
       <datalist id={historyListId}>
-        {recentPaths.map((path) => <option key={path} value={formatPathForDisplay(path, isWindowsSession)} />)}
+        {recentPaths.map((path) => <option key={path} value={formatPathForDisplay(path, usesWindowsPaths)} />)}
       </datalist>
-      <div className="relative">
+      <div
+        className={cn("relative", isMobile && "order-3")}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape' || !historyOpen) return
+          event.preventDefault()
+          event.stopPropagation()
+          setHistoryOpen(false)
+        }}
+      >
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={() => setHistoryOpen((open) => !open)} disabled={recentPaths.length === 0} aria-label={t('recentPaths')}>
+            <Button size={toolbarButtonSize} variant="ghost" onClick={() => setHistoryOpen((open) => !open)} disabled={recentPaths.length === 0} aria-label={t('recentPaths')}>
               <History className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -350,28 +391,30 @@ export function FileToolbar({
                 key={path}
                 type="button"
                 className="block w-full truncate rounded px-2 py-1.5 text-left font-mono text-xs text-popover-foreground hover:bg-accent"
-                title={formatPathForDisplay(path, isWindowsSession)}
+                title={formatPathForDisplay(path, usesWindowsPaths)}
                 onClick={() => {
                   navigateToPath(path)
                   setHistoryOpen(false)
                 }}
               >
-                {formatPathForDisplay(path, isWindowsSession)}
+                {formatPathForDisplay(path, usesWindowsPaths)}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      <Separator orientation="vertical" className="h-6" />
+      {isMobile && <div aria-hidden="true" className="order-4 h-0 basis-full" />}
+
+      <Separator orientation="vertical" className={cn("h-6", isMobile && "hidden")} />
 
       {/* Action buttons */}
-      <div className="flex items-center gap-0.5">
+      <div className={cn("flex items-center gap-0.5", isMobile && "order-6 ml-auto flex-wrap")}>
         {/* Upload */}
         {capabilities.upload && <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              size="sm"
+              size={toolbarButtonSize}
               variant="ghost"
               onClick={() => {
                 setContextMenuTargetPath(null)
@@ -391,7 +434,7 @@ export function FileToolbar({
         {/* Create folder */}
         {capabilities.mkdir && <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={() => setShowCreateFolder(true)} aria-label={t('createFolder')}>
+            <Button size={toolbarButtonSize} variant="ghost" onClick={() => setShowCreateFolder(true)} aria-label={t('createFolder')}>
               <FolderPlus className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -401,22 +444,22 @@ export function FileToolbar({
         {/* Create file */}
         {capabilities.createFile && <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={() => setShowCreateFile(true)} aria-label={t('newFile')}>
+            <Button size={toolbarButtonSize} variant="ghost" onClick={() => setShowCreateFile(true)} aria-label={t('newFile')}>
               <FilePlus className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6} className="bg-popover text-popover-foreground [&>svg]:hidden">{t('newFile')}</TooltipContent>
         </Tooltip>}
 
-        {/* Enumerate Drivers (Windows only) */}
-        {isWindowsSession && capabilities.roots && (
+        {/* Additional roots for Windows path spaces */}
+        {usesWindowsPaths && capabilities.roots && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button size="sm" variant="ghost" onClick={handleEnumDrivers} disabled={enumeratingDrivers} aria-label={t('enumDrivers')}>
-                <HardDrive className={cn("w-4 h-4", enumeratingDrivers && "animate-pulse")} />
+              <Button size={toolbarButtonSize} variant="ghost" onClick={handleLoadRoots} disabled={loadingRoots} aria-label={t('loadRoots')}>
+                <HardDrive className={cn("w-4 h-4", loadingRoots && "animate-pulse")} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={6} className="bg-popover text-popover-foreground [&>svg]:hidden">{t('enumDrivers')}</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={6} className="bg-popover text-popover-foreground [&>svg]:hidden">{t('loadRoots')}</TooltipContent>
           </Tooltip>
         )}
 
@@ -424,7 +467,7 @@ export function FileToolbar({
         <Separator orientation="vertical" className="h-6" />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant={viewMode === 'list' ? 'secondary' : 'ghost'} onClick={() => setViewMode('list')} aria-label={t('listView')}>
+            <Button size={toolbarButtonSize} variant={viewMode === 'list' ? 'secondary' : 'ghost'} onClick={() => setViewMode('list')} aria-label={t('listView')}>
               <List className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
@@ -432,7 +475,7 @@ export function FileToolbar({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant={viewMode === 'grid' ? 'secondary' : 'ghost'} onClick={() => setViewMode('grid')} aria-label={t('gridView')}>
+            <Button size={toolbarButtonSize} variant={viewMode === 'grid' ? 'secondary' : 'ghost'} onClick={() => setViewMode('grid')} aria-label={t('gridView')}>
               <Grid3X3 className="w-4 h-4" />
             </Button>
           </TooltipTrigger>

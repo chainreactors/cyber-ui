@@ -1,12 +1,34 @@
 "use client"
 
-import React, { useEffect, useMemo, useRef } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useHotkeys } from "react-hotkeys-hook"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./ui"
 import type { FileNode } from "./types"
-import { formatPathForDisplay, normalizeCacheEntries, buildBoundedMapFromEntries, MAX_TREE_CACHE_DIRS, MAX_ALL_FILES_CACHE_DIRS, MAX_PERSISTED_TREE_CACHE_ENTRIES, MAX_PERSISTED_ALL_FILES_CACHE_ENTRIES, MAX_PERSISTED_CURRENT_DIR_FILES } from "./utils/file-manager-utils"
+import {
+  createLocalStorageFileManagerCache,
+  createMemoryFileManagerCache,
+  type FileManagerCacheAdapter,
+} from "./cache"
+import type {
+  FileAction,
+  FileActionContext,
+  FileEntry,
+  FileManagerAdapter,
+  FileManagerEvent,
+  FileManagerMutation,
+  FileManagerOperation,
+  FileManagerSlots,
+} from "./contracts"
+import {
+  createFileManagerTranslator,
+  type FileManagerLocale,
+  type FileManagerMessages,
+} from "./messages"
+import { FileManagerRequestManager } from "./request-manager"
+import { formatPathForDisplay, normalizeCacheEntries, buildBoundedMapFromEntries, filterDirectoryTree, MAX_TREE_CACHE_DIRS, MAX_ALL_FILES_CACHE_DIRS, MAX_PERSISTED_TREE_CACHE_ENTRIES, MAX_PERSISTED_ALL_FILES_CACHE_ENTRIES, MAX_PERSISTED_CURRENT_DIR_FILES } from "./utils/file-manager-utils"
 import { useDragAndDrop } from "./hooks/useDragAndDrop"
 import { useFileManagerState } from "./hooks/useFileManagerState"
+import { isCompactFileManagerWidth, useResizeObserver } from "./hooks/useResizeObserver"
 import { useFileActions } from "./hooks/useFileActions"
 import { useFileContextMenu } from "./components/FileContextMenu"
 import { useFileNodeRenderer } from "./components/FileNodeRenderer"
@@ -16,29 +38,67 @@ import { FileListView } from "./components/FileListView"
 import { FileManagerDialogs } from "./components/FileManagerDialogs"
 import {
   FileManagerRuntimeProvider,
+  fileNodeToEntry,
   useFileManagerRuntime,
-  type FileManagerAdapter,
   type FileManagerNotification,
-  type FileManagerOperation,
 } from "./runtime"
 
+type FileManagerTranslate = (
+  key: string,
+  values?: Record<string, unknown>,
+) => string
+
+function isUnresolvedTranslationKey(key: string, translated: string): boolean {
+  return translated === key || (
+    translated.endsWith(`.${key}`) &&
+    /^[A-Za-z0-9_.-]+$/.test(translated)
+  )
+}
+
+export function createFileManagerRuntimeTranslator({
+  locale,
+  messages,
+  translate,
+}: {
+  locale: FileManagerLocale
+  messages?: Partial<FileManagerMessages>
+  translate?: FileManagerTranslate
+}): FileManagerTranslate {
+  const fallback = createFileManagerTranslator({ locale, messages })
+  if (!translate) return fallback
+
+  return (key: string, values?: Record<string, unknown>) => {
+    try {
+      const translated = translate(key, values)
+      return translated && !isUnresolvedTranslationKey(key, translated)
+        ? translated
+        : fallback(key, values)
+    } catch {
+      return fallback(key, values)
+    }
+  }
+}
+
 interface FileManagerCoreProps {
-  sessionId: string
-  session?: any
-  onOpenTab?: (title: string, module: string, subModule?: string, component?: unknown) => void
   className?: string
+  initialPath: string
+  pathStyle: 'posix' | 'windows'
+  scopeKey: string
   showTree?: boolean
 }
 
 const FileManagerCore: React.FC<FileManagerCoreProps> = ({
-  sessionId,
-  session,
-  onOpenTab,
   className,
+  initialPath,
+  pathStyle,
+  scopeKey,
   showTree = true,
 }) => {
   const { capabilities } = useFileManagerRuntime()
-  const state = useFileManagerState(sessionId, session)
+  const { ref: containerRef, width: containerWidth } = useResizeObserver()
+  const isCompact = isCompactFileManagerWidth(containerWidth)
+  const [compactTreeOpen, setCompactTreeOpen] = useState(false)
+  const state = useFileManagerState(scopeKey, initialPath, pathStyle, isCompact)
   const actions = useFileActions(state)
   const sanitizeFileNodesRef = useRef(state.sanitizeFileNodes)
   sanitizeFileNodesRef.current = state.sanitizeFileNodes
@@ -54,16 +114,18 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     return ids
   }
 
-  const sanitizeCacheEntries = (entries?: [string, FileNode[]][]) => {
+  const sanitizeCacheEntries = (entries?: [string, FileNode[]][], directoriesOnly = false) => {
     if (!Array.isArray(entries)) return undefined
     return entries.map(([path, nodes]) => [
       path,
-      sanitizeFileNodesRef.current(Array.isArray(nodes) ? nodes : [], path)
+      directoriesOnly
+        ? filterDirectoryTree(sanitizeFileNodesRef.current(Array.isArray(nodes) ? nodes : [], path))
+        : sanitizeFileNodesRef.current(Array.isArray(nodes) ? nodes : [], path)
     ] as [string, FileNode[]])
   }
 
   const restoreFileTreeCache = (cached: any) => {
-    const treeData = sanitizeFileNodesRef.current(cached.treeData || [])
+    const treeData = filterDirectoryTree(sanitizeFileNodesRef.current(cached.treeData || []))
     if (!treeData.length || !cached.currentPath) return false
 
     const validNodeIds = collectNodeIds(treeData)
@@ -71,15 +133,15 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
       ? cached.expandedNodes.filter((id: string) => validNodeIds.has(id))
       : []
 
-    state.setTreeData(treeData)
+    state.replaceTree(treeData)
     state.setExpandedNodes(new Set(expandedNodes))
     state.setCurrentPath(cached.currentPath)
     state.setCurrentDirPath(cached.currentDirPath || '')
     state.setCurrentDirFiles(sanitizeFileNodesRef.current(cached.currentDirFiles || [], cached.currentDirPath || cached.currentPath).slice(0, MAX_PERSISTED_CURRENT_DIR_FILES))
     state.setViewMode((cached.viewMode as 'list' | 'grid') || 'list')
-    state.setPathInputValue(cached.pathInputValue || formatPathForDisplay(cached.currentPath, state.isWindowsSession))
+    state.setPathInputValue(cached.pathInputValue || formatPathForDisplay(cached.currentPath, state.usesWindowsPaths))
 
-    const fileCacheEntries = sanitizeCacheEntries(cached.fileCacheEntries)
+    const fileCacheEntries = sanitizeCacheEntries(cached.fileCacheEntries, true)
     const allFilesCacheEntries = sanitizeCacheEntries(cached.allFilesCacheEntries)
 
     if (fileCacheEntries) {
@@ -101,12 +163,12 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     viewMode: 'list' | 'grid'
     pathInputValue: string
   }) => {
-    const treeData = sanitizeFileNodesRef.current(source.treeData)
+    const treeData = filterDirectoryTree(sanitizeFileNodesRef.current(source.treeData))
     const validNodeIds = collectNodeIds(treeData)
     const fileCacheEntries = sanitizeCacheEntries(normalizeCacheEntries(
       Array.from(state.fileCache.current.entries()),
       MAX_PERSISTED_TREE_CACHE_ENTRIES
-    ))
+    ), true)
     const allFilesCacheEntries = sanitizeCacheEntries(normalizeCacheEntries(
       Array.from(state.allFilesCache.current.entries()),
       MAX_PERSISTED_ALL_FILES_CACHE_ENTRIES
@@ -133,9 +195,8 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
 
   // Context menus
   const { generateDirectoryContextMenu, generateContextMenu } = useFileContextMenu({
-    isWindowsSession: state.isWindowsSession,
-    onOpenTab,
-    sessionId,
+    usesWindowsPaths: state.usesWindowsPaths,
+    currentPath: state.currentPath,
     navigateToPath: state.navigateToPath,
     handleRefreshCurrentDirectory: actions.handleRefreshCurrentDirectory,
     handleDownload: actions.handleDownload,
@@ -144,6 +205,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     handleCopyName: actions.handleCopyName,
     handleCopyPath: actions.handleCopyPath,
     handleDelete: actions.handleDelete,
+    pendingMutationPaths: state.pendingMutationPaths,
     setContextMenuTargetPath: state.setContextMenuTargetPath,
     setShowCreateFolder: state.setShowCreateFolder,
     setShowCreateFile: state.setShowCreateFile,
@@ -158,15 +220,21 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     setSelectedFile: state.setSelectedFile,
   })
 
+  const operatingFiles = useMemo(() => new Set([
+    ...state.operatingFiles,
+    ...state.pendingMutationPaths,
+  ]), [state.operatingFiles, state.pendingMutationPaths])
+
   // File node renderer
   const FileNodeRenderer = useFileNodeRenderer({
     loadingNodes: state.loadingNodes,
     currentDirPath: state.currentDirPath,
-    operatingFiles: state.operatingFiles,
+    operatingFiles,
     navigateToPath: state.navigateToPath,
     generateContextMenu,
     matchedNodeIds: state.matchedNodeIds,
     treeSearchQuery: state.treeSearchQuery,
+    onDirectoryNavigate: () => setCompactTreeOpen(false),
   })
 
   // Auto-expand matched nodes
@@ -215,19 +283,19 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     }
   }, { enabled: !state.fileSizeWarning && !state.showCreateFolder && !state.showCreateFile && !state.showRenameDialog && !state.showUploadDialog })
 
-  // Initialize - wait for session to be loaded, only once
+  // Initialize once per mounted scope.
   const hasInitialized = useRef(false)
   useEffect(() => {
-    if (sessionId && session && !hasInitialized.current) {
+    if (scopeKey && !hasInitialized.current) {
       hasInitialized.current = true
 
       // Fast path: check memory cache (synchronous)
-      const cached = state.getFileTreeCache(sessionId)
+      const cached = state.getFileTreeCache()
       if (cached && cached.treeData && cached.treeData.length > 0 && cached.currentPath) {
         restoreFileTreeCache(cached)
       } else {
-        // Slow path: try IndexedDB -> server -> fresh RPC (async)
-        state.loadFileTreeCache(sessionId).then((lowerCached) => {
+        // Slow path: try the injected cache before loading fresh data.
+        state.loadFileTreeCache().then((lowerCached) => {
           if (lowerCached && lowerCached.treeData && lowerCached.treeData.length > 0 && lowerCached.currentPath) {
             if (!restoreFileTreeCache(lowerCached)) {
               state.initializeFileSystem()
@@ -238,14 +306,14 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
         })
       }
     }
-  }, [sessionId, session])
+  }, [scopeKey])
 
   // Debounced cache write effect
   useEffect(() => {
-    if (!state.shouldUpdateCache || !sessionId) return
+    if (!state.shouldUpdateCache || !scopeKey) return
     state.setShouldUpdateCache(false)
 
-    state.setFileTreeCache(sessionId, buildFileTreeCacheData({
+    state.setFileTreeCache(buildFileTreeCacheData({
       treeData: state.treeData,
       expandedNodes: state.expandedNodes,
       currentPath: state.currentPath,
@@ -254,7 +322,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
       viewMode: state.viewMode,
       pathInputValue: state.pathInputValue,
     }))
-  }, [state.shouldUpdateCache, sessionId, state.treeData, state.expandedNodes, state.currentPath, state.currentDirPath, state.currentDirFiles, state.viewMode, state.pathInputValue, state.setFileTreeCache])
+  }, [state.shouldUpdateCache, scopeKey, state.treeData, state.expandedNodes, state.currentPath, state.currentDirPath, state.currentDirFiles, state.viewMode, state.pathInputValue, state.setFileTreeCache])
 
   // Refs to hold latest state for unmount cleanup (avoids stale closure)
   const stateRef = useRef({ treeData: state.treeData, expandedNodes: state.expandedNodes, currentPath: state.currentPath, currentDirPath: state.currentDirPath, currentDirFiles: state.currentDirFiles, viewMode: state.viewMode, pathInputValue: state.pathInputValue })
@@ -271,7 +339,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
   useEffect(() => {
     return () => {
       const s = stateRef.current
-      if (s.treeData.length > 0 && sessionId) {
+      if (s.treeData.length > 0 && scopeKey) {
         const cacheData = buildFileTreeCacheData({
           treeData: s.treeData,
           expandedNodes: s.expandedNodes,
@@ -281,11 +349,11 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
           viewMode: s.viewMode,
           pathInputValue: s.pathInputValue,
         })
-        setFileTreeCacheRef.current(sessionId, cacheData)
-        flushFileTreeCacheRef.current(sessionId)
+        setFileTreeCacheRef.current(cacheData)
+        flushFileTreeCacheRef.current()
       }
     }
-  }, [sessionId])
+  }, [scopeKey])
 
   // Trigger cache update when viewMode changes
   useEffect(() => {
@@ -319,7 +387,13 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
   }, [state.expandedNodes, state.treeData])
 
   return (
-    <div className={`h-full flex flex-col file-manager-container ${className}`}>
+    <div
+      className={`relative isolate h-full overflow-hidden flex flex-col file-manager-container ${className || ''}`}
+      data-cyber-file-manager=""
+      data-path-style={pathStyle}
+      data-layout={isCompact ? 'compact' : 'wide'}
+      ref={containerRef}
+    >
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {showTree && !state.isMobile ? (
@@ -337,8 +411,8 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
                 treeSearchQuery={state.treeSearchQuery}
                 setTreeSearchQuery={state.setTreeSearchQuery}
                 matchedCount={state.matchedCount}
-                rpcError={state.rpcError}
-                isWindowsSession={state.isWindowsSession}
+                fileSystemError={state.fileSystemError}
+                usesWindowsPaths={state.usesWindowsPaths}
                 isMobile={state.isMobile}
                 initializeFileSystem={state.initializeFileSystem}
                 handleNodeSelect={state.handleNodeSelect}
@@ -351,7 +425,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
               <div className="h-full flex flex-col min-w-0">
                 <FileToolbar
                   isMobile={state.isMobile}
-                  isWindowsSession={state.isWindowsSession}
+                  usesWindowsPaths={state.usesWindowsPaths}
                   currentPath={state.currentPath}
                   currentDirPath={state.currentDirPath}
                   pathInputValue={state.pathInputValue}
@@ -362,7 +436,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
                   uploading={state.uploading}
                   downloading={state.downloading}
                   deleting={state.deleting}
-                  enumeratingDrivers={state.enumeratingDrivers}
+                  loadingRoots={state.loadingRoots}
                   isAtRoot={state.isAtRoot}
                   cacheMode={state.cacheMode}
                   navigateToPath={state.navigateToPath}
@@ -381,16 +455,20 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
                   setSelectedUploadFile={state.setSelectedUploadFile}
                   handleBatchDownload={actions.handleBatchDownload}
                   handleBatchDelete={actions.handleBatchDelete}
-                  handleEnumDrivers={actions.handleEnumDrivers}
+                  handleLoadRoots={actions.handleLoadRoots}
                   treeRef={state.treeRef}
                   filteredTreeData={state.filteredTreeData}
                   treeData={state.treeData}
-                  treeHeight={state.treeHeight}
+                  expandedNodes={state.expandedNodes}
                   treeSearchQuery={state.treeSearchQuery}
                   setTreeSearchQuery={state.setTreeSearchQuery}
                   matchedCount={state.matchedCount}
-                  rpcError={state.rpcError}
+                  fileSystemError={state.fileSystemError}
                   FileNodeRenderer={FileNodeRenderer}
+                  handleNodeSelect={state.handleNodeSelect}
+                  handleTreeToggle={state.handleTreeToggle}
+                  treeOpen={compactTreeOpen}
+                  setTreeOpen={setCompactTreeOpen}
                 />
 
                 <FileListView
@@ -411,6 +489,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
                   generateDirectoryContextMenu={generateDirectoryContextMenu}
                   generateContextMenu={generateContextMenu}
                   selectedIds={state.selection.selectedIds}
+                  operatingFiles={operatingFiles}
                   onFileSelect={state.handleFileListSelect}
                   onBatchDownload={capabilities.download ? actions.handleBatchDownload : undefined}
                   onBatchDelete={capabilities.remove ? actions.handleBatchDelete : undefined}
@@ -423,7 +502,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
           <div className="flex-1 flex flex-col min-w-0">
             <FileToolbar
               isMobile={state.isMobile}
-              isWindowsSession={state.isWindowsSession}
+              usesWindowsPaths={state.usesWindowsPaths}
               currentPath={state.currentPath}
               currentDirPath={state.currentDirPath}
               pathInputValue={state.pathInputValue}
@@ -434,7 +513,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
               uploading={state.uploading}
               downloading={state.downloading}
               deleting={state.deleting}
-              enumeratingDrivers={state.enumeratingDrivers}
+              loadingRoots={state.loadingRoots}
               isAtRoot={state.isAtRoot}
               cacheMode={state.cacheMode}
               navigateToPath={state.navigateToPath}
@@ -453,16 +532,20 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
               setSelectedUploadFile={state.setSelectedUploadFile}
               handleBatchDownload={actions.handleBatchDownload}
               handleBatchDelete={actions.handleBatchDelete}
-              handleEnumDrivers={actions.handleEnumDrivers}
+              handleLoadRoots={actions.handleLoadRoots}
               treeRef={state.treeRef}
               filteredTreeData={state.filteredTreeData}
               treeData={state.treeData}
-              treeHeight={state.treeHeight}
+              expandedNodes={state.expandedNodes}
               treeSearchQuery={state.treeSearchQuery}
               setTreeSearchQuery={state.setTreeSearchQuery}
               matchedCount={state.matchedCount}
-              rpcError={state.rpcError}
+              fileSystemError={state.fileSystemError}
               FileNodeRenderer={FileNodeRenderer}
+              handleNodeSelect={state.handleNodeSelect}
+              handleTreeToggle={state.handleTreeToggle}
+              treeOpen={compactTreeOpen}
+              setTreeOpen={setCompactTreeOpen}
             />
 
             <FileListView
@@ -483,6 +566,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
               generateDirectoryContextMenu={generateDirectoryContextMenu}
               generateContextMenu={generateContextMenu}
               selectedIds={state.selection.selectedIds}
+              operatingFiles={operatingFiles}
               onFileSelect={state.handleFileListSelect}
               onBatchDownload={capabilities.download ? actions.handleBatchDownload : undefined}
               onBatchDelete={capabilities.remove ? actions.handleBatchDelete : undefined}
@@ -493,8 +577,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
       </div>
 
       <FileManagerDialogs
-        sessionId={sessionId}
-        isWindowsSession={state.isWindowsSession}
+        usesWindowsPaths={state.usesWindowsPaths}
         selectedFile={state.selectedFile}
         setSelectedFile={state.setSelectedFile}
         fileInputRef={state.fileInputRef}
@@ -534,7 +617,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
         showUploadProgress={state.showUploadProgress}
         setShowUploadProgress={state.setShowUploadProgress}
         uploadQueue={state.uploadQueue}
-        setUploadQueue={state.setUploadQueue}
+        cancelUploads={actions.cancelUploads}
         showDownloadProgress={state.showDownloadProgress}
         setShowDownloadProgress={state.setShowDownloadProgress}
         downloadQueue={state.downloadQueue}
@@ -553,51 +636,78 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
 
 export interface FileManagerProps {
   adapter: FileManagerAdapter
+  cache?: FileManagerCacheAdapter | false
   className?: string
+  getActions?: (context: FileActionContext) => FileAction[]
   historyKey?: string
   initialPath?: string
-  isWindows?: boolean
+  locale?: FileManagerLocale
   maxHistory?: number
-  messages?: Record<string, string>
+  messages?: Partial<FileManagerMessages>
   notify?: (notification: FileManagerNotification) => void
-  onOpenFile?: (entry: FileNode) => void
+  onEvent?: (event: FileManagerEvent) => void
+  onOpenFile?: (entry: FileEntry) => void
   onOperationError?: (operation: FileManagerOperation, error: unknown) => void
-  onOperationSuccess?: (operation: Exclude<FileManagerOperation, 'list' | 'roots'>, entries: FileNode[]) => void
-  renderPreview?: (entry: FileNode) => React.ReactNode
+  onOperationSuccess?: (operation: FileManagerMutation, entries: FileEntry[]) => void
+  renderPreview?: (entry: FileEntry) => React.ReactNode
+  scopeKey?: string
   showTree?: boolean
+  slots?: FileManagerSlots
+  /** @deprecated Use scopeKey. */
   sourceKey?: string | number
   translate?: (key: string, values?: Record<string, unknown>) => string
 }
 
 export function FileManager({
   adapter,
+  cache,
   className,
+  getActions,
   historyKey,
   initialPath: initialPathInput = '',
-  isWindows: isWindowsInput,
+  locale = 'en',
   maxHistory = 12,
   messages,
   notify = () => undefined,
+  onEvent,
   onOpenFile,
   onOperationError,
   onOperationSuccess,
   renderPreview,
+  scopeKey,
   showTree = true,
+  slots,
   sourceKey = 'default',
   translate: translateInput,
 }: FileManagerProps) {
-  const isWindows = isWindowsInput ?? /^[A-Za-z]:[\\/]|^\\\\|^\/\//.test(initialPathInput)
-  const initialPath = initialPathInput || (isWindows ? 'C:' : '/')
-  const resolvedSourceKey = String(sourceKey)
-  const translate = useMemo(() => translateInput ?? ((key: string, values?: Record<string, unknown>) => {
-    const template = messages?.[key] || DEFAULT_MESSAGES[key] || key
-    return template.replace(/\{(\w+)\}/g, (_match, name: string) => String(values?.[name] ?? `{${name}}`))
-  }), [messages, translateInput])
+  const initialPath = initialPathInput || (adapter.pathStyle === 'windows' ? 'C:/' : '/')
+  const resolvedScopeKey = scopeKey || String(sourceKey)
+  const resolvedCache = useMemo<FileManagerCacheAdapter | false>(() => {
+    if (cache === false) return false
+    if (cache) return cache
+    if (typeof window === 'undefined') return createMemoryFileManagerCache()
+    return createLocalStorageFileManagerCache()
+  }, [cache])
+  const requestManager = useMemo(
+    () => new FileManagerRequestManager(),
+    [adapter, resolvedScopeKey],
+  )
+  useEffect(() => () => requestManager.abortAll(), [requestManager])
+  const translate = useMemo(
+    () => createFileManagerRuntimeTranslator({
+      locale,
+      messages,
+      translate: translateInput,
+    }),
+    [locale, messages, translateInput],
+  )
+  const preview = slots?.preview ?? renderPreview
   const runtime = useMemo(() => ({
     adapter,
+    cache: resolvedCache,
     capabilities: {
       roots: !!adapter.roots,
-      mkdir: !!adapter.mkdir,
+      mkdir: !!adapter.createDirectory,
       createFile: !!adapter.createFile,
       upload: !!adapter.upload,
       download: !!(adapter.download || adapter.downloadUrl),
@@ -605,126 +715,61 @@ export function FileManager({
       rename: !!adapter.rename,
       copy: !!adapter.copy,
       chmod: !!adapter.chmod,
-      preview: !!(onOpenFile || renderPreview || adapter.readFile),
+      preview: !!(onOpenFile || preview),
     },
+    getActions,
     initialPath,
-    historyKey: historyKey || `cyber.fileManager.history.${resolvedSourceKey}`,
+    historyKey: historyKey || `cyber.fileManager.history.${resolvedScopeKey}`,
     maxHistory,
     notify,
+    onEvent,
+    onOpenFile: onOpenFile
+      ? (entry: FileNode) => onOpenFile(fileNodeToEntry(entry, adapter.pathStyle))
+      : undefined,
+    onOperationError,
+    onOperationSuccess: onOperationSuccess
+      ? (
+          operation: FileManagerMutation,
+          entries: FileNode[],
+        ) => onOperationSuccess(
+          operation,
+          entries.map((entry) => fileNodeToEntry(entry, adapter.pathStyle)),
+        )
+      : undefined,
+    renderPreview: preview
+      ? (entry: FileNode) => preview(fileNodeToEntry(entry, adapter.pathStyle))
+      : undefined,
+    requestManager,
+    scopeKey: resolvedScopeKey,
+    translate,
+  }), [
+    adapter,
+    getActions,
+    historyKey,
+    initialPath,
+    maxHistory,
+    notify,
+    onEvent,
     onOpenFile,
     onOperationError,
     onOperationSuccess,
-    renderPreview,
-    sourceKey: resolvedSourceKey,
+    preview,
+    requestManager,
+    resolvedCache,
+    resolvedScopeKey,
     translate,
-  }), [adapter, historyKey, initialPath, maxHistory, notify, onOpenFile, onOperationError, onOperationSuccess, renderPreview, resolvedSourceKey, translate])
+  ])
 
   return (
     <FileManagerRuntimeProvider value={runtime}>
       <FileManagerCore
-        sessionId={resolvedSourceKey}
-        session={{ workdir: initialPath, type: isWindows ? 'windows' : 'unix' }}
+        key={resolvedScopeKey}
         className={className}
+        initialPath={initialPath}
+        pathStyle={adapter.pathStyle}
+        scopeKey={resolvedScopeKey}
         showTree={showTree}
       />
     </FileManagerRuntimeProvider>
   )
-}
-
-const DEFAULT_MESSAGES: Record<string, string> = {
-  loading: 'Loading…',
-  emptyDirectory: 'This directory is empty',
-  createFolder: 'Create folder',
-  createFile: 'Create file',
-  newFolder: 'New folder',
-  newFile: 'New file',
-  folderName: 'Folder name',
-  fileName: 'File name',
-  upload: 'Upload',
-  download: 'Download',
-  rename: 'Rename',
-  copy: 'Copy',
-  copyName: 'Copy name',
-  copyPath: 'Copy path',
-  delete: 'Delete',
-  refresh: 'Refresh',
-  open: 'Open',
-  openInNewTab: 'Open in new tab',
-  operations: 'Operations',
-  directoryOperations: 'Directory operations',
-  copyOperations: 'Copy',
-  dangerZone: 'Danger zone',
-  fileDetails: 'Details',
-  name: 'Name',
-  size: 'Size',
-  time: 'Modified',
-  mode: 'Mode',
-  selectFile: 'Select file',
-  changeFile: 'Change file',
-  targetPath: 'Target path',
-  optional: 'optional',
-  targetPathPlaceholder: 'Leave empty to keep the original name',
-  uploading: 'Uploading…',
-  dragDropHint: 'Drop files here to upload',
-  selectedCount: '{count} selected',
-  searchFiles: 'Search files',
-  goHome: 'Home',
-  goUp: 'Up one level',
-  cachedMode: 'Cached mode',
-  liveMode: 'Live mode',
-  editPath: 'Edit path',
-  pathInput: 'Path',
-  recentPaths: 'Recent paths',
-  listView: 'List view',
-  gridView: 'Grid view',
-  enumDrivers: 'List drives',
-  currentSystem: 'System: {system}',
-  system: 'System',
-  unixSystem: 'Unix/Linux',
-  windowsSystem: 'Windows',
-  properties: 'Properties',
-  'properties.title': 'Properties',
-  'properties.link': 'Link',
-  'permissions.edit': 'Edit permissions',
-  create: 'Create',
-  newName: 'New name',
-  currentName: 'Current name',
-  renameFile: 'Rename file',
-  renaming: 'Renaming…',
-  creating: 'Creating…',
-  creatingFolder: 'Creating {name} in {path}',
-  creatingFile: 'Creating {fileName} in {path}',
-  folderCreateSuccess: 'Folder created',
-  folderCreateSuccessDesc: '{name} was created in {path}',
-  folderCreateFailed: 'Failed to create folder',
-  fileCreateSuccess: 'File created',
-  fileCreateSuccessDesc: '{fileName} was created in {currentPath}',
-  fileCreateFailed: 'Failed to create file',
-  renameSuccess: 'Renamed',
-  renameSuccessDesc: '{oldName} is now {newName}',
-  renameFailed: 'Rename failed',
-  deleteSuccess: 'Deleted',
-  deleteSuccessDesc: '{filename} was deleted',
-  deleteFailed: 'Delete failed',
-  copySuccess: 'Copied',
-  copySuccessDesc: 'Created a copy of {filename}',
-  copyNameSuccessDesc: 'Copied {name}',
-  copyPathSuccessDesc: 'Copied {path}',
-  copyFailed: 'Copy failed',
-  refreshSuccess: 'Refreshed',
-  refreshSuccessDesc: 'Directory contents are up to date',
-  refreshFailed: 'Refresh failed',
-  navigationFailed: 'Could not open path',
-  uploadSuccess: 'Upload complete',
-  uploadSuccessDesc: '{filename} was uploaded to {path}',
-  uploadFailed: 'Upload failed',
-  uploadingTo: 'Uploading {filename} to {path}',
-  noResults: 'No matching files',
-  searchResults: '{count} matches',
-  'common.retry': 'Retry',
-  'common.save': 'Save',
-  unknownError: 'Unknown error',
-  'common.cancel': 'Cancel',
-  'common.confirm': 'Confirm',
-  'common.close': 'Close',
 }

@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from "react"
-import { useTranslations } from "../runtime"
+import { useFileManagerTranslations } from "../runtime"
 import {
   ContextMenuBuilder,
   SortableTableHead,
@@ -16,11 +16,12 @@ import {
 import type { ContextMenuSection, ResizableColumnDef } from "../ui"
 import {
   Folder,
+  RefreshCw,
   Upload,
 } from "../icons"
 import type { FileNode } from "../types"
 import type { FileSortKey } from "../hooks/useFileSort"
-import { parseFileSize, formatTime, LARGE_FILE_WARNING_BYTES, HUGE_FILE_WARNING_BYTES } from "../utils/file-manager-utils"
+import { formatFileSize, parseFileSize, formatTime, LARGE_FILE_WARNING_BYTES, HUGE_FILE_WARNING_BYTES } from "../utils/file-manager-utils"
 import { getFileIcon } from "../utils/file-icons"
 import { cn } from "../class-names"
 import { FileSelectionBar } from "./FileSelectionBar"
@@ -44,6 +45,7 @@ interface FileListViewProps {
   generateDirectoryContextMenu: (targetPath: string) => ContextMenuSection[]
   generateContextMenu: (node: FileNode) => ContextMenuSection[]
   selectedIds?: Set<string>
+  operatingFiles?: ReadonlySet<string>
   onFileSelect?: (fileId: string, event: React.MouseEvent) => void
   onBatchDownload?: () => void
   onBatchDelete?: () => void
@@ -68,12 +70,13 @@ export function FileListView({
   generateDirectoryContextMenu,
   generateContextMenu,
   selectedIds,
+  operatingFiles,
   onFileSelect,
   onBatchDownload,
   onBatchDelete,
   onClearSelection,
 }: FileListViewProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
   const { onOpenFile, renderPreview } = useFileManagerRuntime()
   const showModeColumn = visibleFiles.some(file => Boolean(file.mode))
   const showLinkColumn = visibleFiles.some(file => Boolean(file.link))
@@ -172,7 +175,7 @@ export function FileListView({
                     currentDirection={sortDirection}
                     onSort={handleSort}
                   />
-                  <ColumnResizeHandle {...getResizeHandler('name')} />
+                  <ColumnResizeHandle {...getResizeHandler('name')} aria-label={t('resizeColumn', { column: t('name') })} />
                 </TableHead>
                 {showModeColumn && (
                   <TableHead className={`${compactTableClasses.tableHead}`} style={getColumnStyle('mode', '16%')}>
@@ -183,7 +186,7 @@ export function FileListView({
                       currentDirection={sortDirection}
                       onSort={handleSort}
                     />
-                    <ColumnResizeHandle {...getResizeHandler('mode')} />
+                    <ColumnResizeHandle {...getResizeHandler('mode')} aria-label={t('resizeColumn', { column: t('mode') })} />
                   </TableHead>
                 )}
                 <TableHead className={`${compactTableClasses.tableHead}`} style={getColumnStyle('size', '20%')}>
@@ -194,7 +197,7 @@ export function FileListView({
                     currentDirection={sortDirection}
                     onSort={handleSort}
                   />
-                  <ColumnResizeHandle {...getResizeHandler('size')} />
+                  <ColumnResizeHandle {...getResizeHandler('size')} aria-label={t('resizeColumn', { column: t('size') })} />
                 </TableHead>
                 <TableHead className={`${compactTableClasses.tableHead}`} style={getColumnStyle('time', '30%')}>
                   <SortableTableHead
@@ -204,7 +207,7 @@ export function FileListView({
                     currentDirection={sortDirection}
                     onSort={handleSort}
                   />
-                  {showLinkColumn && <ColumnResizeHandle {...getResizeHandler('time')} />}
+                  {showLinkColumn && <ColumnResizeHandle {...getResizeHandler('time')} aria-label={t('resizeColumn', { column: t('time') })} />}
                 </TableHead>
                 {showLinkColumn && (
                   <TableHead className={`${compactTableClasses.tableHead}`} style={getColumnStyle('link', '15%')}>
@@ -223,11 +226,14 @@ export function FileListView({
               {visibleFiles.map((file) => {
                   const isPreviewSelected = selectedFile?.id === file.id
                   const isMultiSelected = selectedIds?.has(file.id) ?? false
+                  const isOperating = operatingFiles?.has(file.id)
+                    || (!!file.fullPath && operatingFiles?.has(file.fullPath))
                   const { Icon, color } = getFileIcon(file.name, file.isDirectory)
 
                   return (
                     <ContextMenuBuilder key={file.id} sections={() => generateContextMenu(file)}>
                       <TableRow
+                        aria-busy={isOperating}
                         className={cn(
                           "cursor-pointer transition-colors duration-150",
                           "hover:bg-accent/60 active:bg-accent",
@@ -240,6 +246,9 @@ export function FileListView({
                         <TableCell className="py-2 px-4">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <Icon className={cn("w-4 h-4 flex-shrink-0", color)} />
+                            {isOperating && (
+                              <RefreshCw className="h-3.5 w-3.5 flex-shrink-0 animate-spin text-muted-foreground" />
+                            )}
                             <span className="truncate text-sm">{file.name}</span>
                           </div>
                         </TableCell>
@@ -249,7 +258,7 @@ export function FileListView({
                           </TableCell>
                         )}
                         <TableCell className="py-2 px-4 text-sm text-muted-foreground">
-                          {file.isDirectory ? '-' : (file.size || '-')}
+                          {file.isDirectory || file.size === undefined ? '-' : formatFileSize(file.size)}
                         </TableCell>
                         <TableCell className="py-2 px-4 text-sm text-muted-foreground">
                           {formatTime(file.time)}
@@ -274,11 +283,14 @@ export function FileListView({
               {visibleFiles.map((file) => {
                   const isPreviewSelected = selectedFile?.id === file.id
                   const isMultiSelected = selectedIds?.has(file.id) ?? false
+                  const isOperating = operatingFiles?.has(file.id)
+                    || (!!file.fullPath && operatingFiles?.has(file.fullPath))
                   const { Icon, color } = getFileIcon(file.name, file.isDirectory)
 
                   return (
                     <ContextMenuBuilder key={file.id} sections={() => generateContextMenu(file)}>
                       <div
+                         aria-busy={isOperating}
                          className={cn(
                            "flex flex-col items-center p-3 rounded-lg cursor-pointer transition-colors duration-150",
                            "hover:bg-accent/60 border border-transparent hover:border-border active:bg-accent",
@@ -289,7 +301,11 @@ export function FileListView({
                          onDoubleClick={(e) => handleFileDoubleClick(e, file)}
                       >
                         <div className="mb-2">
-                          <Icon className={cn("w-12 h-12", color)} />
+                          {isOperating ? (
+                            <RefreshCw className="h-12 w-12 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Icon className={cn("w-12 h-12", color)} />
+                          )}
                         </div>
                         <div className="text-center w-full">
                           <div className="text-sm font-normal truncate" title={file.name}>
@@ -297,7 +313,7 @@ export function FileListView({
                           </div>
                           {!file.isDirectory && (
                             <div className="text-xs text-muted-foreground mt-1">
-                              {file.size || '-'}
+                              {file.size === undefined ? '-' : formatFileSize(file.size)}
                             </div>
                           )}
                         </div>

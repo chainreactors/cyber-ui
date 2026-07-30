@@ -1,9 +1,10 @@
 "use client"
 
 import React from 'react'
-import { useTranslations } from '../runtime'
+import { useFileManagerTranslations } from '../runtime'
 import { FormDialog } from '../ui'
 import type { FileNode } from '../types'
+import { formatFileSize, formatTime } from '../utils/file-manager-utils'
 
 interface FilePropertiesDialogProps {
   open: boolean
@@ -18,7 +19,7 @@ export function FilePropertiesDialog({
   file,
   isWindows,
 }: FilePropertiesDialogProps) {
-  const t = useTranslations('Sessions.fileManagement')
+  const t = useFileManagerTranslations()
 
   if (!file) return null
 
@@ -37,11 +38,11 @@ export function FilePropertiesDialog({
     },
     {
       label: t('properties.size'),
-      value: file.size || '-',
+      value: file.isDirectory || file.size === undefined ? '-' : formatFileSize(file.size),
     },
     {
       label: t('properties.modified'),
-      value: file.time || '-',
+      value: formatTime(file.time) || '-',
     },
     ...(file.link
       ? [

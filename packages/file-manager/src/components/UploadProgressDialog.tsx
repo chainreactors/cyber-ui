@@ -1,6 +1,7 @@
 "use client"
 
 import React from 'react'
+import { createPortal } from 'react-dom'
 
 import { CheckCircle2, Loader2, X, XCircle } from '../icons'
 import { useFileManagerTranslations } from '../runtime'
@@ -83,9 +84,9 @@ export function UploadProgressDialog({
     return () => window.clearTimeout(timer)
   }, [isComplete, onOpenChange, open])
 
-  if (!open || totalFiles === 0) return null
+  if (!open || totalFiles === 0 || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <aside
       aria-label={t('uploadProgress')}
       aria-live="polite"
@@ -120,7 +121,10 @@ export function UploadProgressDialog({
           <Progress value={overallProgress} className="h-2" />
         </div>
 
-        <div className="max-h-[400px] space-y-2 overflow-y-auto rounded-lg border p-3">
+        <div
+          className="max-h-[400px] divide-y divide-border overflow-y-auto"
+          role="list"
+        >
           {progressArray.map((progress) => {
             const inFlight =
               progress.status === 'uploading' ||
@@ -130,7 +134,8 @@ export function UploadProgressDialog({
             return (
               <div
                 key={progress.id}
-                className="flex items-center gap-3 rounded-md bg-muted/30 px-3 py-2"
+                className="flex min-h-14 items-center gap-3 py-3"
+                role="listitem"
               >
                 <div className="shrink-0">
                   {progress.status === 'completed' ? (
@@ -191,6 +196,7 @@ export function UploadProgressDialog({
           </div>
         ) : null}
       </div>
-    </aside>
+    </aside>,
+    document.body,
   )
 }

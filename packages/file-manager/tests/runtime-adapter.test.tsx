@@ -9,6 +9,7 @@ import {
   useFileSystem,
   type FileManagerRuntimeValue,
 } from '../src/runtime'
+import { useFileManagerState } from '../src/hooks/useFileManagerState'
 import type { FileManagerAdapter, FileListing } from '../src/contracts'
 
 const emptyListing = (path: string): FileListing => ({ path, entries: [] })
@@ -89,6 +90,86 @@ describe('file manager runtime adapter boundary', () => {
     })
 
     expect(list).toHaveBeenCalledWith('/tmp', expect.objectContaining({ fresh: true }))
+  })
+
+  it('projects one directory request into both tree and file-list snapshots', async () => {
+    const list = vi.fn(async (path: string) => ({
+      path,
+      entries: [
+        { id: '/tmp/docs', path: '/tmp/docs', name: 'docs', kind: 'directory' as const },
+        { id: '/tmp/report.txt', path: '/tmp/report.txt', name: 'report.txt', kind: 'file' as const },
+      ],
+    }))
+    const adapter: FileManagerAdapter = { pathStyle: 'posix', list }
+    const { result } = renderHook(
+      () => useFileManagerState('snapshot-test', '/tmp', 'posix', false),
+      { wrapper: wrapperFor(runtimeFor(adapter)) },
+    )
+
+    await act(async () => {
+      const snapshot = await result.current.loadDirectorySnapshot('/tmp', true)
+      expect(snapshot.allFiles.map(file => file.name)).toEqual(['docs', 'report.txt'])
+      expect(snapshot.directories.map(file => file.name)).toEqual(['docs'])
+    })
+
+    await act(async () => {
+      await result.current.loadPath('/tmp')
+      await result.current.loadAllFiles('/tmp')
+    })
+
+    expect(list).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let late cache revalidation overwrite a newer navigation', async () => {
+    let finishRevalidation!: (listing: FileListing) => void
+    const list = vi.fn((path: string) => {
+      if (path === '/tmp') {
+        return new Promise<FileListing>((resolve) => {
+          finishRevalidation = resolve
+        })
+      }
+      return Promise.resolve({
+        path,
+        entries: [{
+          id: '/other/current.txt',
+          path: '/other/current.txt',
+          name: 'current.txt',
+          kind: 'file' as const,
+        }],
+      })
+    })
+    const adapter: FileManagerAdapter = { pathStyle: 'posix', list }
+    const { result } = renderHook(
+      () => useFileManagerState('revalidation-race-test', '/tmp', 'posix', false),
+      { wrapper: wrapperFor(runtimeFor(adapter)) },
+    )
+
+    let revalidation!: Promise<boolean>
+    act(() => {
+      revalidation = result.current.revalidateCachedDirectory('/tmp')
+    })
+    await waitFor(() => expect(list).toHaveBeenCalledWith('/tmp', expect.any(Object)))
+
+    await act(async () => {
+      await result.current.navigateToPath('/other')
+    })
+    expect(result.current.currentDirPath).toBe('/other')
+
+    await act(async () => {
+      finishRevalidation({
+        path: '/tmp',
+        entries: [{
+          id: '/tmp/stale.txt',
+          path: '/tmp/stale.txt',
+          name: 'stale.txt',
+          kind: 'file',
+        }],
+      })
+      await revalidation
+    })
+
+    expect(result.current.currentDirPath).toBe('/other')
+    expect(result.current.currentDirFiles.map(file => file.name)).toEqual(['current.txt'])
   })
 
   it('discards a superseded response even when the host request cannot be canceled', async () => {

@@ -20,16 +20,22 @@ function createState(removeEntry: FileManagerState['removeEntry']) {
     usesWindowsPaths: false,
     currentPath: '/tmp',
     currentDirPath: '/tmp',
+    currentDirFiles: [node],
     selection: { selectedIds: new Set<string>(), lastSelectedId: null, selectRange: false },
     selectedFile: node,
+    deleteTargets: [] as FileNode[],
+    deleting: false,
     removeEntry,
     setOperatingFiles: vi.fn(),
     setSelection: vi.fn(),
     setSelectedFile: vi.fn(),
-    loadPath: vi.fn().mockResolvedValue([]),
-    loadAllFiles: vi.fn().mockResolvedValue([]),
+    setDeleteTargets: vi.fn(),
+    setDeleting: vi.fn(),
+    loadDirectorySnapshot: vi.fn().mockResolvedValue({ directories: [], allFiles: [] }),
     updateTreeNode: vi.fn(),
     setCurrentDirFiles: vi.fn(),
+    triggerCacheUpdate: vi.fn(),
+    treeRef: { current: { get: vi.fn() } },
   } as unknown as FileManagerState
 }
 
@@ -51,23 +57,36 @@ function createUploadState() {
 }
 
 describe('file mutation action synchronization', () => {
+  it('opens confirmation without starting a remote deletion', async () => {
+    const removeEntry = vi.fn().mockResolvedValue(undefined) as unknown as FileManagerState['removeEntry']
+    const state = createState(removeEntry)
+    const { result } = renderHook(() => useFileActions(state))
+
+    await act(async () => {
+      await result.current.handleDelete(node)
+    })
+
+    expect(state.setDeleteTargets).toHaveBeenCalledWith([node])
+    expect(removeEntry).not.toHaveBeenCalled()
+  })
+
   it('does not report delete success or refresh before remote completion', async () => {
     let finishRemove!: () => void
     const removeEntry = vi.fn(() => new Promise<void>((resolve) => {
       finishRemove = resolve
     })) as unknown as FileManagerState['removeEntry']
     const state = createState(removeEntry)
+    state.deleteTargets = [node]
     const { result } = renderHook(() => useFileActions(state))
 
     let deleting!: Promise<void>
     act(() => {
-      deleting = result.current.handleDelete(node)
+      deleting = result.current.executeDelete()
     })
 
     await waitFor(() => expect(removeEntry).toHaveBeenCalled())
     expect(state.toast).not.toHaveBeenCalled()
-    expect(state.loadPath).not.toHaveBeenCalled()
-    expect(state.loadAllFiles).not.toHaveBeenCalled()
+    expect(state.loadDirectorySnapshot).not.toHaveBeenCalled()
 
     await act(async () => {
       finishRemove()
@@ -77,17 +96,18 @@ describe('file mutation action synchronization', () => {
     expect(state.toast).toHaveBeenCalledWith(expect.objectContaining({
       title: 'deleteSuccess',
     }))
-    expect(state.loadPath).toHaveBeenCalledWith('/tmp', true)
-    expect(state.loadAllFiles).toHaveBeenCalledWith('/tmp', true)
+    expect(state.loadDirectorySnapshot).toHaveBeenCalledTimes(1)
+    expect(state.loadDirectorySnapshot).toHaveBeenCalledWith('/tmp', true)
   })
 
   it('keeps the entry and cache untouched when remote deletion fails', async () => {
     const removeEntry = vi.fn().mockRejectedValue(new Error('permission denied')) as unknown as FileManagerState['removeEntry']
     const state = createState(removeEntry)
+    state.deleteTargets = [node]
     const { result } = renderHook(() => useFileActions(state))
 
     await act(async () => {
-      await result.current.handleDelete(node)
+      await result.current.executeDelete()
     })
 
     expect(state.toast).toHaveBeenCalledWith(expect.objectContaining({
@@ -97,20 +117,57 @@ describe('file mutation action synchronization', () => {
     }))
     expect(state.setSelection).not.toHaveBeenCalled()
     expect(state.setSelectedFile).not.toHaveBeenCalled()
-    expect(state.loadPath).not.toHaveBeenCalled()
-    expect(state.loadAllFiles).not.toHaveBeenCalled()
+    expect(state.loadDirectorySnapshot).not.toHaveBeenCalled()
+  })
+
+  it('keeps failed selections after a partially successful batch deletion', async () => {
+    const failedNode: FileNode = {
+      ...node,
+      id: '/tmp/locked.txt',
+      fullPath: '/tmp/locked.txt',
+      name: 'locked.txt',
+    }
+    const removeEntry = vi.fn(async (path: string) => {
+      if (path === failedNode.fullPath) throw new Error('permission denied')
+    }) as unknown as FileManagerState['removeEntry']
+    const state = createState(removeEntry)
+    state.deleteTargets = [node, failedNode]
+    state.selection = {
+      selectedIds: new Set([node.id, failedNode.id]),
+      lastSelectedId: failedNode.id,
+      selectRange: false,
+    }
+    const { result } = renderHook(() => useFileActions(state))
+
+    await act(async () => {
+      await result.current.executeDelete()
+    })
+
+    expect(removeEntry).toHaveBeenCalledTimes(2)
+    expect(state.toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'batchDeleteComplete',
+      description: 'batchDeleteCompleteDesc',
+    }))
+    const updateSelection = vi.mocked(state.setSelection).mock.calls[0][0] as (
+      previous: typeof state.selection,
+    ) => typeof state.selection
+    const nextSelection = updateSelection(state.selection)
+    expect(nextSelection.selectedIds.has(node.id)).toBe(false)
+    expect(nextSelection.selectedIds.has(failedNode.id)).toBe(true)
+    expect(state.loadDirectorySnapshot).toHaveBeenCalledTimes(1)
   })
 
   it('does not report a failed deletion when a newer listing supersedes its refresh', async () => {
     const removeEntry = vi.fn().mockResolvedValue(undefined) as unknown as FileManagerState['removeEntry']
     const state = createState(removeEntry)
-    state.loadPath = vi.fn().mockRejectedValue(
+    state.deleteTargets = [node]
+    state.loadDirectorySnapshot = vi.fn().mockRejectedValue(
       new FileManagerError('aborted', 'Operation aborted'),
     )
     const { result } = renderHook(() => useFileActions(state))
 
     await act(async () => {
-      await result.current.handleDelete(node)
+      await result.current.executeDelete()
     })
 
     expect(state.toast).toHaveBeenCalledWith(expect.objectContaining({
@@ -120,26 +177,36 @@ describe('file mutation action synchronization', () => {
       variant: 'destructive',
       title: 'deleteFailed',
     }))
+    expect(state.toast).not.toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'destructive',
+      title: 'refreshFailed',
+    }))
   })
 
   it('updates the directory tree after a dialog upload completes', async () => {
     const state = createUploadState()
     const treeChildren = [{ ...node, name: 'report.txt' }]
-    state.loadPath = vi.fn().mockResolvedValue(treeChildren)
+    state.loadDirectorySnapshot = vi.fn().mockResolvedValue({
+      directories: treeChildren,
+      allFiles: treeChildren,
+    })
     const { result } = renderHook(() => useFileActions(state))
 
     await act(async () => {
       await result.current.executeUpload()
     })
 
-    expect(state.loadPath).toHaveBeenCalledWith('/tmp', true)
+    expect(state.loadDirectorySnapshot).toHaveBeenCalledWith('/tmp', true)
     expect(state.updateTreeNode).toHaveBeenCalledWith('/tmp', treeChildren)
   })
 
   it('updates the directory tree after dropped uploads complete', async () => {
     const state = createUploadState()
     const treeChildren = [{ ...node, name: 'dropped.txt' }]
-    state.loadPath = vi.fn().mockResolvedValue(treeChildren)
+    state.loadDirectorySnapshot = vi.fn().mockResolvedValue({
+      directories: treeChildren,
+      allFiles: treeChildren,
+    })
     const { result } = renderHook(() => useFileActions(state))
 
     await act(async () => {
@@ -148,7 +215,7 @@ describe('file mutation action synchronization', () => {
       ])
     })
 
-    expect(state.loadPath).toHaveBeenCalledWith('/tmp', true)
+    expect(state.loadDirectorySnapshot).toHaveBeenCalledWith('/tmp', true)
     expect(state.updateTreeNode).toHaveBeenCalledWith('/tmp', treeChildren)
   })
 
@@ -175,15 +242,73 @@ describe('file mutation action synchronization', () => {
       fullPath: 'C:/Users/jack/Desktop/z/new-folder',
       isDirectory: true,
     }]
-    state.loadPath = vi.fn().mockResolvedValue(treeChildren)
-    state.loadAllFiles = vi.fn().mockResolvedValue(treeChildren)
+    state.loadDirectorySnapshot = vi.fn().mockResolvedValue({
+      directories: treeChildren,
+      allFiles: treeChildren,
+    })
     const { result } = renderHook(() => useFileActions(state))
 
     await act(async () => {
       await result.current.handleCreateFolder()
     })
 
-    expect(state.loadAllFiles).toHaveBeenCalledWith('c:/users/jack/desktop/z', true)
+    expect(state.loadDirectorySnapshot).toHaveBeenCalledWith('C:/Users/jack/Desktop/z', true)
     expect(state.setCurrentDirFiles).toHaveBeenCalledWith(treeChildren)
+  })
+
+  it('keeps a successful mutation successful when only the follow-up refresh fails', async () => {
+    const state = Object.assign(
+      createState(vi.fn().mockResolvedValue(undefined) as unknown as FileManagerState['removeEntry']),
+      {
+        newFolderName: 'archive',
+        creatingFolder: false,
+        createDirectory: vi.fn().mockResolvedValue(undefined),
+        setCreatingFolder: vi.fn(),
+        setShowCreateFolder: vi.fn(),
+        setNewFolderName: vi.fn(),
+        setContextMenuTargetPath: vi.fn(),
+      },
+    )
+    state.loadDirectorySnapshot = vi.fn().mockRejectedValue(new Error('refresh timeout'))
+    const { result } = renderHook(() => useFileActions(state))
+
+    await act(async () => {
+      await result.current.handleCreateFolder()
+    })
+
+    expect(state.toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'folderCreateSuccess',
+    }))
+    expect(state.toast).toHaveBeenCalledWith(expect.objectContaining({
+      variant: 'destructive',
+      title: 'refreshFailed',
+    }))
+    expect(state.toast).not.toHaveBeenCalledWith(expect.objectContaining({
+      title: 'folderCreateFailed',
+    }))
+  })
+
+  it('resolves selected files from the visible list when they are absent from the tree', async () => {
+    const state = createState(vi.fn().mockResolvedValue(undefined) as unknown as FileManagerState['removeEntry'])
+    state.selection = {
+      selectedIds: new Set([node.id]),
+      lastSelectedId: node.id,
+      selectRange: false,
+    }
+    state.downloadFile = vi.fn().mockResolvedValue(undefined)
+    state.setDownloading = vi.fn()
+    const { result } = renderHook(() => useFileActions(state))
+
+    await act(async () => {
+      await result.current.handleBatchDelete()
+    })
+    expect(state.setDeleteTargets).toHaveBeenCalledWith([node])
+
+    await act(async () => {
+      await result.current.handleBatchDownload()
+    })
+    expect(state.downloadFile).toHaveBeenCalledWith('/tmp/report.txt', expect.objectContaining({
+      name: 'report.txt',
+    }))
   })
 })

@@ -20,6 +20,11 @@ import { isFileManagerAbortError } from "../contracts"
 import type { PathStyle } from "../path-strategy"
 import React from "react"
 
+interface DirectorySnapshot {
+  allFiles: FileNode[]
+  directories: FileNode[]
+}
+
 export function useFileManagerState(
   scopeKey: string,
   initialPath: string,
@@ -96,6 +101,7 @@ export function useFileManagerState(
   const [showCreateFile, setShowCreateFile] = useState(false)
   const [showRenameDialog, setShowRenameDialog] = useState(false)
   const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [deleteTargets, setDeleteTargets] = useState<FileNode[]>([])
   const [newFolderName, setNewFolderName] = useState('')
   const [newFileName, setNewFileName] = useState('')
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string; path: string } | null>(null)
@@ -325,31 +331,40 @@ export function useFileManagerState(
     return size < MAX_TEXT_SIZE && (textExtensions.includes(extension) || !extension)
   }, [])
 
-  // Load all files (including both directories and files) for middle panel
-  const loadAllFiles = useCallback(async (
+  // A directory listing is the source for both the tree and the file list. Keep
+  // the two projections in one cache entry so a navigation performs one request.
+  const loadDirectorySnapshot = useCallback(async (
     path: string,
     forceFresh: boolean = false,
     throwOnNotFound: boolean = false
-  ): Promise<FileNode[]> => {
+  ): Promise<DirectorySnapshot> => {
     const normalizedPath = normalizePath(path, usesWindowsPaths)
 
-    if (!forceFresh && cacheMode === 'cached' && allFilesCache.current.has(normalizedPath)) {
-      const tsKey = `all:${normalizedPath}`
-      const ts = cacheTimestamps.current.get(tsKey)
-      if (ts && (Date.now() - ts) < CACHE_TTL_MS) {
-        const cached = getBoundedMapEntry(allFilesCache.current, normalizedPath)
-        if (cached) return cached
-      } else {
-        // TTL expired, remove stale entry
-        allFilesCache.current.delete(normalizedPath)
-        cacheTimestamps.current.delete(tsKey)
+    if (!forceFresh && cacheMode === 'cached') {
+      const treeTimestamp = cacheTimestamps.current.get(`tree:${normalizedPath}`)
+      const allFilesTimestamp = cacheTimestamps.current.get(`all:${normalizedPath}`)
+      const now = Date.now()
+      const cacheIsFresh = !!treeTimestamp && !!allFilesTimestamp
+        && now - treeTimestamp < CACHE_TTL_MS
+        && now - allFilesTimestamp < CACHE_TTL_MS
+
+      if (cacheIsFresh) {
+        const directories = getBoundedMapEntry(fileCache.current, normalizedPath)
+        const allFiles = getBoundedMapEntry(allFilesCache.current, normalizedPath)
+        if (directories && allFiles) {
+          return { directories, allFiles }
+        }
       }
+
+      fileCache.current.delete(normalizedPath)
+      allFilesCache.current.delete(normalizedPath)
+      cacheTimestamps.current.delete(`tree:${normalizedPath}`)
+      cacheTimestamps.current.delete(`all:${normalizedPath}`)
     }
 
     try {
-      const files = await listDirectory(normalizedPath, forceFresh)
-
-      files.sort((a, b) => {
+      setLoadingNodes(prev => new Set(prev).add(normalizedPath))
+      const files = [...await listDirectory(normalizedPath, forceFresh)].sort((a, b) => {
         if (a.isDirectory !== b.isDirectory) {
           return a.isDirectory ? -1 : 1
         }
@@ -360,84 +375,29 @@ export function useFileManagerState(
         id: normalizePath(file.fullPath || `${normalizedPath}/${file.name}`, usesWindowsPaths),
         name: file.name,
         isDirectory: file.isDirectory ?? false,
-        fullPath: file.fullPath ? normalizePath(file.fullPath, usesWindowsPaths) : undefined,
+        fullPath: normalizePath(file.fullPath || `${normalizedPath}/${file.name}`, usesWindowsPaths),
         isLazy: file.isDirectory,
         children: file.isDirectory ? [] : [],
         size: file.size,
         mode: file.mode,
         time: file.time
       })))
+      const directories = filterDirectoryTree(fileNodes)
+      const timestamp = Date.now()
 
       setBoundedMapEntry(allFilesCache.current, normalizedPath, fileNodes, MAX_ALL_FILES_CACHE_DIRS)
-      cacheTimestamps.current.set(`all:${normalizedPath}`, Date.now())
-      return fileNodes
+      setBoundedMapEntry(fileCache.current, normalizedPath, directories, MAX_TREE_CACHE_DIRS)
+      cacheTimestamps.current.set(`all:${normalizedPath}`, timestamp)
+      cacheTimestamps.current.set(`tree:${normalizedPath}`, timestamp)
+      return { allFiles: fileNodes, directories }
     } catch (err: unknown) {
       if (isFileNotFoundError(err)) {
         if (throwOnNotFound) throw err
         console.warn(`Path not found (silent): ${normalizedPath}`)
-        return []
+        return { allFiles: [], directories: [] }
       }
       if (isFileManagerAbortError(err)) throw err
-      console.error(`Failed to load all files from ${normalizedPath}:`, err)
-      throw err
-    }
-  }, [listDirectory, usesWindowsPaths, cacheMode, dedupeFileNodes])
-
-  const loadPath = useCallback(async (
-    path: string,
-    forceFresh: boolean = false,
-    throwOnNotFound: boolean = false
-  ): Promise<FileNode[]> => {
-    const normalizedPath = normalizePath(path, usesWindowsPaths)
-
-    if (!forceFresh && cacheMode === 'cached' && fileCache.current.has(normalizedPath)) {
-      const tsKey = `tree:${normalizedPath}`
-      const ts = cacheTimestamps.current.get(tsKey)
-      if (ts && (Date.now() - ts) < CACHE_TTL_MS) {
-        const cached = getBoundedMapEntry(fileCache.current, normalizedPath)
-        if (cached) return cached
-      } else {
-        // TTL expired, remove stale entry
-        fileCache.current.delete(normalizedPath)
-        cacheTimestamps.current.delete(tsKey)
-      }
-    }
-
-    try {
-      setLoadingNodes(prev => new Set(prev).add(normalizedPath))
-      const files = await listDirectory(normalizedPath, forceFresh)
-
-      files.sort((a, b) => {
-        if (a.isDirectory !== b.isDirectory) {
-          return a.isDirectory ? -1 : 1
-        }
-        return a.name.localeCompare(b.name)
-      })
-
-      const fileNodes: FileNode[] = filterDirectoryTree(dedupeFileNodes(files
-        .map(file => ({
-          id: normalizePath(file.fullPath || `${normalizedPath}/${file.name}`, usesWindowsPaths),
-          name: file.name,
-          isDirectory: file.isDirectory ?? false,
-          fullPath: file.fullPath ? normalizePath(file.fullPath, usesWindowsPaths) : undefined,
-          isLazy: file.isDirectory,
-          children: file.isDirectory ? [] : undefined,
-          size: file.size,
-          mode: file.mode,
-          time: file.time
-        }))))
-
-      setBoundedMapEntry(fileCache.current, normalizedPath, fileNodes, MAX_TREE_CACHE_DIRS)
-      cacheTimestamps.current.set(`tree:${normalizedPath}`, Date.now())
-      return fileNodes
-    } catch (err: unknown) {
-      if (isFileNotFoundError(err)) {
-        if (throwOnNotFound) throw err
-        console.warn(`Path not found (silent): ${normalizedPath}`)
-        return []
-      }
-      if (isFileManagerAbortError(err)) throw err
-      console.error(`Failed to load path ${normalizedPath}:`, err)
+      console.error(`Failed to load directory ${normalizedPath}:`, err)
       throw err
     } finally {
       setLoadingNodes(prev => {
@@ -448,20 +408,39 @@ export function useFileManagerState(
     }
   }, [listDirectory, usesWindowsPaths, cacheMode, dedupeFileNodes])
 
+  // Load all files (including both directories and files) for middle panel.
+  const loadAllFiles = useCallback(async (
+    path: string,
+    forceFresh: boolean = false,
+    throwOnNotFound: boolean = false
+  ): Promise<FileNode[]> => {
+    const snapshot = await loadDirectorySnapshot(path, forceFresh, throwOnNotFound)
+    return snapshot.allFiles
+  }, [loadDirectorySnapshot])
+
+  const loadPath = useCallback(async (
+    path: string,
+    forceFresh: boolean = false,
+    throwOnNotFound: boolean = false
+  ): Promise<FileNode[]> => {
+    const snapshot = await loadDirectorySnapshot(path, forceFresh, throwOnNotFound)
+    return snapshot.directories
+  }, [loadDirectorySnapshot])
+
   // Build tree from root to target path
   const buildTreeFromPath = useCallback(async (targetPath: string, isInitialLoad: boolean = false) => {
     const normalizedTarget = normalizePath(targetPath, usesWindowsPaths)
     const pathParts = normalizedTarget.split('/').filter(p => p.trim())
 
     if (pathParts.length === 0) {
-      const files = await loadPath(normalizedTarget)
+      const snapshot = await loadDirectorySnapshot(normalizedTarget)
       const rootNode: FileNode = {
         id: normalizedTarget,
         name: normalizedTarget,
         fullPath: normalizedTarget,
         isDirectory: true,
         isLazy: false,
-        children: files
+        children: snapshot.directories
       }
 
       if (isInitialLoad || !usesWindowsPaths) {
@@ -485,8 +464,7 @@ export function useFileManagerState(
         })
       }
       setExpandedNodes(new Set([normalizedTarget]))
-      const allFiles = await loadAllFiles(normalizedTarget)
-      setCurrentDirFiles(allFiles)
+      setCurrentDirFiles(snapshot.allFiles)
       setCurrentDirPath(normalizedTarget)
       return
     }
@@ -547,14 +525,14 @@ export function useFileManagerState(
     setExpandedNodes(expandedIds)
 
     try {
-      const targetFiles = await loadPath(normalizedTarget)
+      const snapshot = await loadDirectorySnapshot(normalizedTarget)
 
       const updateNode = (node: FileNode): FileNode => {
         if (normalizeForComparison(node.id) === normalizeForComparison(normalizedTarget)) {
           return {
             ...node,
             isLazy: false,
-            children: targetFiles
+            children: snapshot.directories
           }
         }
         if (node.children && node.children.length > 0) {
@@ -568,8 +546,7 @@ export function useFileManagerState(
 
       const updatedRootNode = updateNode(rootNode)
 
-      const allFiles = await loadAllFiles(normalizedTarget)
-      setCurrentDirFiles(allFiles)
+      setCurrentDirFiles(snapshot.allFiles)
       setCurrentDirPath(normalizedTarget)
 
       if (isInitialLoad) {
@@ -648,7 +625,7 @@ export function useFileManagerState(
       }
     }
 
-  }, [loadPath, usesWindowsPaths, replaceTree, loadAllFiles])
+  }, [loadDirectorySnapshot, usesWindowsPaths, replaceTree])
 
   // Initialize file system
   const initializeFileSystem = useCallback(async () => {
@@ -679,6 +656,30 @@ export function useFileManagerState(
       })
     }
   }, [initialPath, getCurrentDirectory, usesWindowsPaths, buildTreeFromPath, toast, t, triggerCacheUpdate])
+
+  // Persisted cache is only an immediate paint. Validate the visible directory
+  // in the background so stale entries do not remain authoritative.
+  const revalidateCachedDirectory = useCallback(async (path: string): Promise<boolean> => {
+    const normalizedPath = normalizePath(path, usesWindowsPaths)
+    const navigationSequence = navigationSequenceRef.current
+
+    try {
+      const snapshot = await loadDirectorySnapshot(normalizedPath, true, true)
+      if (navigationSequence !== navigationSequenceRef.current) return true
+      updateTreeNode(normalizedPath, snapshot.directories)
+      setCurrentDirFiles(snapshot.allFiles)
+      setCurrentDirPath(normalizedPath)
+      triggerCacheUpdate()
+      return true
+    } catch (error) {
+      if (navigationSequence !== navigationSequenceRef.current) return true
+      if (isFileNotFoundError(error)) return false
+      if (!isFileManagerAbortError(error)) {
+        console.warn(`Failed to revalidate cached directory ${normalizedPath}:`, error)
+      }
+      return true
+    }
+  }, [loadDirectorySnapshot, triggerCacheUpdate, updateTreeNode, usesWindowsPaths])
 
   // Refresh file system with loading state and toast
   const handleRefresh = useCallback(async () => {
@@ -878,26 +879,39 @@ export function useFileManagerState(
     }
 
     try {
-      const children = await loadPath(normalizedPath, true)
+      const refreshedSnapshots = new Map<string, DirectorySnapshot>()
+      const refreshSnapshot = async (path: string) => {
+        const normalized = normalizePath(path, usesWindowsPaths)
+        const existing = refreshedSnapshots.get(normalized)
+        if (existing) return existing
+        const snapshot = await loadDirectorySnapshot(normalized, true)
+        refreshedSnapshots.set(normalized, snapshot)
+        return snapshot
+      }
+
+      const snapshot = await refreshSnapshot(normalizedPath)
       const descendantResults: Array<{ id: string; children: FileNode[] }> = []
 
       for (const descendant of expandedDescendants) {
+        const descendantSnapshot = await refreshSnapshot(descendant.normalized)
         descendantResults.push({
           id: descendant.id,
-          children: await loadPath(descendant.normalized, true)
+          children: descendantSnapshot.directories
         })
       }
 
       const shouldRefreshCurrentDir = normalizePath(currentDirPath, usesWindowsPaths) === normalizedPath ||
         normalizePath(currentDirPath, usesWindowsPaths).startsWith(`${normalizedPath}/`)
-      const allFiles = shouldRefreshCurrentDir ? await loadAllFiles(currentDirPath, true) : null
+      const currentSnapshot = shouldRefreshCurrentDir
+        ? await refreshSnapshot(currentDirPath)
+        : null
 
-      updateTreeNode(node.data.id, children)
+      updateTreeNode(node.data.id, snapshot.directories)
       for (const descendant of descendantResults) {
         updateTreeNode(descendant.id, descendant.children)
       }
-      if (allFiles) {
-        setCurrentDirFiles(allFiles)
+      if (currentSnapshot) {
+        setCurrentDirFiles(currentSnapshot.allFiles)
       }
 
       toast({
@@ -913,7 +927,7 @@ export function useFileManagerState(
         description: error instanceof Error ? error.message : t('unknownError')
       })
     }
-  }, [expandedNodes, usesWindowsPaths, loadPath, loadAllFiles, updateTreeNode, currentDirPath, setCurrentDirFiles, toast, t, triggerCacheUpdate])
+  }, [expandedNodes, usesWindowsPaths, loadDirectorySnapshot, updateTreeNode, currentDirPath, setCurrentDirFiles, toast, t, triggerCacheUpdate])
 
   // Handle node toggle for react-arborist (string ID parameter)
   const handleTreeToggle = useCallback(async (id: string) => {
@@ -969,8 +983,7 @@ export function useFileManagerState(
       const pathParts = normalizedPath.split('/').filter(p => p.trim())
 
       if (pathParts.length === 0) {
-        const files = await loadPath(normalizedPath, true, true)
-        const allFiles = await loadAllFiles(normalizedPath, true, true)
+        const snapshot = await loadDirectorySnapshot(normalizedPath, cacheMode === 'live', true)
         if (navigationSequence !== navigationSequenceRef.current) return
         const rootNode: FileNode = {
           id: normalizedPath,
@@ -978,7 +991,7 @@ export function useFileManagerState(
           fullPath: normalizedPath,
           isDirectory: true,
           isLazy: false,
-          children: files
+          children: snapshot.directories
         }
 
         if (!usesWindowsPaths) {
@@ -1002,10 +1015,13 @@ export function useFileManagerState(
           })
         }
         setExpandedNodes(new Set([normalizedPath]))
-        setCurrentDirFiles(allFiles)
+        setCurrentDirFiles(snapshot.allFiles)
         setCurrentDirPath(normalizedPath)
         setCurrentPath(normalizedPath)
         setPathInputValue(displayPath)
+        setSelection({ selectedIds: new Set(), lastSelectedId: null, selectRange: false })
+        setSelectedFile(null)
+        triggerCacheUpdate()
         return
       }
 
@@ -1074,8 +1090,7 @@ export function useFileManagerState(
         }
       }
 
-      const targetFiles = await loadPath(normalizedPath, true, true)
-      const allFiles = await loadAllFiles(normalizedPath, true, true)
+      const snapshot = await loadDirectorySnapshot(normalizedPath, cacheMode === 'live', true)
       if (navigationSequence !== navigationSequenceRef.current) return
 
       setTreeData(prevData => {
@@ -1089,10 +1104,10 @@ export function useFileManagerState(
       const expandedIds = new Set(pathsToEnsure)
       setExpandedNodes(expandedIds)
 
-      updateTreeNode(normalizedPath, targetFiles)
+      updateTreeNode(normalizedPath, snapshot.directories)
 
       React.startTransition(() => {
-        setCurrentDirFiles(allFiles)
+        setCurrentDirFiles(snapshot.allFiles)
         setCurrentDirPath(normalizedPath)
         setCurrentPath(normalizedPath)
         setPathInputValue(displayPath)
@@ -1142,7 +1157,7 @@ export function useFileManagerState(
         isNavigatingRef.current = false
       }
     }
-  }, [currentPath, usesWindowsPaths, loadPath, loadAllFiles, replaceTree, updateTreeNode, toast, t, triggerCacheUpdate])
+  }, [currentPath, usesWindowsPaths, loadDirectorySnapshot, cacheMode, replaceTree, updateTreeNode, toast, t, triggerCacheUpdate])
 
   // Navigate to parent directory
   const navigateUp = useCallback(() => {
@@ -1321,6 +1336,8 @@ export function useFileManagerState(
     setShowRenameDialog,
     showUploadDialog,
     setShowUploadDialog,
+    deleteTargets,
+    setDeleteTargets,
     newFolderName,
     setNewFolderName,
     newFileName,
@@ -1409,8 +1426,10 @@ export function useFileManagerState(
     // Core file ops
     loadAllFiles,
     loadPath,
+    loadDirectorySnapshot,
     buildTreeFromPath,
     initializeFileSystem,
+    revalidateCachedDirectory,
 
     // Tree ops & navigation
     handleRefresh,

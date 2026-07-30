@@ -154,6 +154,18 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     return true
   }
 
+  const restoreAndRevalidateFileTreeCache = (cached: any) => {
+    if (!restoreFileTreeCache(cached)) return false
+
+    const visiblePath = cached.currentDirPath || cached.currentPath
+    void state.revalidateCachedDirectory(visiblePath).then((isValid) => {
+      if (!isValid) {
+        state.initializeFileSystem()
+      }
+    })
+    return true
+  }
+
   const buildFileTreeCacheData = (source: {
     treeData: FileNode[]
     expandedNodes: Set<string>
@@ -274,14 +286,14 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
 
   // ESC key to close file preview (only when no dialog is open)
   useHotkeys('escape', (e) => {
-    if (state.fileSizeWarning || state.showCreateFolder || state.showCreateFile || state.showRenameDialog || state.showUploadDialog) {
+    if (state.fileSizeWarning || state.showCreateFolder || state.showCreateFile || state.showRenameDialog || state.showUploadDialog || state.deleteTargets.length > 0) {
       return
     }
     if (state.selectedFile) {
       e.preventDefault()
       state.setSelectedFile(null)
     }
-  }, { enabled: !state.fileSizeWarning && !state.showCreateFolder && !state.showCreateFile && !state.showRenameDialog && !state.showUploadDialog })
+  }, { enabled: !state.fileSizeWarning && !state.showCreateFolder && !state.showCreateFile && !state.showRenameDialog && !state.showUploadDialog && state.deleteTargets.length === 0 })
 
   // Initialize once per mounted scope.
   const hasInitialized = useRef(false)
@@ -292,12 +304,14 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
       // Fast path: check memory cache (synchronous)
       const cached = state.getFileTreeCache()
       if (cached && cached.treeData && cached.treeData.length > 0 && cached.currentPath) {
-        restoreFileTreeCache(cached)
+        if (!restoreAndRevalidateFileTreeCache(cached)) {
+          state.initializeFileSystem()
+        }
       } else {
         // Slow path: try the injected cache before loading fresh data.
         state.loadFileTreeCache().then((lowerCached) => {
           if (lowerCached && lowerCached.treeData && lowerCached.treeData.length > 0 && lowerCached.currentPath) {
-            if (!restoreFileTreeCache(lowerCached)) {
+            if (!restoreAndRevalidateFileTreeCache(lowerCached)) {
               state.initializeFileSystem()
             }
           } else {
@@ -474,6 +488,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
                 <FileListView
                   currentDirFiles={state.currentDirFiles}
                   currentDirPath={state.currentDirPath}
+                  loading={state.loadingNodes.size > 0}
                   visibleFiles={state.visibleFiles}
                   selectedFile={state.selectedFile}
                   viewMode={state.viewMode}
@@ -551,6 +566,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
             <FileListView
               currentDirFiles={state.currentDirFiles}
               currentDirPath={state.currentDirPath}
+              loading={state.loadingNodes.size > 0}
               visibleFiles={state.visibleFiles}
               selectedFile={state.selectedFile}
               viewMode={state.viewMode}
@@ -606,6 +622,10 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
         executeRename={actions.executeRename}
         showUploadDialog={state.showUploadDialog}
         setShowUploadDialog={state.setShowUploadDialog}
+        deleteTargets={state.deleteTargets}
+        setDeleteTargets={state.setDeleteTargets}
+        deleting={state.deleting}
+        executeDelete={actions.executeDelete}
         selectedUploadFile={state.selectedUploadFile}
         setSelectedUploadFile={state.setSelectedUploadFile}
         uploadTargetPath={state.uploadTargetPath}

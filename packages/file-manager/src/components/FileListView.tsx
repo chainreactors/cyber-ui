@@ -30,6 +30,7 @@ import { useFileManagerRuntime } from "../runtime"
 interface FileListViewProps {
   currentDirFiles: FileNode[]
   currentDirPath: string
+  loading?: boolean
   visibleFiles: FileNode[]
   selectedFile: FileNode | null
   viewMode: 'list' | 'grid'
@@ -55,6 +56,7 @@ interface FileListViewProps {
 export function FileListView({
   currentDirFiles,
   currentDirPath,
+  loading = false,
   visibleFiles,
   selectedFile,
   viewMode,
@@ -155,7 +157,14 @@ export function FileListView({
           </div>
         )}
 
-        {currentDirFiles.length === 0 ? (
+        {loading && currentDirFiles.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground" role="status">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 animate-spin" />
+              <span>{t('loading')}</span>
+            </div>
+          </div>
+        ) : currentDirFiles.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <Folder className="w-16 h-16 mx-auto mb-4 opacity-20" />

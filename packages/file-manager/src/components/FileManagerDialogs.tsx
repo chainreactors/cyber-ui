@@ -1,7 +1,15 @@
 import React from "react"
 import { useFileManagerTranslations } from "../runtime"
-import { Button, Input } from "../ui"
-import { Dialog, DialogContent, DialogTitle } from "../ui"
+import {
+  Button,
+  Input,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui"
 import {
   Upload,
   RefreshCw,
@@ -51,6 +59,11 @@ interface FileManagerDialogsProps {
   // Upload dialog
   showUploadDialog: boolean
   setShowUploadDialog: (show: boolean) => void
+  // Delete confirmation
+  deleteTargets: FileNode[]
+  setDeleteTargets: (targets: FileNode[]) => void
+  deleting: boolean
+  executeDelete: () => Promise<void>
   selectedUploadFile: File | null
   setSelectedUploadFile: (file: File | null) => void
   uploadTargetPath: string
@@ -111,6 +124,10 @@ export function FileManagerDialogs({
   executeRename,
   showUploadDialog,
   setShowUploadDialog,
+  deleteTargets,
+  setDeleteTargets,
+  deleting,
+  executeDelete,
   selectedUploadFile,
   setSelectedUploadFile,
   uploadTargetPath,
@@ -161,6 +178,54 @@ export function FileManagerDialogs({
         onChange={handleFileSelect}
         multiple={false}
       />
+
+      {/* Delete confirmation */}
+      <Dialog
+        open={deleteTargets.length > 0}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTargets([])
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              {t('delete')}
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              <span className="block">
+                {deleteTargets.length === 1
+                  ? t('confirmDelete', { name: deleteTargets[0].name })
+                  : t('confirmBatchDelete', { count: deleteTargets.length })}
+              </span>
+              <span className="block">{t('deleteWarning')}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleting}
+              onClick={() => setDeleteTargets([])}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => void executeDelete()}
+            >
+              {deleting ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  {t('deleting')}
+                </>
+              ) : t('delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create folder dialog */}
       {showCreateFolder && (

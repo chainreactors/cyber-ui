@@ -1,28 +1,88 @@
 # @cyber/file-manager
 
-IoM 文件管理器的共享 cyber-ui 版本。核心状态、目录树、列表/网格、批量操作、拖拽上传、进度、属性和权限交互均直接迁自 IoM，数据访问通过 `FileManagerAdapter` 注入。
+Reusable React file manager for POSIX, Windows drive, UNC, and virtual file spaces.
+The package owns file navigation and interaction state. Host applications provide
+their transport, permissions, persistence, notifications, preview, and business
+actions through explicit adapters.
 
-额外提供：
+## Install
 
-- 文件与目录空白区域右键菜单
-- 路径输入快速跳转
-- `historyKey` 隔离并持久化的近期路径历史
-- Windows / UNC / POSIX 路径处理
-- 根据 adapter 能力隐藏不支持的操作
+```bash
+pnpm add @cyber/file-manager
+```
+
+Import the published component styles once in the host application:
+
+```ts
+import '@cyber/file-manager/styles.css'
+```
+
+The package supports React 18 and React 19.
+
+## Basic Usage
 
 ```tsx
-import { FileManager, type FileManagerAdapter } from '@cyber/file-manager'
+import {
+  FileManager,
+  type FileManagerAdapter,
+} from '@cyber/file-manager'
 
 const adapter: FileManagerAdapter = {
-  list: (path) => api.list(path),
-  mkdir: (path) => api.mkdir(path),
-  upload: (file, targetPath) => api.upload(file, targetPath),
+  pathStyle: 'posix',
+  async list(path, { signal }) {
+    const response = await api.listFiles(path, { signal })
+    return {
+      path,
+      entries: response.files.map((file) => ({
+        id: file.path,
+        path: file.path,
+        name: file.name,
+        kind: file.directory ? 'directory' : 'file',
+        sizeBytes: file.size,
+        modifiedAt: file.modifiedAt,
+      })),
+    }
+  },
+  createDirectory: (path, context) => api.mkdir(path, context),
+  upload: (file, targetPath, context) => api.upload(file, targetPath, context),
 }
 
-<FileManager
-  adapter={adapter}
-  initialPath="/tmp"
-  sourceKey="session-1"
-  historyKey="session-1-files"
-/>
+export function WorkspaceFiles() {
+  return (
+    <FileManager
+      adapter={adapter}
+      initialPath="/workspace"
+      locale="en"
+      scopeKey="app:account:user:workspace"
+    />
+  )
+}
 ```
+
+`path`, `FileListing.path`, and every `FileEntry.path` must be canonical for the
+adapter's `pathStyle`. File sizes are byte counts and modification times are Unix
+timestamps in milliseconds.
+
+## Host Integration
+
+- Optional adapter methods determine which write operations appear.
+- Mutation methods must resolve only after the backing data source confirms the
+  operation completed. Job-based transports must wait for terminal success and
+  reject terminal errors instead of resolving when a job is merely submitted.
+- Overlapping mutation paths are locked while an operation is pending. Mutations
+  on unrelated paths remain available and may run concurrently.
+- `cache` accepts a versioned persistence adapter, or `false` to disable persistence.
+- `getActions` adds platform actions without importing platform concepts into the package.
+- `renderPreview` or `slots.preview` renders the host's file viewer.
+- `notify`, `onEvent`, `onOperationError`, and `onOperationSuccess` bridge host feedback.
+- `messages` overrides the complete English or Simplified Chinese catalog.
+- `scopeKey` must include application, account/user, and data-source boundaries.
+- Layout follows the component container: widths below 768 px use the compact
+  toolbar and a directory-only tree sheet contained within the file manager,
+  while wider containers show the persistent directory tree.
+- Menus, sheets, and dialogs consume their own `Escape` keypress before it reaches
+  an enclosing host modal.
+
+Use the `--cyber-file-manager-*` CSS custom properties to map host theme tokens.
+The same variables apply to `.cyber-file-manager-portal`, which covers menus,
+dialogs, tooltips, and compact-layout sheets rendered outside the component root.

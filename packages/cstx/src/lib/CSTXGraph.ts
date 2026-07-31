@@ -12,7 +12,7 @@ export class CSTXGraph {
   }
 
   static empty(): CSTXGraph {
-    return CSTXGraph.fromSnapshot({ nodes: [], edges: [], types: {} });
+    return CSTXGraph.fromSnapshot({ format: 'cstx.snapshot', version: 1, nodes: [], edges: [], types: {} });
   }
 
   static fromSnapshot(snapshot: CSTXSnapshot): CSTXGraph {
@@ -37,6 +37,8 @@ export class CSTXGraph {
 
   toSnapshot(): CSTXSnapshot {
     return {
+      format: 'cstx.snapshot',
+      version: 1,
       nodes: this.nodes(),
       edges: this.edges(),
       types: { ...this.graph.getAttribute('types') },
@@ -100,7 +102,13 @@ export class CSTXGraph {
     const selected = new Set(nodeIds);
     const nodes = this.nodes().filter((node) => selected.has(node.id));
     const edges = this.edges().filter((edge) => selected.has(edge.source_id) && selected.has(edge.target_id));
-    return CSTXGraph.fromSnapshot({ nodes, edges, types: { ...this.graph.getAttribute('types') } });
+    return CSTXGraph.fromSnapshot({
+      format: 'cstx.snapshot',
+      version: 1,
+      nodes,
+      edges,
+      types: { ...this.graph.getAttribute('types') },
+    });
   }
 
   private cloneNode(node: CSTXNode): CSTXNode {
@@ -118,7 +126,8 @@ export const getCSTXNodeLabel = (node: CSTXNode): string => {
     const value = model[key];
     if (typeof value === 'string' && value.length > 0) return value;
   }
-  return node.value;
+  if (node.value.length > 0) return node.value;
+  return node.id;
 };
 
 export const getCSTXNodeField = (node: CSTXNode, key: string): unknown => {

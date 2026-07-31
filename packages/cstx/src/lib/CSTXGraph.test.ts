@@ -4,6 +4,8 @@ import type {CSTXSnapshot} from '../types/transport.gen';
 import {CSTXGraph, mergeSnapshots} from '../index';
 
 const snapshot: CSTXSnapshot = {
+  format: 'cstx.snapshot',
+  version: 1,
   nodes: [
     {id: 'domain:example.com', type: 'domain-name', value: 'example.com', model: {host: 'example.com'}, sources: ['target'], extras: {}},
     {id: 'domain:api.example.com', type: 'subdomain', value: 'api.example.com', model: {host: 'api.example.com'}, sources: ['dnsx'], extras: {}},
@@ -38,6 +40,8 @@ describe('CSTXGraph', () => {
 
   it('merges snapshots by canonical node and edge identity', () => {
     const merged = mergeSnapshots(snapshot, {
+      format: 'cstx.snapshot',
+      version: 1,
       nodes: [{...snapshot.nodes[0], sources: ['override']}],
       edges: [],
       types: {subdomain: {title: 'Subdomain'}},

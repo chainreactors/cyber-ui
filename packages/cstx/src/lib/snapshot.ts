@@ -11,5 +11,11 @@ export function mergeSnapshots(...snapshots: CSTXSnapshot[]): CSTXSnapshot {
         for (const edge of snapshot.edges) edges.set(edge.id, edge);
     }
 
-    return {nodes: [...nodes.values()], edges: [...edges.values()], types};
+    return {
+        format: 'cstx.snapshot',
+        version: 1,
+        nodes: [...nodes.values()],
+        edges: [...edges.values()],
+        types,
+    };
 }

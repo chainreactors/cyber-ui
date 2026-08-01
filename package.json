@@ -9,5 +9,11 @@
   },
   "devDependencies": {
     "turbo": "^2.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "18.3.31",
+      "@types/react-dom": "18.3.7"
+    }
   }
 }

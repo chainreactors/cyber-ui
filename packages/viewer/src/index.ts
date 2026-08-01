@@ -91,26 +91,8 @@ export type {
 export type { APGEvent, WireEvent } from './types/protocol'
 export type { ReduceAOPOptions } from './lib/aop-reducer'
 export type { AOPChatPanelProps } from './components/chat/AOPChatPanel'
-export type {
-  AOPEvent,
-  AOPEventType,
-  AOPData,
-  ImageSource,
-  MessagePart,
-  MessagePartType,
-  SessionStartData,
-  SessionEndData,
-  MessageData,
-  MessageDeltaData,
-  ToolCallData,
-  ToolResultData,
-  UsageData,
-  TurnStartData,
-  TurnEndData,
-  ErrorData as AOPErrorData,
-  StatusData,
-} from '@cyber/agent-protocol'
-export { isAOPEvent } from '@cyber/agent-protocol'
+export type { Event as AOPEvent, Content as AOPContent } from '@cyber/aop'
+export { EventSchema as AOPEventSchema, eventFromJson } from '@cyber/aop'
 export { isAgentEvent, eventType, eventTimestamp, eventAgent } from './types/protocol'
 export type {
   TimelineItem,

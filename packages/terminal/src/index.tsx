@@ -4,6 +4,14 @@ import { Terminal as XTerm, type ILink } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import { Monitor as LucideMonitor, X as LucideX } from 'lucide-react'
 import { cn } from '@cyber/theme'
+import { create, fromJson, toJson, type JsonValue, type MessageInitShape } from '@bufbuild/protobuf'
+import {
+  TerminalFrameSchema,
+  TerminalInfoSchema,
+  type TerminalFrame,
+  type TerminalInfo,
+} from '@cyber/aop'
+import type { Timestamp } from '@bufbuild/protobuf/wkt'
 
 const Monitor = LucideMonitor as unknown as ComponentType<SVGProps<SVGSVGElement>>
 const X = LucideX as unknown as ComponentType<SVGProps<SVGSVGElement>>
@@ -26,43 +34,9 @@ export type PTYFrameType =
   | 'closed'
   | 'error'
 
-export interface PTYFrame {
-  type: PTYFrameType
-  stream_id?: string
-  session_id?: string
-  kind?: string
-  name?: string
-  command?: string
-  args?: string[]
-  data?: string
-  cols?: number
-  rows?: number
-  bytes?: number
-  offset?: number
-  singleton?: boolean
-  error?: string
-  state?: string
-  exit_code?: number
-  session?: PTYSession
-  sessions?: PTYSession[]
-}
-
-export interface PTYSession {
-  id: string
-  name?: string
-  kind?: string
-  command?: string
-  state?: string
-  pid?: number
-  started_at?: string
-  last_activity_at?: string
-  ended_at?: string
-  exit_code?: number
-  kill_cause?: string
-  output_bytes?: number
-  activity_seq?: number
-  [key: string]: unknown
-}
+export type PTYFrame = TerminalFrame
+export type PTYFrameInit = MessageInitShape<typeof TerminalFrameSchema>
+export type PTYSession = TerminalInfo
 
 export interface TerminalLink {
   text: string
@@ -256,18 +230,18 @@ export function WebSocketTerminal({
     let activeSession = ''
     let initializedSession = ''
 
-    const send = (message: Record<string, unknown>) => {
-      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message))
+    const send = (message: PTYFrameInit) => {
+      if (socket?.readyState === WebSocket.OPEN) socket.send(serializePTYFrame(message))
     }
     const size = () => ({ cols: terminal.cols, rows: terminal.rows })
 
     const dataDisposable = terminal.onData((data) => {
       if (!activeSession) return
-      send({ type: 'input', session_id: activeSession, data: encodeTerminalData(data) })
+      send({ type: 'input', sessionId: activeSession, data: encodeTerminalData(data) })
       if (/\r|\n/.test(data)) window.setTimeout(() => commandCompleteRef.current?.(), 400)
     })
     const resizeDisposable = terminal.onResize(({ cols, rows }) => {
-      if (activeSession) send({ type: 'resize', session_id: activeSession, cols, rows })
+      if (activeSession) send({ type: 'resize', sessionId: activeSession, cols, rows })
     })
     const linkProvider = terminal.registerLinkProvider({
       provideLinks(lineNumber, callback) {
@@ -308,7 +282,7 @@ export function WebSocketTerminal({
           case 'opened':
           case 'attached': {
             const session = sessionFromFrame(message)
-            activeSession = message.session_id || session?.id || ''
+            activeSession = message.sessionId || session?.id || ''
             setSessionTitle(session?.name || activeSession)
             sessionChangeRef.current?.(session)
             updateStatus('connected')
@@ -316,7 +290,7 @@ export function WebSocketTerminal({
               initializedSession = activeSession
               send({
                 type: 'input',
-                session_id: activeSession,
+                sessionId: activeSession,
                 data: encodeTerminalData(initialInput),
               })
             }
@@ -363,9 +337,9 @@ export function WebSocketTerminal({
       if (reconnectTimer) window.clearTimeout(reconnectTimer)
       if (socket?.readyState === WebSocket.OPEN) {
         if (killOnUnmount && activeSession) {
-          socket.send(JSON.stringify({ type: 'kill', session_id: activeSession }))
+          socket.send(serializePTYFrame({ type: 'kill', sessionId: activeSession }))
         }
-        socket.send(JSON.stringify({ type: 'detach', session_id: activeSession || undefined }))
+        socket.send(serializePTYFrame({ type: 'detach', sessionId: activeSession }))
       }
       socket?.close()
       dataDisposable.dispose()
@@ -530,18 +504,19 @@ export function DetailRow({ label, mono, value }: { label: string; mono?: boolea
 
 export function parsePTYFrame(value: string): PTYFrame | null {
   try {
-    const parsed = JSON.parse(value)
-    return parsed && typeof parsed === 'object' && isPTYFrameType(parsed.type) ? parsed as PTYFrame : null
+    const parsed = fromJson(TerminalFrameSchema, JSON.parse(value) as JsonValue)
+    return isPTYFrameType(parsed.type) ? parsed : null
   } catch {
     return null
   }
 }
 
-export function encodeTerminalData(value: string): string {
-  const bytes = new TextEncoder().encode(value)
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
+export function serializePTYFrame(value: PTYFrameInit): string {
+  return JSON.stringify(toJson(TerminalFrameSchema, create(TerminalFrameSchema, value)))
+}
+
+export function encodeTerminalData(value: string): Uint8Array {
+  return new TextEncoder().encode(value)
 }
 
 export function writeTerminalData(terminal: XTerm, frame: PTYFrame) {
@@ -549,21 +524,27 @@ export function writeTerminalData(terminal: XTerm, frame: PTYFrame) {
 }
 
 export function sessionsFromFrame(frame: PTYFrame): PTYSession[] {
-  const sessions = Array.isArray(frame.sessions) ? frame.sessions : []
-  return sessions.map(normalizeSession).filter((session): session is PTYSession => !!session)
+  return frame.sessions.filter((session) => !!session.id)
 }
 
 export function sessionFromFrame(frame: PTYFrame): PTYSession | null {
-  const session = normalizeSession(frame.session)
-  if (session) return session
-  return normalizeSession(frame)
+  if (frame.session?.id) return frame.session
+  if (!frame.sessionId) return null
+  return create(TerminalInfoSchema, {
+    id: frame.sessionId,
+    kind: frame.kind,
+    name: frame.name,
+    command: frame.command,
+    state: frame.state,
+    exitCode: frame.exitCode,
+  })
 }
 
 export function mergeSession(items: PTYSession[], session: PTYSession): PTYSession[] {
   const index = items.findIndex((item) => item.id === session.id)
   if (index < 0) return [...items, session]
   const next = [...items]
-  next[index] = { ...next[index], ...session }
+  next[index] = create(TerminalInfoSchema, { ...next[index], ...session })
   return next
 }
 
@@ -578,12 +559,12 @@ export function compareSessionsByActivity(a: PTYSession, b: PTYSession): number 
   // observed, so mixing it with epoch-millisecond timestamps in one subtraction
   // produced an incoherent, churning order (finished tasks jumped rank every
   // 350ms broadcast). activity_seq stays reserved for unread detection only.
-  return timestampValue(b.last_activity_at) - timestampValue(a.last_activity_at)
-    || timestampValue(b.started_at) - timestampValue(a.started_at)
+  return timestampValue(b.lastActivityAt) - timestampValue(a.lastActivityAt)
+    || timestampValue(b.startedAt) - timestampValue(a.startedAt)
 }
 
 export function activitySeq(session: PTYSession): number {
-  return positiveNumber(session.activity_seq) || timestampValue(session.last_activity_at) || timestampValue(session.started_at)
+  return positiveNumber(session.activitySeq) || timestampValue(session.lastActivityAt) || timestampValue(session.startedAt)
 }
 
 export function sessionTitle(session: PTYSession): string {
@@ -600,8 +581,8 @@ export function sessionDetails(session: PTYSession): string {
     session.state ? `state: ${stateLabel(session.state)}` : '',
     session.command ? `command: ${session.command}` : '',
     session.pid ? `pid: ${session.pid}` : '',
-    session.started_at ? `started: ${formatDateTime(session.started_at)}` : '',
-    session.last_activity_at ? `activity: ${formatDateTime(session.last_activity_at)}` : '',
+    session.startedAt ? `started: ${formatDateTime(session.startedAt)}` : '',
+    session.lastActivityAt ? `activity: ${formatDateTime(session.lastActivityAt)}` : '',
   ].filter(Boolean).join('\n')
 }
 
@@ -634,14 +615,16 @@ export function terminalStatusColor(status: TerminalStatus): string {
   }
 }
 
-export function formatDateTime(value?: string): string | undefined {
+export function formatDateTime(value?: Timestamp | string): string | undefined {
   if (!value) return undefined
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
+  const date = typeof value === 'string'
+    ? new Date(value)
+    : new Date(Number(value.seconds) * 1000 + Math.floor(value.nanos / 1_000_000))
+  if (Number.isNaN(date.getTime())) return typeof value === 'string' ? value : undefined
   return date.toLocaleString()
 }
 
-export function formatBytes(value?: number): string | undefined {
+export function formatBytes(value?: number | bigint): string | undefined {
   const n = positiveNumber(value)
   if (!n) return undefined
   if (n < 1024) return `${n} B`
@@ -650,11 +633,12 @@ export function formatBytes(value?: number): string | undefined {
 }
 
 export function positiveNumber(value: unknown): number | undefined {
+  if (typeof value === 'bigint') return value > 0n ? Number(value) : undefined
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
 }
 
 function sessionMeta(session: PTYSession): string {
-  return [session.kind, session.pid ? `pid ${session.pid}` : '', formatDateTime(session.last_activity_at)].filter(Boolean).join(' / ')
+  return [session.kind, session.pid ? `pid ${session.pid}` : '', formatDateTime(session.lastActivityAt)].filter(Boolean).join(' / ')
 }
 
 function stateColor(state?: string): string {
@@ -683,38 +667,8 @@ function stateTextColor(state?: string): string {
   }
 }
 
-function normalizeSession(value: unknown): PTYSession | null {
-  if (!value || typeof value !== 'object') return null
-  const record = value as Record<string, unknown>
-  const id = stringValue(record.id) || stringValue(record.session_id)
-  if (!id) return null
-  return {
-    ...record,
-    id,
-    name: stringValue(record.name),
-    kind: stringValue(record.kind),
-    command: stringValue(record.command),
-    state: stringValue(record.state),
-    pid: numberValue(record.pid),
-    started_at: stringValue(record.started_at),
-    last_activity_at: stringValue(record.last_activity_at),
-    ended_at: stringValue(record.ended_at),
-    exit_code: numberValue(record.exit_code),
-    kill_cause: stringValue(record.kill_cause),
-    output_bytes: numberValue(record.output_bytes),
-    activity_seq: numberValue(record.activity_seq),
-  }
-}
-
 function frameData(frame: PTYFrame): string {
-  if (!frame.data) return ''
-  try {
-    const binary = atob(frame.data)
-    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
-    return new TextDecoder().decode(bytes)
-  } catch {
-    return ''
-  }
+  return frame.data.length ? new TextDecoder().decode(frame.data) : ''
 }
 
 function isPTYFrameType(value: unknown): value is PTYFrameType {
@@ -724,16 +678,7 @@ function isPTYFrameType(value: unknown): value is PTYFrameType {
   ].includes(value)
 }
 
-function stringValue(value: unknown): string | undefined {
-  return typeof value === 'string' && value ? value : undefined
-}
-
-function numberValue(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
-function timestampValue(value?: string): number {
+function timestampValue(value?: Timestamp): number {
   if (!value) return 0
-  const timestamp = new Date(value).getTime()
-  return Number.isNaN(timestamp) ? 0 : timestamp
+  return Number(value.seconds) * 1000 + Math.floor(value.nanos / 1_000_000)
 }

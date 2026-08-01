@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package aop;
+
+// EncodedValue preserves structured or binary data without JSON coercion.
+message EncodedValue {
+  bytes data = 1;
+  string media_type = 2;
+}
+
+// Extension carries namespaced semantics outside the stable AOP core.
+message Extension {
+  string namespace = 1;
+  EncodedValue value = 2;
+}

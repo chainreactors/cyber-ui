@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package aop;
+
+import "aop/content.proto";
+import "aop/value.proto";
+import "google/protobuf/timestamp.proto";
+
+message SessionStarted {
+  string model = 1;
+  string parent_session_id = 2;
+  string parent_tool_call_id = 3;
+}
+
+message SessionEnded {
+  string reason = 1;
+}
+
+message TurnStarted {}
+
+message ProtocolError {
+  string code = 1;
+  string message = 2;
+  bool retryable = 3;
+  EncodedValue detail = 4;
+}
+
+message TokenUsage {
+  uint64 input_tokens = 1;
+  uint64 output_tokens = 2;
+  uint64 total_tokens = 3;
+  string model = 4;
+  map<string, uint64> detail = 5;
+}
+
+message TurnEnded {
+  string stop_reason = 1;
+  ProtocolError error = 2;
+  TokenUsage usage = 3;
+  uint64 context_tokens = 4;
+}
+
+enum DeltaOperation {
+  DELTA_OPERATION_UNSPECIFIED = 0;
+  DELTA_OPERATION_START = 1;
+  DELTA_OPERATION_APPEND = 2;
+  DELTA_OPERATION_REPLACE = 3;
+  DELTA_OPERATION_END = 4;
+}
+
+message MessageDelta {
+  string message_id = 1;
+  uint32 content_index = 2;
+  DeltaOperation operation = 3;
+  oneof value {
+    string text = 4;
+    string reasoning = 5;
+    string refusal = 6;
+    bytes data = 7;
+    string tool_arguments = 8;
+    Content content = 9;
+  }
+}
+
+message ToolCallDelta {
+  string call_id = 1;
+  uint32 index = 2;
+  string name = 3;
+  bytes arguments = 4;
+}
+
+message Status {
+  string state = 1;
+  EncodedValue detail = 2;
+}
+
+message ExtensionEvent {
+  string type = 1;
+  EncodedValue value = 2;
+}
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_REQUEST = 1;
+  DIRECTION_RESPONSE = 2;
+}
+
+message ProviderMetadata {
+  string name = 1;
+  bytes value = 2;
+}
+
+// ProviderFrame preserves one exact provider body or stream frame.
+message ProviderFrame {
+  string provider = 1;
+  string protocol = 2;
+  string event_type = 3;
+  Direction direction = 4;
+  string transport = 5;
+  bytes payload = 6;
+  string media_type = 7;
+  repeated ProviderMetadata metadata = 8;
+}
+
+message Event {
+  string id = 1;
+  google.protobuf.Timestamp emitted_at = 2;
+  string session_id = 3;
+  string turn_id = 4;
+  string emitter = 5;
+  uint64 seq = 6;
+  repeated Extension extensions = 7;
+
+  oneof payload {
+    SessionStarted session_started = 10;
+    SessionEnded session_ended = 11;
+    TurnStarted turn_started = 12;
+    TurnEnded turn_ended = 13;
+    Message message = 14;
+    MessageDelta message_delta = 15;
+    ToolCall tool_call = 16;
+    ToolCallDelta tool_call_delta = 17;
+    ToolResult tool_result = 18;
+    TokenUsage usage = 19;
+    ProtocolError error = 20;
+    Status status = 21;
+    ExtensionEvent extension = 22;
+    ProviderFrame provider_frame = 23;
+  }
+}

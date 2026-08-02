@@ -211,7 +211,7 @@ export class AOPClient {
 
 function defaultAOPURL(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/api/aop/ws`
+  return `${protocol}//${window.location.host}/api/aop/application/ws`
 }
 
 function newID(): string {

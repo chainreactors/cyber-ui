@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
 import { cn } from '@cyber/theme'
 import { useChatState } from '../../providers/useChatState'
-import { useAPGEvents } from '../../providers/APGWebSocketProvider'
+import { useAPGEvents } from '../../providers/APGEventProvider'
 import type { ChatMessage } from '../../lib/event-reducer'
 import MessageBubble from './MessageBubble'
 import ToolCallDisplay from './ToolCallDisplay'
@@ -83,7 +83,7 @@ export default function LiveChatPanel({
   )
 }
 
-/** Connected wrapper — pulls data from useChatState() hook (requires APGWebSocketProvider). */
+/** Connected wrapper — pulls data from useChatState() hook (requires APGEventProvider). */
 export function ConnectedChatPanel(props: Omit<LiveChatPanelProps, 'messages' | 'onSendInput'>) {
   const { messages } = useChatState()
   const { sendInput } = useAPGEvents()

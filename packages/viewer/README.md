@@ -34,7 +34,7 @@ APG (Agent Process Graph) 任务查看器。提供实时图谱视图、聊天面
 
 | 组件 | 说明 |
 |------|------|
-| `APGWebSocketProvider` | APG WebSocket 连接管理 |
+| `APGEventProvider` | 注入宿主已经解码的 APG/AOP 事件，不拥有传输连接 |
 | `StaticEventProvider` | 静态事件数据注入 |
 | `ChatSessionProvider` | 聊天会话状态管理 |
 | `APGViewer` | 完整的 APG 查看器（Dashboard 级） |

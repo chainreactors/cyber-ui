@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo, type CSSProperties } from 'react'
-import { useAPGEvents } from '../../providers/APGWebSocketProvider'
+import { useAPGEvents } from '../../providers/APGEventProvider'
 import { useResolvedTheme } from '../../lib/use-resolved-theme'
 import { reduceTimeline } from '../../lib/event-reducer'
 import type { TimelineEntry } from '../../lib/event-reducer'
@@ -126,7 +126,7 @@ export default function ExecutionTimeline({ entries, isDark: isDarkProp }: Execu
   )
 }
 
-/** Connected wrapper — pulls data from useAPGEvents() hook (requires APGWebSocketProvider). */
+/** Connected wrapper — pulls data from useAPGEvents() hook (requires APGEventProvider). */
 export function ConnectedTimeline({ isDark }: { isDark?: boolean }) {
   const { events } = useAPGEvents()
   const entries = useMemo(() => reduceTimeline(events), [events])

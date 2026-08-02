@@ -215,7 +215,7 @@ export function reduceAOPToTimeline(
         const current = response.tools.find((entry) => entry.id === result.callId)
         appendTool(response, {
           id: result.callId, toolName: result.name || current?.toolName || '', toolArgs: current?.toolArgs || '',
-          result: stringify(contentText(result.output) || encoded(result.detail), MAX_TOOL_RESULT_CHARS),
+          result: stringify(contentText(result.output), MAX_TOOL_RESULT_CHARS),
           pending: false, error: result.isError,
         })
         responseByTool.set(key, response)
@@ -242,8 +242,8 @@ export function reduceAOPToTimeline(
         const extension = event.payload.value
         items.push({
           id: unique, kind: 'extension', timestamp: timestamp(event), actorName: event.emitter,
-          extensionType: extension.type || 'extension',
-          data: (encoded(extension.value) as Record<string, unknown>) ?? {},
+          extensionType: extension.typeUrl || 'extension',
+          data: { typeUrl: extension.typeUrl },
         })
         break
       }

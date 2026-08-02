@@ -55,7 +55,7 @@ export { ConnectedChatPanel } from './components/chat/LiveChatPanel'
 export { ConnectedTimeline } from './components/graph/ExecutionTimeline'
 
 // Layer 2 — Providers & hooks
-export { APGWebSocketProvider, StaticEventProvider, useAPGEvents } from './providers/APGWebSocketProvider'
+export { APGEventProvider, StaticEventProvider, useAPGEvents, type APGEventSource } from './providers/APGEventProvider'
 export { ThemeProvider, useTheme } from './providers/ThemeProvider'
 export { useGraphState } from './providers/useGraphState'
 export { useChatState } from './providers/useChatState'

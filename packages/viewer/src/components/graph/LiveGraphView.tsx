@@ -122,7 +122,7 @@ export default function LiveGraphView({
   )
 }
 
-/** Connected wrapper — pulls data from useGraphState() hook (requires APGWebSocketProvider). */
+/** Connected wrapper — pulls data from useGraphState() hook (requires APGEventProvider). */
 export function ConnectedGraphView(props: Omit<LiveGraphViewProps, 'nodes' | 'edges'>) {
   const { nodes, edges } = useGraphState()
   return <LiveGraphView nodes={nodes} edges={edges} {...props} />

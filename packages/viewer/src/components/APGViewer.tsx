@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react'
-import { useAPGEvents } from '../providers/APGWebSocketProvider'
+import { useAPGEvents } from '../providers/APGEventProvider'
 import { useTheme } from '../providers/ThemeProvider'
 import { GitBranch, MessageSquare, Activity, Wifi, WifiOff, List, Sun, Moon } from 'lucide-react'
 import { reduceExecutionHistoryGraphState } from '../lib/execution-history-graph'

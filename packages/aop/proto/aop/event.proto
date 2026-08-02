@@ -3,8 +3,10 @@ syntax = "proto3";
 package aop;
 
 import "aop/content.proto";
-import "aop/value.proto";
+import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop";
 
 message SessionStarted {
   string model = 1;
@@ -22,7 +24,7 @@ message ProtocolError {
   string code = 1;
   string message = 2;
   bool retryable = 3;
-  EncodedValue detail = 4;
+  reserved 4;
 }
 
 message TokenUsage {
@@ -71,12 +73,7 @@ message ToolCallDelta {
 
 message Status {
   string state = 1;
-  EncodedValue detail = 2;
-}
-
-message ExtensionEvent {
-  string type = 1;
-  EncodedValue value = 2;
+  reserved 2;
 }
 
 enum Direction {
@@ -103,13 +100,14 @@ message ProviderFrame {
 }
 
 message Event {
+  reserved 7, 22;
   string id = 1;
   google.protobuf.Timestamp emitted_at = 2;
   string session_id = 3;
   string turn_id = 4;
   string emitter = 5;
   uint64 seq = 6;
-  repeated Extension extensions = 7;
+  repeated google.protobuf.Any extensions = 8;
 
   oneof payload {
     SessionStarted session_started = 10;
@@ -124,7 +122,7 @@ message Event {
     TokenUsage usage = 19;
     ProtocolError error = 20;
     Status status = 21;
-    ExtensionEvent extension = 22;
     ProviderFrame provider_frame = 23;
+    google.protobuf.Any extension = 24;
   }
 }

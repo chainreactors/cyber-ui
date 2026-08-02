@@ -4,34 +4,36 @@ package aop;
 
 import "aop/content.proto";
 import "aop/event.proto";
-import "aop/value.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop";
 
 message Rejection {
   string code = 1;
   string message = 2;
   bool retryable = 3;
-  EncodedValue detail = 4;
+  reserved 4;
 }
 
 message Session {
   string id = 1;
   string state = 2;
-  string participant = 3;
+  string node_uri = 3;
   string title = 4;
 }
 
 message OpenSessionRequest {
-  string request_id = 1;
+  reserved 1, 7;
   string session_id = 2;
-  string participant = 3;
+  string node_uri = 3;
   string title = 4;
   string parent_session_id = 5;
   string parent_tool_call_id = 6;
-  repeated Extension extensions = 7;
+  repeated google.protobuf.Any extensions = 8;
 }
 
 message OpenSessionResponse {
-  string request_id = 1;
+  reserved 1;
   oneof outcome {
     Session accepted = 2;
     Rejection rejected = 3;
@@ -39,13 +41,13 @@ message OpenSessionResponse {
 }
 
 message RunTurnRequest {
-  string request_id = 1;
+  reserved 1, 7;
   string session_id = 2;
   string turn_id = 3;
   Message input = 4;
   bool continue_session = 5;
   uint32 max_turns = 6;
-  repeated Extension extensions = 7;
+  repeated google.protobuf.Any extensions = 8;
 }
 
 message TurnReceipt {
@@ -55,7 +57,7 @@ message TurnReceipt {
 }
 
 message RunTurnResponse {
-  string request_id = 1;
+  reserved 1;
   oneof outcome {
     TurnReceipt accepted = 2;
     Rejection rejected = 3;
@@ -63,14 +65,14 @@ message RunTurnResponse {
 }
 
 message CancelTurnRequest {
-  string request_id = 1;
+  reserved 1;
   string session_id = 2;
   string turn_id = 3;
   string reason = 4;
 }
 
 message CancelTurnResponse {
-  string request_id = 1;
+  reserved 1;
   oneof outcome {
     TurnReceipt accepted = 2;
     Rejection rejected = 3;
@@ -78,13 +80,13 @@ message CancelTurnResponse {
 }
 
 message CloseSessionRequest {
-  string request_id = 1;
+  reserved 1;
   string session_id = 2;
   string reason = 3;
 }
 
 message CloseSessionResponse {
-  string request_id = 1;
+  reserved 1;
   oneof outcome {
     Session accepted = 2;
     Rejection rejected = 3;
@@ -101,10 +103,6 @@ message EventDelivery {
   Event event = 2;
 }
 
-message WatchEventsResponse {
-  EventDelivery delivery = 1;
-}
-
 message ListEventsRequest {
   string session_id = 1;
   string after_cursor = 2;
@@ -114,13 +112,4 @@ message ListEventsRequest {
 message ListEventsResponse {
   repeated EventDelivery events = 1;
   string next_cursor = 2;
-}
-
-service ChatService {
-  rpc OpenSession(OpenSessionRequest) returns (OpenSessionResponse);
-  rpc RunTurn(RunTurnRequest) returns (RunTurnResponse);
-  rpc CancelTurn(CancelTurnRequest) returns (CancelTurnResponse);
-  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
-  rpc WatchEvents(WatchEventsRequest) returns (stream WatchEventsResponse);
-  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
 }

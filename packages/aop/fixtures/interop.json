@@ -1,28 +1,45 @@
 {
-  "event": {
-    "id": "fixture-event-1",
-    "emittedAt": "2026-08-01T00:00:00Z",
-    "sessionId": "fixture-session",
-    "turnId": "fixture-turn",
-    "emitter": "fixture-agent",
-    "seq": "7",
-    "providerFrame": {
-      "provider": "openai",
-      "protocol": "openai",
-      "eventType": "response.completed",
-      "direction": "DIRECTION_RESPONSE",
-      "transport": "http",
-      "payload": "eyJpZCI6ImNoYXRjbXBsLWZpeHR1cmUiLCJjaG9pY2VzIjpbeyJtZXNzYWdlIjp7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjoiaGVsbG8ifSwiZmluaXNoX3JlYXNvbiI6InN0b3AifV0sInVzYWdlIjp7InByb21wdF90b2tlbnMiOjMsImNvbXBsZXRpb25fdG9rZW5zIjoyLCJ0b3RhbF90b2tlbnMiOjV9LCJ1bmtub3duIjp7Im5lc3RlZCI6WzEsdHJ1ZSwieCJdfX0=",
-      "mediaType": "application/json",
-      "metadata": [
-        {
-          "name": "request-id",
-          "value": "Zml4dHVyZS1yZXF1ZXN0"
+  "envelope": {
+    "id": "fixture-envelope-1",
+    "replyTo": "fixture-request-1",
+    "deliveryCursor": "cursor-7",
+    "payload": {
+      "@type": "type.googleapis.com/aop.ProtocolMessage",
+      "event": {
+        "id": "fixture-event-1",
+        "emittedAt": "2026-08-01T00:00:00Z",
+        "sessionId": "fixture-session",
+        "turnId": "fixture-turn",
+        "emitter": "fixture-agent",
+        "seq": "7",
+        "extensions": [
+          {
+            "@type": "type.googleapis.com/aop.tool.Progress",
+            "tool": "fixture-tool",
+            "target": "https://example.com",
+            "timestamp": "2026-08-01T00:00:01Z",
+            "text": "fixture progress"
+          }
+        ],
+        "providerFrame": {
+          "provider": "openai",
+          "protocol": "openai",
+          "eventType": "response.completed",
+          "direction": "DIRECTION_RESPONSE",
+          "transport": "http",
+          "payload": "eyJpZCI6ImNoYXRjbXBsLWZpeHR1cmUiLCJjaG9pY2VzIjpbeyJtZXNzYWdlIjp7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjoiaGVsbG8ifSwiZmluaXNoX3JlYXNvbiI6InN0b3AifV0sInVzYWdlIjp7InByb21wdF90b2tlbnMiOjMsImNvbXBsZXRpb25fdG9rZW5zIjoyLCJ0b3RhbF90b2tlbnMiOjV9LCJ1bmtub3duIjp7Im5lc3RlZCI6WzEsdHJ1ZSwieCJdfX0=",
+          "mediaType": "application/json",
+          "metadata": [
+            {
+              "name": "request-id",
+              "value": "Zml4dHVyZS1yZXF1ZXN0"
+            }
+          ]
         }
-      ]
+      }
     }
   },
-  "binaryBase64": "Cg9maXh0dXJlLWV2ZW50LTESBgiA7rTTBhoPZml4dHVyZS1zZXNzaW9uIgxmaXh0dXJlLXR1cm4qDWZpeHR1cmUtYWdlbnQwB7oBtAIKBm9wZW5haRIGb3BlbmFpGhJyZXNwb25zZS5jb21wbGV0ZWQgAioEaHR0cDLUAXsiaWQiOiJjaGF0Y21wbC1maXh0dXJlIiwiY2hvaWNlcyI6W3sibWVzc2FnZSI6eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6ImhlbGxvIn0sImZpbmlzaF9yZWFzb24iOiJzdG9wIn1dLCJ1c2FnZSI6eyJwcm9tcHRfdG9rZW5zIjozLCJjb21wbGV0aW9uX3Rva2VucyI6MiwidG90YWxfdG9rZW5zIjo1fSwidW5rbm93biI6eyJuZXN0ZWQiOlsxLHRydWUsIngiXX19OhBhcHBsaWNhdGlvbi9qc29uQh0KCnJlcXVlc3QtaWQSD2ZpeHR1cmUtcmVxdWVzdA==",
+  "binaryBase64": "ChJmaXh0dXJlLWVudmVsb3BlLTESEWZpeHR1cmUtcmVxdWVzdC0xGghjdXJzb3ItNyKZBAondHlwZS5nb29nbGVhcGlzLmNvbS9hb3AuUHJvdG9jb2xNZXNzYWdlEu0D+gHpAwoPZml4dHVyZS1ldmVudC0xEgYIgO600wYaD2ZpeHR1cmUtc2Vzc2lvbiIMZml4dHVyZS10dXJuKg1maXh0dXJlLWFnZW50MAdCZgoldHlwZS5nb29nbGVhcGlzLmNvbS9hb3AudG9vbC5Qcm9ncmVzcxI9CgxmaXh0dXJlLXRvb2waE2h0dHBzOi8vZXhhbXBsZS5jb20qBgiB7rTTBjIQZml4dHVyZSBwcm9ncmVzc7oBtAIKBm9wZW5haRIGb3BlbmFpGhJyZXNwb25zZS5jb21wbGV0ZWQgAioEaHR0cDLUAXsiaWQiOiJjaGF0Y21wbC1maXh0dXJlIiwiY2hvaWNlcyI6W3sibWVzc2FnZSI6eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6ImhlbGxvIn0sImZpbmlzaF9yZWFzb24iOiJzdG9wIn1dLCJ1c2FnZSI6eyJwcm9tcHRfdG9rZW5zIjozLCJjb21wbGV0aW9uX3Rva2VucyI6MiwidG90YWxfdG9rZW5zIjo1fSwidW5rbm93biI6eyJuZXN0ZWQiOlsxLHRydWUsIngiXX19OhBhcHBsaWNhdGlvbi9qc29uQh0KCnJlcXVlc3QtaWQSD2ZpeHR1cmUtcmVxdWVzdA==",
   "providerPayloads": {
     "openaiBase64": "eyJpZCI6ImNoYXRjbXBsLWZpeHR1cmUiLCJjaG9pY2VzIjpbeyJtZXNzYWdlIjp7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjoiaGVsbG8ifSwiZmluaXNoX3JlYXNvbiI6InN0b3AifV0sInVzYWdlIjp7InByb21wdF90b2tlbnMiOjMsImNvbXBsZXRpb25fdG9rZW5zIjoyLCJ0b3RhbF90b2tlbnMiOjV9LCJ1bmtub3duIjp7Im5lc3RlZCI6WzEsdHJ1ZSwieCJdfX0=",
     "anthropicBase64": "eyJpZCI6Im1zZ19maXh0dXJlIiwidHlwZSI6Im1lc3NhZ2UiLCJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6W3sidHlwZSI6InRoaW5raW5nIiwidGhpbmtpbmciOiJyYXctdGhvdWdodCJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiaGVsbG8ifV0sInN0b3BfcmVhc29uIjoiZW5kX3R1cm4iLCJ1c2FnZSI6eyJpbnB1dF90b2tlbnMiOjMsIm91dHB1dF90b2tlbnMiOjJ9LCJ1bmtub3duIjp7Im5lc3RlZCI6WzEsdHJ1ZSwieCJdfX0="

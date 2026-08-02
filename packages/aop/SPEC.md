@@ -5,9 +5,10 @@ as defined by RFC 2119.
 
 ## Scope
 
-AOP defines provider-neutral chat orchestration semantics. It does not define
-deployment topology, agent registration, filesystems, terminals, process
-execution, persistence engines, or product telemetry.
+AOP defines provider-neutral Agent orchestration semantics, including Agent
+registration, Session/Turn lifecycle, Event, File, Exec, PTY, Tool progress and
+SCO transport. It does not define product management RPCs, persistence engines,
+or product-specific DTOs.
 
 Protobuf under `proto/aop` is the only schema. Protobuf binary and standard
 Protobuf JSON are encodings of the same messages, not separate protocols.
@@ -16,18 +17,18 @@ Protobuf JSON are encodings of the same messages, not separate protocols.
 
 - Client-supplied request, session, turn, message, and tool-call IDs MUST remain
   unchanged across transports.
-- Every mutating request MUST carry a non-empty `request_id`. Replay outcomes
-  MUST survive a server restart; an in-memory cache alone is insufficient.
+- AOP operations use `Envelope.id` as their request and correlation identity.
+  Product management RPCs MAY define their own `request_id` for idempotency.
 - `Event.seq` MUST start at 1 and increase strictly within one session. Relays
   MUST preserve it. An event with a zero sequence is not a published AOP event.
-- A service that must synthesize a terminal event after losing the participant
+- A service that must synthesize a terminal event after losing the bound node
   MUST continue the last observed session sequence and MUST suppress a later
   duplicate terminal event for the same turn.
 - A delivery cursor is an opaque store position and MUST NOT be interpreted as
   `Event.seq`.
-- Retrying a request with the same `request_id` MUST return the same acceptance
+- Retrying an AOP request with the same `Envelope.id` MUST return the same acceptance
   outcome and MUST NOT create another logical operation.
-- Reusing a `request_id` with a different method or request body MUST be
+- Reusing an `Envelope.id` with a different message or body MUST be
   rejected as a conflict.
 
 ## Lifecycle
@@ -65,12 +66,20 @@ Protobuf JSON are encodings of the same messages, not separate protocols.
 
 ## Extensions and providers
 
-- Shared additions SHOULD use a stable reverse-DNS extension namespace.
-- A message MUST NOT contain the same extension namespace more than once.
-- Extension values containing another protobuf message MUST use that message's
-  standard protobuf JSON bytes and identify it with `media_type`.
-- Unknown content SHOULD use `OpaqueContent`; unknown event semantics SHOULD
-  use `ExtensionEvent`.
+- Protobuf package names are namespaces. `Any.type_url` is the only type
+  identity; a separate namespace/type string MUST NOT be added.
+- Independently routed namespaces MUST expose one `<namespace>.ProtocolMessage`
+  and travel in `Envelope.payload`.
+- AOP core extension slots MUST use `google.protobuf.Any` containing a concrete,
+  generated namespace-owned protobuf message.
+- `Event.extensions` is metadata attached to a core Event. `Event.extension` is
+  the primary product-defined Event payload. They MUST NOT be conflated.
+- One extension collection MUST NOT contain the same concrete `type_url` more
+  than once. Collection order has no business meaning.
+- Known protobuf messages MUST NOT be encoded as JSON bytes or `EncodedValue`.
+- Unknown Any values MUST survive persistence, replay and relay unchanged.
+- `EncodedValue` is limited to non-protobuf JSON such as Tool arguments and
+  Tool JSON Schema.
 - A provider bridge claiming lossless support MUST emit every exact provider
   request/response frame as `ProviderFrame`, without parse/reserialize and in
   wire order.
@@ -84,3 +93,14 @@ Protobuf JSON are encodings of the same messages, not separate protocols.
 Field numbers MUST NOT be reused. Removed fields MUST be reserved. Additive
 changes preserve field numbers and published meaning. Removed fields MUST be
 reserved permanently.
+
+## Namespace registration
+
+- Applications MUST register supported top-level namespaces during assembly.
+- Registration maps one protobuf full name to one local handler; it is not a
+  global schema registry and owns no connection or operation lifecycle.
+- Adding a business namespace MUST NOT modify `Envelope` or the AOP core oneof.
+- Duplicate registration MUST fail. Unknown namespaces MUST produce an explicit
+  protocol error and MUST NOT use JSON-shape fallback.
+- Go and TypeScript implementations MAY use different local APIs, but MUST use
+  the same protobuf full name and wire fixtures.

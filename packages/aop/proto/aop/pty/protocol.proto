@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package aop.pty;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop/pty;pty";
+
+message Session {
+  string id = 1;
+  string kind = 2;
+  string name = 3;
+  string command = 4;
+  int32 pid = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp last_activity_at = 7;
+  google.protobuf.Timestamp ended_at = 8;
+  int64 activity_seq = 9;
+  int64 output_bytes = 10;
+  int32 exit_code = 11;
+  string state = 12;
+  string kill_cause = 13;
+}
+
+message Open {
+  string stream_id = 1;
+  string node_uri = 2;
+  string kind = 3;
+  string name = 4;
+  string command = 5;
+  repeated string args = 6;
+  int32 cols = 7;
+  int32 rows = 8;
+  bool singleton = 9;
+}
+message Opened { string stream_id = 1; Session session = 2; }
+message Input { string stream_id = 1; bytes data = 2; }
+message Output { string stream_id = 1; bytes data = 2; int64 offset = 3; }
+message Resize { string stream_id = 1; int32 cols = 2; int32 rows = 3; }
+message List { string stream_id = 1; string node_uri = 2; }
+message Sessions { string stream_id = 1; repeated Session sessions = 2; }
+message Attach { string stream_id = 1; string session_id = 2; int32 cols = 3; int32 rows = 4; }
+message Attached { string stream_id = 1; Session session = 2; }
+message Detach { string stream_id = 1; }
+message Detached { string stream_id = 1; }
+message Kill { string stream_id = 1; }
+message Close { string stream_id = 1; }
+message Closed { string stream_id = 1; Session session = 2; }
+message State { string stream_id = 1; Session session = 2; }
+message Error { string stream_id = 1; string message = 2; }
+
+message ProtocolMessage {
+  oneof message {
+    Open open = 10;
+    Input input = 11;
+    Output output = 12;
+    Resize resize = 13;
+    List list = 14;
+    Sessions sessions = 15;
+    Attach attach = 16;
+    Detach detach = 17;
+    Close close = 18;
+    State state = 19;
+    Error error = 20;
+    Opened opened = 21;
+    Attached attached = 22;
+    Detached detached = 23;
+    Kill kill = 24;
+    Closed closed = 25;
+  }
+}

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package aop.tool;
+
+import "aop/content.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop/tool;tool";
+
+message Call {
+  string session_id = 1;
+  string turn_id = 2;
+  aop.ToolCall call = 3;
+}
+
+message Progress {
+  string tool = 1;
+  reserved 2, 4;
+  string target = 3;
+  google.protobuf.Timestamp timestamp = 5;
+  string text = 6;
+}
+
+message ProtocolMessage {
+  oneof message {
+    Progress progress = 10;
+    Call call = 11;
+  }
+}

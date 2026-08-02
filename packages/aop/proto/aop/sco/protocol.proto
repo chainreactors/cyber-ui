@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package aop.sco;
+
+option go_package = "github.com/chainreactors/aiscan/aop/sco;sco";
+
+// Nodes carries libcstx-owned node documents without copying the libcstx
+// schema into AOP. Each entry uses the declared media type.
+message Nodes {
+  repeated bytes nodes = 1;
+  string media_type = 2;
+}
+
+message ProtocolMessage {
+  oneof message {
+    Nodes nodes = 10;
+  }
+}

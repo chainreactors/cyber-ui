@@ -10,10 +10,11 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/value.proto.
  */
 export const file_aop_value: GenFile = /*@__PURE__*/
-  fileDesc("Cg9hb3AvdmFsdWUucHJvdG8SA2FvcCIwCgxFbmNvZGVkVmFsdWUSDAoEZGF0YRgBIAEoDBISCgptZWRpYV90eXBlGAIgASgJIkAKCUV4dGVuc2lvbhIRCgluYW1lc3BhY2UYASABKAkSIAoFdmFsdWUYAiABKAsyES5hb3AuRW5jb2RlZFZhbHVlYgZwcm90bzM");
+  fileDesc("Cg9hb3AvdmFsdWUucHJvdG8SA2FvcCIwCgxFbmNvZGVkVmFsdWUSDAoEZGF0YRgBIAEoDBISCgptZWRpYV90eXBlGAIgASgJQiVaI2dpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wYgZwcm90bzM");
 
 /**
- * EncodedValue preserves structured or binary data without JSON coercion.
+ * EncodedValue carries genuinely opaque data whose schema is not protobuf,
+ * notably provider/tool JSON arguments and JSON Schema documents.
  *
  * @generated from message aop.EncodedValue
  */
@@ -35,28 +36,4 @@ export type EncodedValue = Message<"aop.EncodedValue"> & {
  */
 export const EncodedValueSchema: GenMessage<EncodedValue> = /*@__PURE__*/
   messageDesc(file_aop_value, 0);
-
-/**
- * Extension carries namespaced semantics outside the stable AOP core.
- *
- * @generated from message aop.Extension
- */
-export type Extension = Message<"aop.Extension"> & {
-  /**
-   * @generated from field: string namespace = 1;
-   */
-  namespace: string;
-
-  /**
-   * @generated from field: aop.EncodedValue value = 2;
-   */
-  value?: EncodedValue | undefined;
-};
-
-/**
- * Describes the message aop.Extension.
- * Use `create(ExtensionSchema)` to create a new message.
- */
-export const ExtensionSchema: GenMessage<Extension> = /*@__PURE__*/
-  messageDesc(file_aop_value, 1);
 

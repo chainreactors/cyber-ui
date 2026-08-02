@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package aop;
+
+import "aop/chat.proto";
+import "aop/content.proto";
+import "aop/event.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop";
+
+message AgentRuntimeInfo {
+  string hostname = 1;
+  string username = 2;
+  string working_dir = 3;
+  string os = 4;
+  string arch = 5;
+  int32 pid = 6;
+  google.protobuf.Struct metadata = 7;
+}
+
+message AgentHello {
+  string agent_id = 1;
+  string name = 2;
+  string authority = 3;
+  repeated string capabilities = 4;
+  reserved 5;
+  repeated ToolDefinition tools = 6;
+  AgentRuntimeInfo runtime = 7;
+}
+
+message AgentAccepted {
+  string agent_id = 1;
+  repeated string capabilities = 2;
+}
+
+message AgentStatus {
+  string provider = 1;
+  string model = 2;
+  string space = 3;
+  bool bound = 4;
+  reserved 5;
+  string config_error = 6;
+}
+
+message AgentStats {
+  uint64 turns = 1;
+  uint64 tool_calls = 2;
+  uint64 running_tools = 3;
+  uint64 input_tokens = 4;
+  uint64 output_tokens = 5;
+  uint64 total_tokens = 6;
+  uint64 cache_read_tokens = 7;
+  uint64 cache_write_tokens = 8;
+  reserved 9, 10;
+  string last_event = 11;
+}
+
+message CancelOperation {
+  string target_id = 1;
+  string reason = 2;
+}
+
+// ProtocolMessage is the typed union for the AOP core namespace. Extension
+// packages define their own ProtocolMessage and do not modify this one.
+message ProtocolMessage {
+  oneof message {
+    AgentHello agent_hello = 10;
+    AgentAccepted agent_accepted = 11;
+    AgentStatus agent_status = 12;
+    AgentStats agent_stats = 13;
+
+    OpenSessionRequest open_session_request = 20;
+    OpenSessionResponse open_session_response = 21;
+    RunTurnRequest run_turn_request = 22;
+    RunTurnResponse run_turn_response = 23;
+    CancelTurnRequest cancel_turn_request = 24;
+    CancelTurnResponse cancel_turn_response = 25;
+    CloseSessionRequest close_session_request = 26;
+    CloseSessionResponse close_session_response = 27;
+    WatchEventsRequest watch_events_request = 28;
+    ListEventsRequest list_events_request = 29;
+    ListEventsResponse list_events_response = 30;
+    Event event = 31;
+
+    CancelOperation cancel_operation = 40;
+    ProtocolError protocol_error = 41;
+  }
+}

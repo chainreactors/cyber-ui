@@ -12,7 +12,7 @@ import type { Message as Message$1 } from "@bufbuild/protobuf";
  * Describes the file aop/content.proto.
  */
 export const file_aop_content: GenFile = /*@__PURE__*/
-  fileDesc("ChFhb3AvY29udGVudC5wcm90bxIDYW9wIlkKCFJlc291cmNlEg4KBGRhdGEYASABKAxIABINCgN1cmkYAiABKAlIABISCgptZWRpYV90eXBlGAMgASgJEhAKCGZpbGVuYW1lGAQgASgJQggKBnNvdXJjZSJ1CgpBbm5vdGF0aW9uEgwKBHR5cGUYASABKAkSDQoFc3RhcnQYAiABKAQSCwoDZW5kGAMgASgEEg0KBXRpdGxlGAQgASgJEgsKA3VyaRgFIAEoCRIhCgZkZXRhaWwYBiABKAsyES5hb3AuRW5jb2RlZFZhbHVlIkEKC1RleHRDb250ZW50EgwKBHRleHQYASABKAkSJAoLYW5ub3RhdGlvbnMYAiADKAsyDy5hb3AuQW5ub3RhdGlvbiJFChBSZWFzb25pbmdDb250ZW50EgwKBHRleHQYASABKAkSDgoGb3BhcXVlGAIgASgMEhMKC29wYXF1ZV90eXBlGAMgASgJInQKDE1lZGlhQ29udGVudBIMCgRraW5kGAEgASgJEh8KCHJlc291cmNlGAIgASgLMg0uYW9wLlJlc291cmNlEhIKCnRyYW5zY3JpcHQYAyABKAkSIQoGZGV0YWlsGAQgASgLMhEuYW9wLkVuY29kZWRWYWx1ZSJzCghUb29sQ2FsbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBGtpbmQYAyABKAkSJAoJYXJndW1lbnRzGAQgASgLMhEuYW9wLkVuY29kZWRWYWx1ZRIZChF3b3JraW5nX2RpcmVjdG9yeRgFIAEoCSKmAQoKVG9vbFJlc3VsdBIPCgdjYWxsX2lkGAEgASgJEhwKBm91dHB1dBgCIAMoCzIMLmFvcC5Db250ZW50EhAKCGlzX2Vycm9yGAMgASgIEiEKBmRldGFpbBgEIAEoCzIRLmFvcC5FbmNvZGVkVmFsdWUSDAoEbmFtZRgFIAEoCRITCgtkdXJhdGlvbl9tcxgGIAEoBBIRCgl0ZXJtaW5hdGUYByABKAgiPwoNT3BhcXVlQ29udGVudBIMCgR0eXBlGAEgASgJEiAKBXZhbHVlGAIgASgLMhEuYW9wLkVuY29kZWRWYWx1ZSKJAgoHQ29udGVudBIgCgR0ZXh0GAEgASgLMhAuYW9wLlRleHRDb250ZW50SAASKgoJcmVhc29uaW5nGAIgASgLMhUuYW9wLlJlYXNvbmluZ0NvbnRlbnRIABIRCgdyZWZ1c2FsGAMgASgJSAASIgoFbWVkaWEYBCABKAsyES5hb3AuTWVkaWFDb250ZW50SAASIgoJdG9vbF9jYWxsGAUgASgLMg0uYW9wLlRvb2xDYWxsSAASJgoLdG9vbF9yZXN1bHQYBiABKAsyDy5hb3AuVG9vbFJlc3VsdEgAEiQKBm9wYXF1ZRgHIAEoCzISLmFvcC5PcGFxdWVDb250ZW50SABCBwoFdmFsdWUiUAoHTWVzc2FnZRIKCgJpZBgBIAEoCRIMCgRyb2xlGAIgASgJEgwKBG5hbWUYAyABKAkSHQoHY29udGVudBgEIAMoCzIMLmFvcC5Db250ZW50YgZwcm90bzM", [file_aop_value]);
+  fileDesc("ChFhb3AvY29udGVudC5wcm90bxIDYW9wIlkKCFJlc291cmNlEg4KBGRhdGEYASABKAxIABINCgN1cmkYAiABKAlIABISCgptZWRpYV90eXBlGAMgASgJEhAKCGZpbGVuYW1lGAQgASgJQggKBnNvdXJjZSJYCgpBbm5vdGF0aW9uEgwKBHR5cGUYASABKAkSDQoFc3RhcnQYAiABKAQSCwoDZW5kGAMgASgEEg0KBXRpdGxlGAQgASgJEgsKA3VyaRgFIAEoCUoECAYQByJBCgtUZXh0Q29udGVudBIMCgR0ZXh0GAEgASgJEiQKC2Fubm90YXRpb25zGAIgAygLMg8uYW9wLkFubm90YXRpb24iLAoQUmVhc29uaW5nQ29udGVudBIMCgR0ZXh0GAEgASgJSgQIAhADSgQIAxAEIlcKDE1lZGlhQ29udGVudBIMCgRraW5kGAEgASgJEh8KCHJlc291cmNlGAIgASgLMg0uYW9wLlJlc291cmNlEhIKCnRyYW5zY3JpcHQYAyABKAlKBAgEEAUicwoIVG9vbENhbGwSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEiQKCWFyZ3VtZW50cxgEIAEoCzIRLmFvcC5FbmNvZGVkVmFsdWUSGQoRd29ya2luZ19kaXJlY3RvcnkYBSABKAkiiQEKClRvb2xSZXN1bHQSDwoHY2FsbF9pZBgBIAEoCRIcCgZvdXRwdXQYAiADKAsyDC5hb3AuQ29udGVudBIQCghpc19lcnJvchgDIAEoCBIMCgRuYW1lGAUgASgJEhMKC2R1cmF0aW9uX21zGAYgASgEEhEKCXRlcm1pbmF0ZRgHIAEoCEoECAQQBSJqCg5Ub29sRGVmaW5pdGlvbhIMCgR0eXBlGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSJwoMaW5wdXRfc2NoZW1hGAQgASgLMhEuYW9wLkVuY29kZWRWYWx1ZSLpAQoHQ29udGVudBIgCgR0ZXh0GAEgASgLMhAuYW9wLlRleHRDb250ZW50SAASKgoJcmVhc29uaW5nGAIgASgLMhUuYW9wLlJlYXNvbmluZ0NvbnRlbnRIABIRCgdyZWZ1c2FsGAMgASgJSAASIgoFbWVkaWEYBCABKAsyES5hb3AuTWVkaWFDb250ZW50SAASIgoJdG9vbF9jYWxsGAUgASgLMg0uYW9wLlRvb2xDYWxsSAASJgoLdG9vbF9yZXN1bHQYBiABKAsyDy5hb3AuVG9vbFJlc3VsdEgAQgcKBXZhbHVlSgQIBxAIIlAKB01lc3NhZ2USCgoCaWQYASABKAkSDAoEcm9sZRgCIAEoCRIMCgRuYW1lGAMgASgJEh0KB2NvbnRlbnQYBCADKAsyDC5hb3AuQ29udGVudEIlWiNnaXRodWIuY29tL2NoYWlucmVhY3RvcnMvYWlzY2FuL2FvcGIGcHJvdG8z", [file_aop_value]);
 
 /**
  * @generated from message aop.Resource
@@ -81,11 +81,6 @@ export type Annotation = Message$1<"aop.Annotation"> & {
    * @generated from field: string uri = 5;
    */
   uri: string;
-
-  /**
-   * @generated from field: aop.EncodedValue detail = 6;
-   */
-  detail?: EncodedValue | undefined;
 };
 
 /**
@@ -125,16 +120,6 @@ export type ReasoningContent = Message$1<"aop.ReasoningContent"> & {
    * @generated from field: string text = 1;
    */
   text: string;
-
-  /**
-   * @generated from field: bytes opaque = 2;
-   */
-  opaque: Uint8Array;
-
-  /**
-   * @generated from field: string opaque_type = 3;
-   */
-  opaqueType: string;
 };
 
 /**
@@ -162,11 +147,6 @@ export type MediaContent = Message$1<"aop.MediaContent"> & {
    * @generated from field: string transcript = 3;
    */
   transcript: string;
-
-  /**
-   * @generated from field: aop.EncodedValue detail = 4;
-   */
-  detail?: EncodedValue | undefined;
 };
 
 /**
@@ -233,11 +213,6 @@ export type ToolResult = Message$1<"aop.ToolResult"> & {
   isError: boolean;
 
   /**
-   * @generated from field: aop.EncodedValue detail = 4;
-   */
-  detail?: EncodedValue | undefined;
-
-  /**
    * @generated from field: string name = 5;
    */
   name: string;
@@ -261,25 +236,38 @@ export const ToolResultSchema: GenMessage<ToolResult> = /*@__PURE__*/
   messageDesc(file_aop_content, 6);
 
 /**
- * @generated from message aop.OpaqueContent
+ * ToolDefinition is the provider-neutral function/tool contract advertised by
+ * an Agent. Provider adapters translate this schema at their wire boundary.
+ *
+ * @generated from message aop.ToolDefinition
  */
-export type OpaqueContent = Message$1<"aop.OpaqueContent"> & {
+export type ToolDefinition = Message$1<"aop.ToolDefinition"> & {
   /**
    * @generated from field: string type = 1;
    */
   type: string;
 
   /**
-   * @generated from field: aop.EncodedValue value = 2;
+   * @generated from field: string name = 2;
    */
-  value?: EncodedValue | undefined;
+  name: string;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * @generated from field: aop.EncodedValue input_schema = 4;
+   */
+  inputSchema?: EncodedValue | undefined;
 };
 
 /**
- * Describes the message aop.OpaqueContent.
- * Use `create(OpaqueContentSchema)` to create a new message.
+ * Describes the message aop.ToolDefinition.
+ * Use `create(ToolDefinitionSchema)` to create a new message.
  */
-export const OpaqueContentSchema: GenMessage<OpaqueContent> = /*@__PURE__*/
+export const ToolDefinitionSchema: GenMessage<ToolDefinition> = /*@__PURE__*/
   messageDesc(file_aop_content, 7);
 
 /**
@@ -325,12 +313,6 @@ export type Content = Message$1<"aop.Content"> & {
      */
     value: ToolResult;
     case: "toolResult";
-  } | {
-    /**
-     * @generated from field: aop.OpaqueContent opaque = 7;
-     */
-    value: OpaqueContent;
-    case: "opaque";
   } | { case: undefined; value?: undefined };
 };
 

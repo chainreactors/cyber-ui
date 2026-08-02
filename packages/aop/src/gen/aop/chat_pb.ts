@@ -2,21 +2,21 @@
 // @generated from file aop/chat.proto (package aop, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message as Message$1 } from "./content_pb.js";
 import { file_aop_content } from "./content_pb.js";
 import type { Event } from "./event_pb.js";
 import { file_aop_event } from "./event_pb.js";
-import type { EncodedValue, Extension } from "./value_pb.js";
-import { file_aop_value } from "./value_pb.js";
+import type { Any } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_any } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file aop/chat.proto.
  */
 export const file_aop_chat: GenFile = /*@__PURE__*/
-  fileDesc("Cg5hb3AvY2hhdC5wcm90bxIDYW9wImAKCVJlamVjdGlvbhIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEQoJcmV0cnlhYmxlGAMgASgIEiEKBmRldGFpbBgEIAEoCzIRLmFvcC5FbmNvZGVkVmFsdWUiSAoHU2Vzc2lvbhIKCgJpZBgBIAEoCRINCgVzdGF0ZRgCIAEoCRITCgtwYXJ0aWNpcGFudBgDIAEoCRINCgV0aXRsZRgEIAEoCSK8AQoST3BlblNlc3Npb25SZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRITCgtwYXJ0aWNpcGFudBgDIAEoCRINCgV0aXRsZRgEIAEoCRIZChFwYXJlbnRfc2Vzc2lvbl9pZBgFIAEoCRIbChNwYXJlbnRfdG9vbF9jYWxsX2lkGAYgASgJEiIKCmV4dGVuc2lvbnMYByADKAsyDi5hb3AuRXh0ZW5zaW9uInoKE09wZW5TZXNzaW9uUmVzcG9uc2USEgoKcmVxdWVzdF9pZBgBIAEoCRIgCghhY2NlcHRlZBgCIAEoCzIMLmFvcC5TZXNzaW9uSAASIgoIcmVqZWN0ZWQYAyABKAsyDi5hb3AuUmVqZWN0aW9uSABCCQoHb3V0Y29tZSK3AQoOUnVuVHVyblJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEg8KB3R1cm5faWQYAyABKAkSGwoFaW5wdXQYBCABKAsyDC5hb3AuTWVzc2FnZRIYChBjb250aW51ZV9zZXNzaW9uGAUgASgIEhEKCW1heF90dXJucxgGIAEoDRIiCgpleHRlbnNpb25zGAcgAygLMg4uYW9wLkV4dGVuc2lvbiJBCgtUdXJuUmVjZWlwdBISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3R1cm5faWQYAiABKAkSDQoFc3RhdGUYAyABKAkiegoPUnVuVHVyblJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSJAoIYWNjZXB0ZWQYAiABKAsyEC5hb3AuVHVyblJlY2VpcHRIABIiCghyZWplY3RlZBgDIAEoCzIOLmFvcC5SZWplY3Rpb25IAEIJCgdvdXRjb21lIlwKEUNhbmNlbFR1cm5SZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIPCgd0dXJuX2lkGAMgASgJEg4KBnJlYXNvbhgEIAEoCSJ9ChJDYW5jZWxUdXJuUmVzcG9uc2USEgoKcmVxdWVzdF9pZBgBIAEoCRIkCghhY2NlcHRlZBgCIAEoCzIQLmFvcC5UdXJuUmVjZWlwdEgAEiIKCHJlamVjdGVkGAMgASgLMg4uYW9wLlJlamVjdGlvbkgAQgkKB291dGNvbWUiTQoTQ2xvc2VTZXNzaW9uUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSDgoGcmVhc29uGAMgASgJInsKFENsb3NlU2Vzc2lvblJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSIAoIYWNjZXB0ZWQYAiABKAsyDC5hb3AuU2Vzc2lvbkgAEiIKCHJlamVjdGVkGAMgASgLMg4uYW9wLlJlamVjdGlvbkgAQgkKB291dGNvbWUiPgoSV2F0Y2hFdmVudHNSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFAoMYWZ0ZXJfY3Vyc29yGAIgASgJIjoKDUV2ZW50RGVsaXZlcnkSDgoGY3Vyc29yGAEgASgJEhkKBWV2ZW50GAIgASgLMgouYW9wLkV2ZW50IjsKE1dhdGNoRXZlbnRzUmVzcG9uc2USJAoIZGVsaXZlcnkYASABKAsyEi5hb3AuRXZlbnREZWxpdmVyeSJMChFMaXN0RXZlbnRzUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhQKDGFmdGVyX2N1cnNvchgCIAEoCRINCgVsaW1pdBgDIAEoDSJNChJMaXN0RXZlbnRzUmVzcG9uc2USIgoGZXZlbnRzGAEgAygLMhIuYW9wLkV2ZW50RGVsaXZlcnkSEwoLbmV4dF9jdXJzb3IYAiABKAkyjAMKC0NoYXRTZXJ2aWNlEkAKC09wZW5TZXNzaW9uEhcuYW9wLk9wZW5TZXNzaW9uUmVxdWVzdBoYLmFvcC5PcGVuU2Vzc2lvblJlc3BvbnNlEjQKB1J1blR1cm4SEy5hb3AuUnVuVHVyblJlcXVlc3QaFC5hb3AuUnVuVHVyblJlc3BvbnNlEj0KCkNhbmNlbFR1cm4SFi5hb3AuQ2FuY2VsVHVyblJlcXVlc3QaFy5hb3AuQ2FuY2VsVHVyblJlc3BvbnNlEkMKDENsb3NlU2Vzc2lvbhIYLmFvcC5DbG9zZVNlc3Npb25SZXF1ZXN0GhkuYW9wLkNsb3NlU2Vzc2lvblJlc3BvbnNlEkIKC1dhdGNoRXZlbnRzEhcuYW9wLldhdGNoRXZlbnRzUmVxdWVzdBoYLmFvcC5XYXRjaEV2ZW50c1Jlc3BvbnNlMAESPQoKTGlzdEV2ZW50cxIWLmFvcC5MaXN0RXZlbnRzUmVxdWVzdBoXLmFvcC5MaXN0RXZlbnRzUmVzcG9uc2ViBnByb3RvMw", [file_aop_content, file_aop_event, file_aop_value]);
+  fileDesc("Cg5hb3AvY2hhdC5wcm90bxIDYW9wIkMKCVJlamVjdGlvbhIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEQoJcmV0cnlhYmxlGAMgASgISgQIBBAFIkUKB1Nlc3Npb24SCgoCaWQYASABKAkSDQoFc3RhdGUYAiABKAkSEAoIbm9kZV91cmkYAyABKAkSDQoFdGl0bGUYBCABKAkitwEKEk9wZW5TZXNzaW9uUmVxdWVzdBISCgpzZXNzaW9uX2lkGAIgASgJEhAKCG5vZGVfdXJpGAMgASgJEg0KBXRpdGxlGAQgASgJEhkKEXBhcmVudF9zZXNzaW9uX2lkGAUgASgJEhsKE3BhcmVudF90b29sX2NhbGxfaWQYBiABKAkSKAoKZXh0ZW5zaW9ucxgIIAMoCzIULmdvb2dsZS5wcm90b2J1Zi5BbnlKBAgBEAJKBAgHEAgibAoTT3BlblNlc3Npb25SZXNwb25zZRIgCghhY2NlcHRlZBgCIAEoCzIMLmFvcC5TZXNzaW9uSAASIgoIcmVqZWN0ZWQYAyABKAsyDi5hb3AuUmVqZWN0aW9uSABCCQoHb3V0Y29tZUoECAEQAiK1AQoOUnVuVHVyblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgCIAEoCRIPCgd0dXJuX2lkGAMgASgJEhsKBWlucHV0GAQgASgLMgwuYW9wLk1lc3NhZ2USGAoQY29udGludWVfc2Vzc2lvbhgFIAEoCBIRCgltYXhfdHVybnMYBiABKA0SKAoKZXh0ZW5zaW9ucxgIIAMoCzIULmdvb2dsZS5wcm90b2J1Zi5BbnlKBAgBEAJKBAgHEAgiQQoLVHVyblJlY2VpcHQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIPCgd0dXJuX2lkGAIgASgJEg0KBXN0YXRlGAMgASgJImwKD1J1blR1cm5SZXNwb25zZRIkCghhY2NlcHRlZBgCIAEoCzIQLmFvcC5UdXJuUmVjZWlwdEgAEiIKCHJlamVjdGVkGAMgASgLMg4uYW9wLlJlamVjdGlvbkgAQgkKB291dGNvbWVKBAgBEAIiTgoRQ2FuY2VsVHVyblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgCIAEoCRIPCgd0dXJuX2lkGAMgASgJEg4KBnJlYXNvbhgEIAEoCUoECAEQAiJvChJDYW5jZWxUdXJuUmVzcG9uc2USJAoIYWNjZXB0ZWQYAiABKAsyEC5hb3AuVHVyblJlY2VpcHRIABIiCghyZWplY3RlZBgDIAEoCzIOLmFvcC5SZWplY3Rpb25IAEIJCgdvdXRjb21lSgQIARACIj8KE0Nsb3NlU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZyZWFzb24YAyABKAlKBAgBEAIibQoUQ2xvc2VTZXNzaW9uUmVzcG9uc2USIAoIYWNjZXB0ZWQYAiABKAsyDC5hb3AuU2Vzc2lvbkgAEiIKCHJlamVjdGVkGAMgASgLMg4uYW9wLlJlamVjdGlvbkgAQgkKB291dGNvbWVKBAgBEAIiPgoSV2F0Y2hFdmVudHNSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFAoMYWZ0ZXJfY3Vyc29yGAIgASgJIjoKDUV2ZW50RGVsaXZlcnkSDgoGY3Vyc29yGAEgASgJEhkKBWV2ZW50GAIgASgLMgouYW9wLkV2ZW50IkwKEUxpc3RFdmVudHNSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFAoMYWZ0ZXJfY3Vyc29yGAIgASgJEg0KBWxpbWl0GAMgASgNIk0KEkxpc3RFdmVudHNSZXNwb25zZRIiCgZldmVudHMYASADKAsyEi5hb3AuRXZlbnREZWxpdmVyeRITCgtuZXh0X2N1cnNvchgCIAEoCUIlWiNnaXRodWIuY29tL2NoYWlucmVhY3RvcnMvYWlzY2FuL2FvcGIGcHJvdG8z", [file_aop_content, file_aop_event, file_google_protobuf_any]);
 
 /**
  * @generated from message aop.Rejection
@@ -36,11 +36,6 @@ export type Rejection = Message<"aop.Rejection"> & {
    * @generated from field: bool retryable = 3;
    */
   retryable: boolean;
-
-  /**
-   * @generated from field: aop.EncodedValue detail = 4;
-   */
-  detail?: EncodedValue | undefined;
 };
 
 /**
@@ -65,9 +60,9 @@ export type Session = Message<"aop.Session"> & {
   state: string;
 
   /**
-   * @generated from field: string participant = 3;
+   * @generated from field: string node_uri = 3;
    */
-  participant: string;
+  nodeUri: string;
 
   /**
    * @generated from field: string title = 4;
@@ -87,19 +82,14 @@ export const SessionSchema: GenMessage<Session> = /*@__PURE__*/
  */
 export type OpenSessionRequest = Message<"aop.OpenSessionRequest"> & {
   /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
-  /**
    * @generated from field: string session_id = 2;
    */
   sessionId: string;
 
   /**
-   * @generated from field: string participant = 3;
+   * @generated from field: string node_uri = 3;
    */
-  participant: string;
+  nodeUri: string;
 
   /**
    * @generated from field: string title = 4;
@@ -117,9 +107,9 @@ export type OpenSessionRequest = Message<"aop.OpenSessionRequest"> & {
   parentToolCallId: string;
 
   /**
-   * @generated from field: repeated aop.Extension extensions = 7;
+   * @generated from field: repeated google.protobuf.Any extensions = 8;
    */
-  extensions: Extension[];
+  extensions: Any[];
 };
 
 /**
@@ -133,11 +123,6 @@ export const OpenSessionRequestSchema: GenMessage<OpenSessionRequest> = /*@__PUR
  * @generated from message aop.OpenSessionResponse
  */
 export type OpenSessionResponse = Message<"aop.OpenSessionResponse"> & {
-  /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
   /**
    * @generated from oneof aop.OpenSessionResponse.outcome
    */
@@ -168,11 +153,6 @@ export const OpenSessionResponseSchema: GenMessage<OpenSessionResponse> = /*@__P
  */
 export type RunTurnRequest = Message<"aop.RunTurnRequest"> & {
   /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
-  /**
    * @generated from field: string session_id = 2;
    */
   sessionId: string;
@@ -198,9 +178,9 @@ export type RunTurnRequest = Message<"aop.RunTurnRequest"> & {
   maxTurns: number;
 
   /**
-   * @generated from field: repeated aop.Extension extensions = 7;
+   * @generated from field: repeated google.protobuf.Any extensions = 8;
    */
-  extensions: Extension[];
+  extensions: Any[];
 };
 
 /**
@@ -242,11 +222,6 @@ export const TurnReceiptSchema: GenMessage<TurnReceipt> = /*@__PURE__*/
  */
 export type RunTurnResponse = Message<"aop.RunTurnResponse"> & {
   /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
-  /**
    * @generated from oneof aop.RunTurnResponse.outcome
    */
   outcome: {
@@ -276,11 +251,6 @@ export const RunTurnResponseSchema: GenMessage<RunTurnResponse> = /*@__PURE__*/
  */
 export type CancelTurnRequest = Message<"aop.CancelTurnRequest"> & {
   /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
-  /**
    * @generated from field: string session_id = 2;
    */
   sessionId: string;
@@ -307,11 +277,6 @@ export const CancelTurnRequestSchema: GenMessage<CancelTurnRequest> = /*@__PURE_
  * @generated from message aop.CancelTurnResponse
  */
 export type CancelTurnResponse = Message<"aop.CancelTurnResponse"> & {
-  /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
   /**
    * @generated from oneof aop.CancelTurnResponse.outcome
    */
@@ -342,11 +307,6 @@ export const CancelTurnResponseSchema: GenMessage<CancelTurnResponse> = /*@__PUR
  */
 export type CloseSessionRequest = Message<"aop.CloseSessionRequest"> & {
   /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
-  /**
    * @generated from field: string session_id = 2;
    */
   sessionId: string;
@@ -368,11 +328,6 @@ export const CloseSessionRequestSchema: GenMessage<CloseSessionRequest> = /*@__P
  * @generated from message aop.CloseSessionResponse
  */
 export type CloseSessionResponse = Message<"aop.CloseSessionResponse"> & {
-  /**
-   * @generated from field: string request_id = 1;
-   */
-  requestId: string;
-
   /**
    * @generated from oneof aop.CloseSessionResponse.outcome
    */
@@ -443,23 +398,6 @@ export const EventDeliverySchema: GenMessage<EventDelivery> = /*@__PURE__*/
   messageDesc(file_aop_chat, 12);
 
 /**
- * @generated from message aop.WatchEventsResponse
- */
-export type WatchEventsResponse = Message<"aop.WatchEventsResponse"> & {
-  /**
-   * @generated from field: aop.EventDelivery delivery = 1;
-   */
-  delivery?: EventDelivery | undefined;
-};
-
-/**
- * Describes the message aop.WatchEventsResponse.
- * Use `create(WatchEventsResponseSchema)` to create a new message.
- */
-export const WatchEventsResponseSchema: GenMessage<WatchEventsResponse> = /*@__PURE__*/
-  messageDesc(file_aop_chat, 13);
-
-/**
  * @generated from message aop.ListEventsRequest
  */
 export type ListEventsRequest = Message<"aop.ListEventsRequest"> & {
@@ -484,7 +422,7 @@ export type ListEventsRequest = Message<"aop.ListEventsRequest"> & {
  * Use `create(ListEventsRequestSchema)` to create a new message.
  */
 export const ListEventsRequestSchema: GenMessage<ListEventsRequest> = /*@__PURE__*/
-  messageDesc(file_aop_chat, 14);
+  messageDesc(file_aop_chat, 13);
 
 /**
  * @generated from message aop.ListEventsResponse
@@ -506,60 +444,5 @@ export type ListEventsResponse = Message<"aop.ListEventsResponse"> & {
  * Use `create(ListEventsResponseSchema)` to create a new message.
  */
 export const ListEventsResponseSchema: GenMessage<ListEventsResponse> = /*@__PURE__*/
-  messageDesc(file_aop_chat, 15);
-
-/**
- * @generated from service aop.ChatService
- */
-export const ChatService: GenService<{
-  /**
-   * @generated from rpc aop.ChatService.OpenSession
-   */
-  openSession: {
-    methodKind: "unary";
-    input: typeof OpenSessionRequestSchema;
-    output: typeof OpenSessionResponseSchema;
-  },
-  /**
-   * @generated from rpc aop.ChatService.RunTurn
-   */
-  runTurn: {
-    methodKind: "unary";
-    input: typeof RunTurnRequestSchema;
-    output: typeof RunTurnResponseSchema;
-  },
-  /**
-   * @generated from rpc aop.ChatService.CancelTurn
-   */
-  cancelTurn: {
-    methodKind: "unary";
-    input: typeof CancelTurnRequestSchema;
-    output: typeof CancelTurnResponseSchema;
-  },
-  /**
-   * @generated from rpc aop.ChatService.CloseSession
-   */
-  closeSession: {
-    methodKind: "unary";
-    input: typeof CloseSessionRequestSchema;
-    output: typeof CloseSessionResponseSchema;
-  },
-  /**
-   * @generated from rpc aop.ChatService.WatchEvents
-   */
-  watchEvents: {
-    methodKind: "server_streaming";
-    input: typeof WatchEventsRequestSchema;
-    output: typeof WatchEventsResponseSchema;
-  },
-  /**
-   * @generated from rpc aop.ChatService.ListEvents
-   */
-  listEvents: {
-    methodKind: "unary";
-    input: typeof ListEventsRequestSchema;
-    output: typeof ListEventsResponseSchema;
-  },
-}> = /*@__PURE__*/
-  serviceDesc(file_aop_chat, 0);
+  messageDesc(file_aop_chat, 14);
 

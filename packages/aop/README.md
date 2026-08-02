@@ -1,10 +1,11 @@
 # @cyber/aop
 
-Provider-neutral Agent Orchestration Protocol types and gRPC services.
+Provider-neutral Agent Orchestration Protocol types and namespace codecs.
 Protobuf is the source of truth; generated TypeScript is the public package.
 
 `fixtures/interop.json` is the shared Go/Python/TypeScript binary + protobuf JSON
-fixture and includes lossless OpenAI/Anthropic raw payload samples.
+fixture. It covers `Envelope -> Any<aop.ProtocolMessage> -> Event -> typed Any`
+and includes lossless OpenAI/Anthropic raw payload samples.
 
 ```ts
 import { EventSchema } from '@cyber/aop'

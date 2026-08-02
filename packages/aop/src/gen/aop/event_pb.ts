@@ -6,17 +6,15 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Content, Message as Message$1, ToolCall, ToolResult } from "./content_pb.js";
 import { file_aop_content } from "./content_pb.js";
-import type { EncodedValue, Extension } from "./value_pb.js";
-import { file_aop_value } from "./value_pb.js";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Any, Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_any, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file aop/event.proto.
  */
 export const file_aop_event: GenFile = /*@__PURE__*/
-  fileDesc("Cg9hb3AvZXZlbnQucHJvdG8SA2FvcCJXCg5TZXNzaW9uU3RhcnRlZBINCgVtb2RlbBgBIAEoCRIZChFwYXJlbnRfc2Vzc2lvbl9pZBgCIAEoCRIbChNwYXJlbnRfdG9vbF9jYWxsX2lkGAMgASgJIh4KDFNlc3Npb25FbmRlZBIOCgZyZWFzb24YASABKAkiDQoLVHVyblN0YXJ0ZWQiZAoNUHJvdG9jb2xFcnJvchIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEQoJcmV0cnlhYmxlGAMgASgIEiEKBmRldGFpbBgEIAEoCzIRLmFvcC5FbmNvZGVkVmFsdWUiugEKClRva2VuVXNhZ2USFAoMaW5wdXRfdG9rZW5zGAEgASgEEhUKDW91dHB1dF90b2tlbnMYAiABKAQSFAoMdG90YWxfdG9rZW5zGAMgASgEEg0KBW1vZGVsGAQgASgJEisKBmRldGFpbBgFIAMoCzIbLmFvcC5Ub2tlblVzYWdlLkRldGFpbEVudHJ5Gi0KC0RldGFpbEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBDoCOAEiewoJVHVybkVuZGVkEhMKC3N0b3BfcmVhc29uGAEgASgJEiEKBWVycm9yGAIgASgLMhIuYW9wLlByb3RvY29sRXJyb3ISHgoFdXNhZ2UYAyABKAsyDy5hb3AuVG9rZW5Vc2FnZRIWCg5jb250ZXh0X3Rva2VucxgEIAEoBCLtAQoMTWVzc2FnZURlbHRhEhIKCm1lc3NhZ2VfaWQYASABKAkSFQoNY29udGVudF9pbmRleBgCIAEoDRImCglvcGVyYXRpb24YAyABKA4yEy5hb3AuRGVsdGFPcGVyYXRpb24SDgoEdGV4dBgEIAEoCUgAEhMKCXJlYXNvbmluZxgFIAEoCUgAEhEKB3JlZnVzYWwYBiABKAlIABIOCgRkYXRhGAcgASgMSAASGAoOdG9vbF9hcmd1bWVudHMYCCABKAlIABIfCgdjb250ZW50GAkgASgLMgwuYW9wLkNvbnRlbnRIAEIHCgV2YWx1ZSJQCg1Ub29sQ2FsbERlbHRhEg8KB2NhbGxfaWQYASABKAkSDQoFaW5kZXgYAiABKA0SDAoEbmFtZRgDIAEoCRIRCglhcmd1bWVudHMYBCABKAwiOgoGU3RhdHVzEg0KBXN0YXRlGAEgASgJEiEKBmRldGFpbBgCIAEoCzIRLmFvcC5FbmNvZGVkVmFsdWUiQAoORXh0ZW5zaW9uRXZlbnQSDAoEdHlwZRgBIAEoCRIgCgV2YWx1ZRgCIAEoCzIRLmFvcC5FbmNvZGVkVmFsdWUiLwoQUHJvdmlkZXJNZXRhZGF0YRIMCgRuYW1lGAEgASgJEg0KBXZhbHVlGAIgASgMIssBCg1Qcm92aWRlckZyYW1lEhAKCHByb3ZpZGVyGAEgASgJEhAKCHByb3RvY29sGAIgASgJEhIKCmV2ZW50X3R5cGUYAyABKAkSIQoJZGlyZWN0aW9uGAQgASgOMg4uYW9wLkRpcmVjdGlvbhIRCgl0cmFuc3BvcnQYBSABKAkSDwoHcGF5bG9hZBgGIAEoDBISCgptZWRpYV90eXBlGAcgASgJEicKCG1ldGFkYXRhGAggAygLMhUuYW9wLlByb3ZpZGVyTWV0YWRhdGEi5wUKBUV2ZW50EgoKAmlkGAEgASgJEi4KCmVtaXR0ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKCnNlc3Npb25faWQYAyABKAkSDwoHdHVybl9pZBgEIAEoCRIPCgdlbWl0dGVyGAUgASgJEgsKA3NlcRgGIAEoBBIiCgpleHRlbnNpb25zGAcgAygLMg4uYW9wLkV4dGVuc2lvbhIuCg9zZXNzaW9uX3N0YXJ0ZWQYCiABKAsyEy5hb3AuU2Vzc2lvblN0YXJ0ZWRIABIqCg1zZXNzaW9uX2VuZGVkGAsgASgLMhEuYW9wLlNlc3Npb25FbmRlZEgAEigKDHR1cm5fc3RhcnRlZBgMIAEoCzIQLmFvcC5UdXJuU3RhcnRlZEgAEiQKCnR1cm5fZW5kZWQYDSABKAsyDi5hb3AuVHVybkVuZGVkSAASHwoHbWVzc2FnZRgOIAEoCzIMLmFvcC5NZXNzYWdlSAASKgoNbWVzc2FnZV9kZWx0YRgPIAEoCzIRLmFvcC5NZXNzYWdlRGVsdGFIABIiCgl0b29sX2NhbGwYECABKAsyDS5hb3AuVG9vbENhbGxIABItCg90b29sX2NhbGxfZGVsdGEYESABKAsyEi5hb3AuVG9vbENhbGxEZWx0YUgAEiYKC3Rvb2xfcmVzdWx0GBIgASgLMg8uYW9wLlRvb2xSZXN1bHRIABIgCgV1c2FnZRgTIAEoCzIPLmFvcC5Ub2tlblVzYWdlSAASIwoFZXJyb3IYFCABKAsyEi5hb3AuUHJvdG9jb2xFcnJvckgAEh0KBnN0YXR1cxgVIAEoCzILLmFvcC5TdGF0dXNIABIoCglleHRlbnNpb24YFiABKAsyEy5hb3AuRXh0ZW5zaW9uRXZlbnRIABIsCg5wcm92aWRlcl9mcmFtZRgXIAEoCzISLmFvcC5Qcm92aWRlckZyYW1lSABCCQoHcGF5bG9hZCqeAQoORGVsdGFPcGVyYXRpb24SHwobREVMVEFfT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASGQoVREVMVEFfT1BFUkFUSU9OX1NUQVJUEAESGgoWREVMVEFfT1BFUkFUSU9OX0FQUEVORBACEhsKF0RFTFRBX09QRVJBVElPTl9SRVBMQUNFEAMSFwoTREVMVEFfT1BFUkFUSU9OX0VORBAEKlUKCURpcmVjdGlvbhIZChVESVJFQ1RJT05fVU5TUEVDSUZJRUQQABIVChFESVJFQ1RJT05fUkVRVUVTVBABEhYKEkRJUkVDVElPTl9SRVNQT05TRRACYgZwcm90bzM", [file_aop_content, file_aop_value, file_google_protobuf_timestamp]);
+  fileDesc("Cg9hb3AvZXZlbnQucHJvdG8SA2FvcCJXCg5TZXNzaW9uU3RhcnRlZBINCgVtb2RlbBgBIAEoCRIZChFwYXJlbnRfc2Vzc2lvbl9pZBgCIAEoCRIbChNwYXJlbnRfdG9vbF9jYWxsX2lkGAMgASgJIh4KDFNlc3Npb25FbmRlZBIOCgZyZWFzb24YASABKAkiDQoLVHVyblN0YXJ0ZWQiRwoNUHJvdG9jb2xFcnJvchIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEQoJcmV0cnlhYmxlGAMgASgISgQIBBAFIroBCgpUb2tlblVzYWdlEhQKDGlucHV0X3Rva2VucxgBIAEoBBIVCg1vdXRwdXRfdG9rZW5zGAIgASgEEhQKDHRvdGFsX3Rva2VucxgDIAEoBBINCgVtb2RlbBgEIAEoCRIrCgZkZXRhaWwYBSADKAsyGy5hb3AuVG9rZW5Vc2FnZS5EZXRhaWxFbnRyeRotCgtEZXRhaWxFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAQ6AjgBInsKCVR1cm5FbmRlZBITCgtzdG9wX3JlYXNvbhgBIAEoCRIhCgVlcnJvchgCIAEoCzISLmFvcC5Qcm90b2NvbEVycm9yEh4KBXVzYWdlGAMgASgLMg8uYW9wLlRva2VuVXNhZ2USFgoOY29udGV4dF90b2tlbnMYBCABKAQi7QEKDE1lc3NhZ2VEZWx0YRISCgptZXNzYWdlX2lkGAEgASgJEhUKDWNvbnRlbnRfaW5kZXgYAiABKA0SJgoJb3BlcmF0aW9uGAMgASgOMhMuYW9wLkRlbHRhT3BlcmF0aW9uEg4KBHRleHQYBCABKAlIABITCglyZWFzb25pbmcYBSABKAlIABIRCgdyZWZ1c2FsGAYgASgJSAASDgoEZGF0YRgHIAEoDEgAEhgKDnRvb2xfYXJndW1lbnRzGAggASgJSAASHwoHY29udGVudBgJIAEoCzIMLmFvcC5Db250ZW50SABCBwoFdmFsdWUiUAoNVG9vbENhbGxEZWx0YRIPCgdjYWxsX2lkGAEgASgJEg0KBWluZGV4GAIgASgNEgwKBG5hbWUYAyABKAkSEQoJYXJndW1lbnRzGAQgASgMIh0KBlN0YXR1cxINCgVzdGF0ZRgBIAEoCUoECAIQAyIvChBQcm92aWRlck1ldGFkYXRhEgwKBG5hbWUYASABKAkSDQoFdmFsdWUYAiABKAwiywEKDVByb3ZpZGVyRnJhbWUSEAoIcHJvdmlkZXIYASABKAkSEAoIcHJvdG9jb2wYAiABKAkSEgoKZXZlbnRfdHlwZRgDIAEoCRIhCglkaXJlY3Rpb24YBCABKA4yDi5hb3AuRGlyZWN0aW9uEhEKCXRyYW5zcG9ydBgFIAEoCRIPCgdwYXlsb2FkGAYgASgMEhIKCm1lZGlhX3R5cGUYByABKAkSJwoIbWV0YWRhdGEYCCADKAsyFS5hb3AuUHJvdmlkZXJNZXRhZGF0YSL6BQoFRXZlbnQSCgoCaWQYASABKAkSLgoKZW1pdHRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2Vzc2lvbl9pZBgDIAEoCRIPCgd0dXJuX2lkGAQgASgJEg8KB2VtaXR0ZXIYBSABKAkSCwoDc2VxGAYgASgEEigKCmV4dGVuc2lvbnMYCCADKAsyFC5nb29nbGUucHJvdG9idWYuQW55Ei4KD3Nlc3Npb25fc3RhcnRlZBgKIAEoCzITLmFvcC5TZXNzaW9uU3RhcnRlZEgAEioKDXNlc3Npb25fZW5kZWQYCyABKAsyES5hb3AuU2Vzc2lvbkVuZGVkSAASKAoMdHVybl9zdGFydGVkGAwgASgLMhAuYW9wLlR1cm5TdGFydGVkSAASJAoKdHVybl9lbmRlZBgNIAEoCzIOLmFvcC5UdXJuRW5kZWRIABIfCgdtZXNzYWdlGA4gASgLMgwuYW9wLk1lc3NhZ2VIABIqCg1tZXNzYWdlX2RlbHRhGA8gASgLMhEuYW9wLk1lc3NhZ2VEZWx0YUgAEiIKCXRvb2xfY2FsbBgQIAEoCzINLmFvcC5Ub29sQ2FsbEgAEi0KD3Rvb2xfY2FsbF9kZWx0YRgRIAEoCzISLmFvcC5Ub29sQ2FsbERlbHRhSAASJgoLdG9vbF9yZXN1bHQYEiABKAsyDy5hb3AuVG9vbFJlc3VsdEgAEiAKBXVzYWdlGBMgASgLMg8uYW9wLlRva2VuVXNhZ2VIABIjCgVlcnJvchgUIAEoCzISLmFvcC5Qcm90b2NvbEVycm9ySAASHQoGc3RhdHVzGBUgASgLMgsuYW9wLlN0YXR1c0gAEiwKDnByb3ZpZGVyX2ZyYW1lGBcgASgLMhIuYW9wLlByb3ZpZGVyRnJhbWVIABIpCglleHRlbnNpb24YGCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55SABCCQoHcGF5bG9hZEoECAcQCEoECBYQFyqeAQoORGVsdGFPcGVyYXRpb24SHwobREVMVEFfT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASGQoVREVMVEFfT1BFUkFUSU9OX1NUQVJUEAESGgoWREVMVEFfT1BFUkFUSU9OX0FQUEVORBACEhsKF0RFTFRBX09QRVJBVElPTl9SRVBMQUNFEAMSFwoTREVMVEFfT1BFUkFUSU9OX0VORBAEKlUKCURpcmVjdGlvbhIZChVESVJFQ1RJT05fVU5TUEVDSUZJRUQQABIVChFESVJFQ1RJT05fUkVRVUVTVBABEhYKEkRJUkVDVElPTl9SRVNQT05TRRACQiVaI2dpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wYgZwcm90bzM", [file_aop_content, file_google_protobuf_any, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message aop.SessionStarted
@@ -93,11 +91,6 @@ export type ProtocolError = Message<"aop.ProtocolError"> & {
    * @generated from field: bool retryable = 3;
    */
   retryable: boolean;
-
-  /**
-   * @generated from field: aop.EncodedValue detail = 4;
-   */
-  detail?: EncodedValue | undefined;
 };
 
 /**
@@ -284,11 +277,6 @@ export type Status = Message<"aop.Status"> & {
    * @generated from field: string state = 1;
    */
   state: string;
-
-  /**
-   * @generated from field: aop.EncodedValue detail = 2;
-   */
-  detail?: EncodedValue | undefined;
 };
 
 /**
@@ -297,28 +285,6 @@ export type Status = Message<"aop.Status"> & {
  */
 export const StatusSchema: GenMessage<Status> = /*@__PURE__*/
   messageDesc(file_aop_event, 8);
-
-/**
- * @generated from message aop.ExtensionEvent
- */
-export type ExtensionEvent = Message<"aop.ExtensionEvent"> & {
-  /**
-   * @generated from field: string type = 1;
-   */
-  type: string;
-
-  /**
-   * @generated from field: aop.EncodedValue value = 2;
-   */
-  value?: EncodedValue | undefined;
-};
-
-/**
- * Describes the message aop.ExtensionEvent.
- * Use `create(ExtensionEventSchema)` to create a new message.
- */
-export const ExtensionEventSchema: GenMessage<ExtensionEvent> = /*@__PURE__*/
-  messageDesc(file_aop_event, 9);
 
 /**
  * @generated from message aop.ProviderMetadata
@@ -340,7 +306,7 @@ export type ProviderMetadata = Message<"aop.ProviderMetadata"> & {
  * Use `create(ProviderMetadataSchema)` to create a new message.
  */
 export const ProviderMetadataSchema: GenMessage<ProviderMetadata> = /*@__PURE__*/
-  messageDesc(file_aop_event, 10);
+  messageDesc(file_aop_event, 9);
 
 /**
  * ProviderFrame preserves one exact provider body or stream frame.
@@ -394,7 +360,7 @@ export type ProviderFrame = Message<"aop.ProviderFrame"> & {
  * Use `create(ProviderFrameSchema)` to create a new message.
  */
 export const ProviderFrameSchema: GenMessage<ProviderFrame> = /*@__PURE__*/
-  messageDesc(file_aop_event, 11);
+  messageDesc(file_aop_event, 10);
 
 /**
  * @generated from message aop.Event
@@ -431,9 +397,9 @@ export type Event = Message<"aop.Event"> & {
   seq: bigint;
 
   /**
-   * @generated from field: repeated aop.Extension extensions = 7;
+   * @generated from field: repeated google.protobuf.Any extensions = 8;
    */
-  extensions: Extension[];
+  extensions: Any[];
 
   /**
    * @generated from oneof aop.Event.payload
@@ -512,16 +478,16 @@ export type Event = Message<"aop.Event"> & {
     case: "status";
   } | {
     /**
-     * @generated from field: aop.ExtensionEvent extension = 22;
-     */
-    value: ExtensionEvent;
-    case: "extension";
-  } | {
-    /**
      * @generated from field: aop.ProviderFrame provider_frame = 23;
      */
     value: ProviderFrame;
     case: "providerFrame";
+  } | {
+    /**
+     * @generated from field: google.protobuf.Any extension = 24;
+     */
+    value: Any;
+    case: "extension";
   } | { case: undefined; value?: undefined };
 };
 
@@ -530,7 +496,7 @@ export type Event = Message<"aop.Event"> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_aop_event, 12);
+  messageDesc(file_aop_event, 11);
 
 /**
  * @generated from enum aop.DeltaOperation

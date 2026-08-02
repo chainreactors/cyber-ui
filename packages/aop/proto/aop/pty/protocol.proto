@@ -24,7 +24,7 @@ message Session {
 
 message Open {
   string stream_id = 1;
-  string node_uri = 2;
+  string node_id = 2;
   string kind = 3;
   string name = 4;
   string command = 5;
@@ -37,7 +37,7 @@ message Opened { string stream_id = 1; Session session = 2; }
 message Input { string stream_id = 1; bytes data = 2; }
 message Output { string stream_id = 1; bytes data = 2; int64 offset = 3; }
 message Resize { string stream_id = 1; int32 cols = 2; int32 rows = 3; }
-message List { string stream_id = 1; string node_uri = 2; }
+message List { string stream_id = 1; string node_id = 2; }
 message Sessions { string stream_id = 1; repeated Session sessions = 2; }
 message Attach { string stream_id = 1; string session_id = 2; int32 cols = 3; int32 rows = 4; }
 message Attached { string stream_id = 1; Session session = 2; }

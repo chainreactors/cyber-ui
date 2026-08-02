@@ -20,9 +20,9 @@ message AgentRuntimeInfo {
 }
 
 message AgentHello {
-  string agent_id = 1;
+  string node_id = 1;
   string name = 2;
-  string authority = 3;
+  reserved 3;
   repeated string capabilities = 4;
   reserved 5;
   repeated ToolDefinition tools = 6;
@@ -30,7 +30,7 @@ message AgentHello {
 }
 
 message AgentAccepted {
-  string agent_id = 1;
+  string node_id = 1;
   repeated string capabilities = 2;
 }
 

@@ -18,14 +18,14 @@ message Rejection {
 message Session {
   string id = 1;
   string state = 2;
-  string node_uri = 3;
+  string node_id = 3;
   string title = 4;
 }
 
 message OpenSessionRequest {
   reserved 1, 7;
   string session_id = 2;
-  string node_uri = 3;
+  string node_id = 3;
   string title = 4;
   string parent_session_id = 5;
   string parent_tool_call_id = 6;

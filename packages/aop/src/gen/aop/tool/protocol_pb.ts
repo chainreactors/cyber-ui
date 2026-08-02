@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/tool/protocol.proto.
  */
 export const file_aop_tool_protocol: GenFile = /*@__PURE__*/
-  fileDesc("Chdhb3AvdG9vbC9wcm90b2NvbC5wcm90bxIIYW9wLnRvb2wiSAoEQ2FsbBISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3R1cm5faWQYAiABKAkSGwoEY2FsbBgDIAEoCzINLmFvcC5Ub29sQ2FsbCJxCghQcm9ncmVzcxIMCgR0b29sGAEgASgJEg4KBnRhcmdldBgDIAEoCRItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHRleHQYBiABKAlKBAgCEANKBAgEEAUiZAoPUHJvdG9jb2xNZXNzYWdlEiYKCHByb2dyZXNzGAogASgLMhIuYW9wLnRvb2wuUHJvZ3Jlc3NIABIeCgRjYWxsGAsgASgLMg4uYW9wLnRvb2wuQ2FsbEgAQgkKB21lc3NhZ2VCL1otZ2l0aHViLmNvbS9jaGFpbnJlYWN0b3JzL2Fpc2Nhbi9hb3AvdG9vbDt0b29sYgZwcm90bzM", [file_aop_content, file_google_protobuf_timestamp]);
+  fileDesc("Chdhb3AvdG9vbC9wcm90b2NvbC5wcm90bxIIYW9wLnRvb2wiSAoEQ2FsbBISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3R1cm5faWQYAiABKAkSGwoEY2FsbBgDIAEoCzINLmFvcC5Ub29sQ2FsbCJxCghQcm9ncmVzcxIMCgR0b29sGAEgASgJEg4KBnRhcmdldBgDIAEoCRItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHRleHQYBiABKAlKBAgCEANKBAgEEAUihwEKCEFydGlmYWN0EgwKBHRvb2wYASABKAkSDAoEa2luZBgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDAoEZGF0YRgEIAEoDBISCgptZWRpYV90eXBlGAUgASgJEi0KCXRpbWVzdGFtcBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijAEKD1Byb3RvY29sTWVzc2FnZRImCghwcm9ncmVzcxgKIAEoCzISLmFvcC50b29sLlByb2dyZXNzSAASHgoEY2FsbBgLIAEoCzIOLmFvcC50b29sLkNhbGxIABImCghhcnRpZmFjdBgMIAEoCzISLmFvcC50b29sLkFydGlmYWN0SABCCQoHbWVzc2FnZUIvWi1naXRodWIuY29tL2NoYWlucmVhY3RvcnMvYWlzY2FuL2FvcC90b29sO3Rvb2xiBnByb3RvMw", [file_aop_content, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message aop.tool.Call
@@ -76,6 +76,51 @@ export const ProgressSchema: GenMessage<Progress> = /*@__PURE__*/
   messageDesc(file_aop_tool_protocol, 1);
 
 /**
+ * Artifact carries one scanner-native structured record. Nodes remain thin:
+ * only the server normalizes these records into canonical SCO documents.
+ *
+ * @generated from message aop.tool.Artifact
+ */
+export type Artifact = Message<"aop.tool.Artifact"> & {
+  /**
+   * @generated from field: string tool = 1;
+   */
+  tool: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string target = 3;
+   */
+  target: string;
+
+  /**
+   * @generated from field: bytes data = 4;
+   */
+  data: Uint8Array;
+
+  /**
+   * @generated from field: string media_type = 5;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 6;
+   */
+  timestamp?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message aop.tool.Artifact.
+ * Use `create(ArtifactSchema)` to create a new message.
+ */
+export const ArtifactSchema: GenMessage<Artifact> = /*@__PURE__*/
+  messageDesc(file_aop_tool_protocol, 2);
+
+/**
  * @generated from message aop.tool.ProtocolMessage
  */
 export type ProtocolMessage = Message<"aop.tool.ProtocolMessage"> & {
@@ -94,6 +139,12 @@ export type ProtocolMessage = Message<"aop.tool.ProtocolMessage"> & {
      */
     value: Call;
     case: "call";
+  } | {
+    /**
+     * @generated from field: aop.tool.Artifact artifact = 12;
+     */
+    value: Artifact;
+    case: "artifact";
   } | { case: undefined; value?: undefined };
 };
 
@@ -102,5 +153,5 @@ export type ProtocolMessage = Message<"aop.tool.ProtocolMessage"> & {
  * Use `create(ProtocolMessageSchema)` to create a new message.
  */
 export const ProtocolMessageSchema: GenMessage<ProtocolMessage> = /*@__PURE__*/
-  messageDesc(file_aop_tool_protocol, 2);
+  messageDesc(file_aop_tool_protocol, 3);
 

@@ -21,9 +21,21 @@ message Progress {
   string text = 6;
 }
 
+// Artifact carries one scanner-native structured record. Nodes remain thin:
+// only the server normalizes these records into canonical SCO documents.
+message Artifact {
+  string tool = 1;
+  string kind = 2;
+  string target = 3;
+  bytes data = 4;
+  string media_type = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}
+
 message ProtocolMessage {
   oneof message {
     Progress progress = 10;
     Call call = 11;
+    Artifact artifact = 12;
   }
 }

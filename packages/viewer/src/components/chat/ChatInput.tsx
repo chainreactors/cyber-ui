@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type DragEvent, type ReactNode } from 'react'
-import { AtSign, FileText, Paperclip, Send, Slash, Square, Upload, X } from 'lucide-react'
+import { AtSign, FileText, Paperclip, Send, Slash, Square, Upload, Wrench, X } from 'lucide-react'
 import { cn } from '@cyber/theme'
 function formatBytes(bytes: number): string { if (bytes < 1024) return bytes + "B"; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + "KB"; return (bytes / 1048576).toFixed(1) + "MB" }
 
@@ -30,11 +30,19 @@ export interface MentionPopupApi {
   query: string
   onSelect: (targets: string[]) => void
   onDismiss: () => void
+  navigation?: PopupNavigationCommand
   // Present when the host composer accepts file attachments. A categorized
   // mention popup (e.g. a "File" entry) calls this to drop the half-typed
   // "@frag" and open the native file picker, funnelling the choice into the
   // same attachment tray as the paperclip button.
   onAttach?: () => void
+}
+
+export type PopupNavigationKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'Enter'
+
+export interface PopupNavigationCommand {
+  key: PopupNavigationKey
+  sequence: number
 }
 
 export interface ChatInputProps {
@@ -44,6 +52,7 @@ export interface ChatInputProps {
   disabled?: boolean
   placeholder?: string
   commands?: CommandHint[]
+  toolCommands?: CommandHint[]
   mentionables?: Mentionable[]
   // Replace the default @-mention dropdown with a custom renderer (e.g. a
   // CSTXTable picker that supports multi-select). When provided, the built-in
@@ -69,6 +78,82 @@ function isTextFile(file: File): boolean {
   return textExts.some((ext) => file.name.toLowerCase().endsWith(ext))
 }
 
+type SimplePopupKind = 'command' | 'tool' | 'mention'
+
+const popupSurfaceClass = 'absolute bottom-[calc(100%+0.5rem)] left-0 right-0 z-30 overflow-hidden rounded-xl border border-border/70 bg-popover/95 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-1 duration-150'
+
+function SuggestionPopup({
+  kind,
+  options,
+  activeIndex,
+  onPick,
+}: {
+  kind: SimplePopupKind
+  options: CommandHint[]
+  activeIndex: number
+  onPick: (option: CommandHint) => void
+}) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const meta = kind === 'command'
+    ? { prefix: '/', label: 'Commands', Icon: Slash, tone: 'text-primary bg-primary/10' }
+    : kind === 'tool'
+      ? { prefix: '!', label: 'Tools', Icon: Wrench, tone: 'text-amber-600 bg-amber-500/10 dark:text-amber-400' }
+      : { prefix: '@', label: 'Mentions', Icon: AtSign, tone: 'text-ai bg-ai/10' }
+
+  useEffect(() => {
+    const list = listRef.current
+    const activeOption = list?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')
+    if (!list || !activeOption) return
+    const listRect = list.getBoundingClientRect()
+    const optionRect = activeOption.getBoundingClientRect()
+    if (optionRect.top < listRect.top) {
+      list.scrollTop -= listRect.top - optionRect.top
+    } else if (optionRect.bottom > listRect.bottom) {
+      list.scrollTop += optionRect.bottom - listRect.bottom
+    }
+  }, [activeIndex, kind, options.length])
+
+  return (
+    <div className={popupSurfaceClass} role="listbox" aria-label={meta.label}>
+      <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2 text-xs">
+        <span className={cn('grid h-6 w-6 place-items-center rounded-md font-mono font-semibold', meta.tone)}>{meta.prefix}</span>
+        <span className="font-medium text-foreground">{meta.label}</span>
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground">← ↑ ↓ → · Enter</span>
+      </div>
+      <div ref={listRef} className="max-h-64 overflow-y-auto p-1.5">
+        {options.length === 0 && (
+          <div className="px-2.5 py-5 text-center text-xs text-muted-foreground">No matching suggestions</div>
+        )}
+        {options.map((option, index) => (
+          <button
+            key={`${kind}-${option.cmd}`}
+            type="button"
+            role="option"
+            aria-selected={index === activeIndex}
+            onMouseDown={(event) => {
+              event.preventDefault()
+              onPick(option)
+            }}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-xs outline-none transition-colors',
+              index === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/70',
+            )}
+          >
+            <meta.Icon className={cn('h-3.5 w-3.5 shrink-0', kind === 'tool' ? 'text-amber-500' : kind === 'mention' ? 'text-ai' : 'text-primary')} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-mono font-semibold text-foreground">{option.cmd}</span>
+              {option.desc && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{option.desc}</span>}
+            </span>
+            {option.usage && option.usage !== option.cmd && (
+              <span className="max-w-[45%] shrink-0 truncate rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{option.usage}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // The asset token being typed under the caret, if any. The '@' must sit at the
 // start or right after whitespace (so it never fires inside an email like
 // user@host), and any whitespace closes the token. Returns the '@' index plus
@@ -92,6 +177,7 @@ export default function ChatInput({
   disabled,
   placeholder,
   commands = [],
+  toolCommands = [],
   mentionables = [],
   renderMentionPopup,
   injectText,
@@ -104,6 +190,9 @@ export default function ChatInput({
 }: ChatInputProps) {
   const [draft, setDraft] = useState('')
   const [showHints, setShowHints] = useState(false)
+  const [showToolHints, setShowToolHints] = useState(false)
+  const [activeOptionIndex, setActiveOptionIndex] = useState(0)
+  const [mentionNavigation, setMentionNavigation] = useState<PopupNavigationCommand | undefined>()
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null)
   const [attachments, setAttachments] = useState<ChatAttachment[]>([])
   const [dragOver, setDragOver] = useState(false)
@@ -126,6 +215,32 @@ export default function ChatInput({
     ? mentionables.filter((m) => m.target.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 8)
     : []
 
+  const matchingCommands = draft.startsWith('/')
+    ? commands.filter((c) => c.cmd.startsWith(draft.split(' ')[0]))
+    : commands
+  const matchingToolCommands = draft.startsWith('!')
+    ? toolCommands.filter((c) => {
+        const token = draft.split(/\s/, 1)[0].toLowerCase()
+        return c.cmd.toLowerCase().startsWith(token) || c.desc.toLowerCase().includes(token.slice(1))
+      })
+    : toolCommands
+  const simplePopupKind: SimplePopupKind | null = mention
+    ? (!renderMentionPopup && matchingMentions.length > 0 ? 'mention' : null)
+    : showHints
+      ? 'command'
+      : showToolHints
+        ? 'tool'
+        : null
+  const simpleOptions: CommandHint[] = simplePopupKind === 'command'
+    ? matchingCommands
+    : simplePopupKind === 'tool'
+      ? matchingToolCommands
+      : matchingMentions.map((item) => ({ cmd: item.target, desc: item.source || '', usage: item.label }))
+
+  useEffect(() => {
+    setActiveOptionIndex(0)
+  }, [simplePopupKind, draft])
+
   const addFiles = useCallback((files: FileList | File[]) => {
     const newAttachments: ChatAttachment[] = Array.from(files).map((file) => ({
       file,
@@ -134,6 +249,21 @@ export default function ChatInput({
     }))
     setAttachments((prev) => [...prev, ...newAttachments])
   }, [contextSizeLimit])
+
+  const openFilePicker = useCallback(() => {
+    const input = fileInputRef.current
+    if (!input || disabled) return
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker()
+        return
+      }
+    } catch {
+      // Fall through for browsers that expose showPicker but reject it for a
+      // hidden input. A direct click remains supported by older engines.
+    }
+    input.click()
+  }, [disabled])
 
   const removeAttachment = useCallback((index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
@@ -154,6 +284,7 @@ export default function ChatInput({
     setDraft('')
     setAttachments([])
     setShowHints(false)
+    setShowToolHints(false)
     setMention(null)
   }, [draft, attachments, disabled, onSend])
 
@@ -164,18 +295,27 @@ export default function ChatInput({
     // handleSend closes over a draft that setDraft('') hasn't cleared yet, can fire
     // a second identical send off the same keypress and spawn a duplicate run.
     if (e.nativeEvent.isComposing || e.keyCode === 229) return
-    // Built-in simple list: Enter resolves a half-typed "@frag" to the top match
-    // instead of sending it as literal text.
-    if (mention && !renderMentionPopup && matchingMentions.length > 0 && e.key === 'Enter' && !e.shiftKey) {
+    if (mention && renderMentionPopup && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key) && !e.shiftKey) {
       e.preventDefault()
-      insertMention(matchingMentions[0].target)
+      setMentionNavigation((previous) => ({
+        key: e.key as PopupNavigationKey,
+        sequence: (previous?.sequence ?? 0) + 1,
+      }))
       return
     }
-    // A custom popup owns its own selection (click, or its own key handling).
-    // While it is open, swallow Enter so the message isn't sent out from under
-    // the picker — Escape dismisses it, and then Enter sends as usual.
-    if (mention && renderMentionPopup && e.key === 'Enter' && !e.shiftKey) {
+    if (simplePopupKind && simpleOptions.length > 0 && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault()
+      const delta = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1
+      setActiveOptionIndex((index) => (index + delta + simpleOptions.length) % simpleOptions.length)
+      return
+    }
+    if (simplePopupKind && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      const option = simpleOptions[activeOptionIndex] ?? simpleOptions[0]
+      if (option) {
+        if (simplePopupKind === 'mention') insertMention(option.cmd)
+        else insertCommand(option.cmd)
+      }
       return
     }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -184,6 +324,7 @@ export default function ChatInput({
     }
     if (e.key === 'Escape') {
       setShowHints(false)
+      setShowToolHints(false)
       setMention(null)
     }
   }
@@ -191,9 +332,8 @@ export default function ChatInput({
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const value = e.target.value
     setDraft(value)
-    if (commands.length > 0) {
-      setShowHints(value === '/' || (value.startsWith('/') && !value.includes(' ')))
-    }
+    setShowHints(value === '/' || (value.startsWith('/') && !value.includes(' ')))
+    setShowToolHints(value === '!' || (value.startsWith('!') && !value.includes(' ')))
     const caret = e.target.selectionStart ?? value.length
     setMention(mentionables.length > 0 || renderMentionPopup ? mentionAt(value, caret) : null)
   }
@@ -210,6 +350,7 @@ export default function ChatInput({
   function insertCommand(cmd: string) {
     setDraft(cmd + ' ')
     setShowHints(false)
+    setShowToolHints(false)
     textareaRef.current?.focus()
   }
 
@@ -242,7 +383,7 @@ export default function ChatInput({
       setDraft(draft.slice(0, mention.start) + draft.slice(caret))
     }
     setMention(null)
-    fileInputRef.current?.click()
+    openFilePicker()
   }
 
   function handleDragOver(e: DragEvent) {
@@ -295,10 +436,6 @@ export default function ChatInput({
     })
   }, [injectText])
 
-  const matchingCommands = draft.startsWith('/')
-    ? commands.filter((c) => c.cmd.startsWith(draft.split(' ')[0]))
-    : commands
-
   const hasCommands = commands.length > 0
   const defaultPlaceholder = hasCommands
     ? 'Type a message... (/ for commands)'
@@ -326,53 +463,28 @@ export default function ChatInput({
         </div>
       )}
 
-      {/* command hints popup */}
-      {showHints && !mention && matchingCommands.length > 0 && (
-        <div className="absolute bottom-full left-0 right-0 border-t border-border bg-card shadow-lg animate-in fade-in slide-in-from-bottom-1 duration-150">
-          <div className="px-4 py-1.5">
-            {matchingCommands.map((c) => (
-              <button
-                key={c.cmd}
-                type="button"
-                onClick={() => insertCommand(c.cmd)}
-                className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
-              >
-                <Slash className="h-3 w-3 shrink-0 text-primary" />
-                <span className="font-mono font-medium text-foreground">{c.cmd}</span>
-                <span className="text-muted-foreground">{c.desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      {simplePopupKind && (
+        <SuggestionPopup
+          kind={simplePopupKind}
+          options={simpleOptions}
+          activeIndex={Math.min(activeOptionIndex, simpleOptions.length - 1)}
+          onPick={(option) => {
+            if (simplePopupKind === 'mention') insertMention(option.cmd)
+            else insertCommand(option.cmd)
+          }}
+        />
       )}
 
       {/* @-mention popup — custom renderer or built-in simple list */}
       {mention && renderMentionPopup && (
-        <div className="absolute bottom-full left-0 right-0 border-t border-border bg-card shadow-lg animate-in fade-in slide-in-from-bottom-1 duration-150">
+        <div className={popupSurfaceClass}>
           {renderMentionPopup({
             query: mention.query,
             onSelect: insertMentions,
             onDismiss: () => setMention(null),
             onAttach: enableAttachments ? requestAttach : undefined,
+            navigation: mentionNavigation,
           })}
-        </div>
-      )}
-      {mention && !renderMentionPopup && matchingMentions.length > 0 && (
-        <div className="absolute bottom-full left-0 right-0 border-t border-border bg-card shadow-lg animate-in fade-in slide-in-from-bottom-1 duration-150">
-          <div className="max-h-52 overflow-y-auto px-4 py-1.5">
-            {matchingMentions.map((m) => (
-              <button
-                key={m.target}
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); insertMention(m.target) }}
-                className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
-              >
-                <AtSign className="h-3 w-3 shrink-0 text-ai" />
-                <span className="min-w-0 flex-1 truncate font-mono font-medium text-foreground">{m.target}</span>
-                {m.source && <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground/70">{m.source}</span>}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
@@ -432,12 +544,13 @@ export default function ChatInput({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                className="hidden"
+                tabIndex={-1}
+                className="sr-only"
                 onChange={(e) => { if (e.target.files?.length) { addFiles(e.target.files); e.target.value = '' } }}
               />
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={openFilePicker}
                 disabled={disabled}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 aria-label="Attach files"
@@ -455,8 +568,14 @@ export default function ChatInput({
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             onSelect={handleSelect}
-            onFocus={() => { if (draft === '/' && hasCommands) setShowHints(true) }}
-            onBlur={() => setTimeout(() => setShowHints(false), 150)}
+            onFocus={() => {
+              if (draft === '/') setShowHints(true)
+              if (draft === '!') setShowToolHints(true)
+            }}
+            onBlur={() => setTimeout(() => {
+              setShowHints(false)
+              setShowToolHints(false)
+            }, 150)}
             disabled={disabled}
             placeholder={placeholder || defaultPlaceholder}
             className={cn(

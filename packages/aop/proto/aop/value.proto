@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package aop;
+
+option go_package = "github.com/chainreactors/aiscan/aop";
+
+// EncodedValue carries genuinely opaque data whose schema is not protobuf,
+// notably provider/tool JSON arguments and JSON Schema documents.
+message EncodedValue {
+  bytes data = 1;
+  string media_type = 2;
+}

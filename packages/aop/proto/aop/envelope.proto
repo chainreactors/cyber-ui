@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package aop;
+
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop";
+
+// Envelope is the only AOP wire envelope. Business namespaces are carried by
+// Any and never extend this message with a global oneof.
+message Envelope {
+  string id = 1;
+  string reply_to = 2;
+  string delivery_cursor = 3;
+  google.protobuf.Any payload = 4;
+}

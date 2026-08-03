@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package aop;
+
+import "aop/content.proto";
+import "aop/event.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop";
+
+message Rejection {
+  string code = 1;
+  string message = 2;
+  bool retryable = 3;
+  reserved 4;
+}
+
+message Session {
+  string id = 1;
+  string state = 2;
+  string node_id = 3;
+  string title = 4;
+}
+
+message OpenSessionRequest {
+  reserved 1, 7;
+  string session_id = 2;
+  string node_id = 3;
+  string title = 4;
+  string parent_session_id = 5;
+  string parent_tool_call_id = 6;
+  repeated google.protobuf.Any extensions = 8;
+}
+
+message OpenSessionResponse {
+  reserved 1;
+  oneof outcome {
+    Session accepted = 2;
+    Rejection rejected = 3;
+  }
+}
+
+message RunTurnRequest {
+  reserved 1, 7;
+  string session_id = 2;
+  string turn_id = 3;
+  Message input = 4;
+  bool continue_session = 5;
+  uint32 max_turns = 6;
+  repeated google.protobuf.Any extensions = 8;
+}
+
+message TurnReceipt {
+  string session_id = 1;
+  string turn_id = 2;
+  string state = 3;
+}
+
+message RunTurnResponse {
+  reserved 1;
+  oneof outcome {
+    TurnReceipt accepted = 2;
+    Rejection rejected = 3;
+  }
+}
+
+message CancelTurnRequest {
+  reserved 1;
+  string session_id = 2;
+  string turn_id = 3;
+  string reason = 4;
+}
+
+message CancelTurnResponse {
+  reserved 1;
+  oneof outcome {
+    TurnReceipt accepted = 2;
+    Rejection rejected = 3;
+  }
+}
+
+message CloseSessionRequest {
+  reserved 1;
+  string session_id = 2;
+  string reason = 3;
+}
+
+message CloseSessionResponse {
+  reserved 1;
+  oneof outcome {
+    Session accepted = 2;
+    Rejection rejected = 3;
+  }
+}
+
+message WatchEventsRequest {
+  string session_id = 1;
+  string after_cursor = 2;
+}
+
+message EventDelivery {
+  string cursor = 1;
+  Event event = 2;
+}
+
+message ListEventsRequest {
+  string session_id = 1;
+  string after_cursor = 2;
+  uint32 limit = 3;
+}
+
+message ListEventsResponse {
+  repeated EventDelivery events = 1;
+  string next_cursor = 2;
+}

@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package aop.file;
+
+option go_package = "github.com/chainreactors/aiscan/aop/file;file";
+
+message ReadRequest { string path = 1; }
+message WriteRequest { string path = 1; bytes data = 2; }
+message ListRequest { string path = 1; }
+message MkdirRequest { string path = 1; }
+message UploadRequest {
+  string session_id = 1;
+  string filename = 2;
+  string media_type = 3;
+  bytes data = 4;
+}
+
+message Entry {
+  string name = 1;
+  bool is_directory = 2;
+  int64 size = 3;
+}
+
+message Result {
+  string path = 1;
+  string filename = 2;
+  int64 size = 3;
+  bytes data = 4;
+  repeated Entry entries = 5;
+  string media_type = 6;
+}
+
+message ProtocolMessage {
+  oneof message {
+    ReadRequest read_request = 10;
+    WriteRequest write_request = 11;
+    ListRequest list_request = 12;
+    MkdirRequest mkdir_request = 13;
+    UploadRequest upload_request = 14;
+    Result result = 20;
+  }
+}

@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package aop;
+
+import "aop/value.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop";
+
+message Resource {
+  oneof source {
+    bytes data = 1;
+    string uri = 2;
+  }
+  string media_type = 3;
+  string filename = 4;
+}
+
+message Annotation {
+  string type = 1;
+  uint64 start = 2;
+  uint64 end = 3;
+  string title = 4;
+  string uri = 5;
+  reserved 6;
+}
+
+message TextContent {
+  string text = 1;
+  repeated Annotation annotations = 2;
+}
+
+message ReasoningContent {
+  string text = 1;
+  reserved 2, 3;
+}
+
+message MediaContent {
+  string kind = 1;
+  Resource resource = 2;
+  string transcript = 3;
+  reserved 4;
+}
+
+message ToolCall {
+  string id = 1;
+  string name = 2;
+  string kind = 3;
+  EncodedValue arguments = 4;
+  string working_directory = 5;
+}
+
+message ToolResult {
+  string call_id = 1;
+  repeated Content output = 2;
+  bool is_error = 3;
+  reserved 4;
+  string name = 5;
+  uint64 duration_ms = 6;
+  bool terminate = 7;
+}
+
+// ToolDefinition is the provider-neutral function/tool contract advertised by
+// an Agent. Provider adapters translate this schema at their wire boundary.
+message ToolDefinition {
+  string type = 1;
+  string name = 2;
+  string description = 3;
+  EncodedValue input_schema = 4;
+}
+
+message Content {
+  reserved 7;
+  oneof value {
+    TextContent text = 1;
+    ReasoningContent reasoning = 2;
+    string refusal = 3;
+    MediaContent media = 4;
+    ToolCall tool_call = 5;
+    ToolResult tool_result = 6;
+  }
+}
+
+message Message {
+  string id = 1;
+  string role = 2;
+  string name = 3;
+  repeated Content content = 4;
+}

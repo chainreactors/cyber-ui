@@ -55,7 +55,7 @@ export { ConnectedChatPanel } from './components/chat/LiveChatPanel'
 export { ConnectedTimeline } from './components/graph/ExecutionTimeline'
 
 // Layer 2 — Providers & hooks
-export { APGWebSocketProvider, StaticEventProvider, useAPGEvents } from './providers/APGWebSocketProvider'
+export { APGEventProvider, StaticEventProvider, useAPGEvents, type APGEventSource } from './providers/APGEventProvider'
 export { ThemeProvider, useTheme } from './providers/ThemeProvider'
 export { useGraphState } from './providers/useGraphState'
 export { useChatState } from './providers/useChatState'
@@ -77,7 +77,7 @@ export type { ChatThinkingProps } from './components/chat/ChatThinking'
 export type { AssistantResponseProps } from './components/chat/AssistantResponse'
 export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
 export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
-export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode, Mentionable, MentionPopupApi } from './components/chat/ChatInput'
+export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode, Mentionable, MentionPopupApi, PopupNavigationCommand, PopupNavigationKey } from './components/chat/ChatInput'
 export type { ChatPanelProps, ChatPanelTimelineProps, ChatPanelInputProps, ChatPanelHeaderProps } from './components/chat/ChatPanel'
 export type { ChatSessionState, ChatSessionActions, ChatSessionContextValue } from './providers/ChatSessionProvider'
 export type {
@@ -91,26 +91,8 @@ export type {
 export type { APGEvent, WireEvent } from './types/protocol'
 export type { ReduceAOPOptions } from './lib/aop-reducer'
 export type { AOPChatPanelProps } from './components/chat/AOPChatPanel'
-export type {
-  AOPEvent,
-  AOPEventType,
-  AOPData,
-  ImageSource,
-  MessagePart,
-  MessagePartType,
-  SessionStartData,
-  SessionEndData,
-  MessageData,
-  MessageDeltaData,
-  ToolCallData,
-  ToolResultData,
-  UsageData,
-  TurnStartData,
-  TurnEndData,
-  ErrorData as AOPErrorData,
-  StatusData,
-} from '@cyber/agent-protocol'
-export { isAOPEvent } from '@cyber/agent-protocol'
+export type { Event as AOPEvent, Content as AOPContent } from '@cyber/aop'
+export { EventSchema as AOPEventSchema, eventFromJson } from '@cyber/aop'
 export { isAgentEvent, eventType, eventTimestamp, eventAgent } from './types/protocol'
 export type {
   TimelineItem,

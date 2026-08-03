@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useAPGEvents } from './APGWebSocketProvider'
+import { useAPGEvents } from './APGEventProvider'
 import { reduceGraphState } from '../lib/event-reducer'
 import type { GraphState } from '../lib/event-reducer'
 

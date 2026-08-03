@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useAPGEvents } from './APGWebSocketProvider'
+import { useAPGEvents } from './APGEventProvider'
 import { reduceChatState } from '../lib/event-reducer'
 import type { ChatState } from '../lib/event-reducer'
 

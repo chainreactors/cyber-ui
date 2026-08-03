@@ -1,0 +1,26 @@
+{
+  "name": "@cyber/aop",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./proto/*": "./proto/*"
+  },
+  "scripts": {
+    "generate": "buf generate",
+    "lint": "buf lint && buf build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.9.0"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^2.9.0",
+    "typescript": "^5.7.2"
+  }
+}

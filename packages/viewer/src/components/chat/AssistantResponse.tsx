@@ -11,6 +11,8 @@ export interface AssistantResponseProps {
   actorName?: string | null
   timestamp?: string
   thinking?: ReactNode
+  thinkingExpanded?: boolean
+  onThinkingToggle?: (expanded: boolean) => void
   tools?: ReactNode
   response?: ReactNode
   streaming?: boolean
@@ -34,10 +36,12 @@ export default function AssistantResponse({
   defaultThinkingExpanded = false,
   headerClassName,
   labels,
+  onThinkingToggle,
   response,
   showResponseLabel = true,
   streaming,
   thinking,
+  thinkingExpanded,
   timestamp,
   timeLabel,
   tools,
@@ -60,6 +64,8 @@ export default function AssistantResponse({
         <Collapsible
           title={labels?.thinking || 'Thinking'}
           defaultExpanded={defaultThinkingExpanded}
+          expanded={thinkingExpanded}
+          onToggle={onThinkingToggle}
           className={cn(!showResponse && !hasTools ? '' : 'border-b border-border')}
           bodyClassName="text-sm leading-relaxed text-muted-foreground"
         >

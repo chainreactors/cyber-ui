@@ -12,6 +12,7 @@ import {
   HardDrive,
   X,
   List,
+  ListTree,
   Grid3X3,
   Home,
   Menu,
@@ -19,6 +20,7 @@ import {
   Database,
   Wifi,
   History,
+  PanelTop,
 } from "../icons"
 import type { TreeApi, NodeRendererProps } from "react-arborist"
 import type { FileNode, SelectionState } from "../types"
@@ -42,6 +44,8 @@ interface FileToolbarProps {
   enumeratingDrivers: boolean
   isAtRoot: boolean
   cacheMode: 'cached' | 'live'
+  layoutMode?: 'split' | 'tree'
+  setLayoutMode?: (mode: 'split' | 'tree') => void
   // Navigation
   navigateToPath: (path: string) => void
   navigateUp: () => void
@@ -90,6 +94,8 @@ export function FileToolbar({
   enumeratingDrivers,
   isAtRoot,
   cacheMode,
+  layoutMode = 'split',
+  setLayoutMode,
   navigateToPath,
   navigateUp,
   navigateHome,
@@ -422,6 +428,27 @@ export function FileToolbar({
 
         {/* View toggle */}
         <Separator orientation="vertical" className="h-6" />
+        {setLayoutMode && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant={layoutMode === 'tree' ? 'secondary' : 'ghost'}
+                onClick={() => setLayoutMode(layoutMode === 'tree' ? 'split' : 'tree')}
+                aria-label={layoutMode === 'tree' ? t('fullMode') : t('compactMode')}
+              >
+                {layoutMode === 'tree'
+                  ? <PanelTop className="w-4 h-4" />
+                  : <ListTree className="w-4 h-4" />
+                }
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={6} className="bg-popover text-popover-foreground [&>svg]:hidden">
+              {layoutMode === 'tree' ? t('fullMode') : t('compactMode')}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {layoutMode !== 'tree' && <>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" variant={viewMode === 'list' ? 'secondary' : 'ghost'} onClick={() => setViewMode('list')} aria-label={t('listView')}>
@@ -438,6 +465,7 @@ export function FileToolbar({
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6} className="bg-popover text-popover-foreground [&>svg]:hidden">{t('gridView')}</TooltipContent>
         </Tooltip>
+        </>}
       </div>
     </div>
   )

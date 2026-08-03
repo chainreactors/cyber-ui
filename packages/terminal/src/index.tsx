@@ -37,8 +37,23 @@ export function TerminalView({ onReady, className }: { onReady: (terminal: XTerm
   return <div className={cn('min-h-0 flex-1 bg-[#060a0d] p-2', className)}><div ref={mountRef} className="h-full min-h-[18rem] w-full" /></div>
 }
 
-export function TerminalHeader({ actions, status, title }: { actions?: ReactNode; status: TerminalStatus; title: string }) {
-  return <div className="flex h-11 min-w-0 shrink-0 items-center justify-between border-b border-border px-3"><div className="flex min-w-0 items-center gap-2" title={title}><Monitor className="h-4 w-4 shrink-0 text-primary" /><span className="truncate text-sm font-medium text-foreground">{title}</span><span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[10px]', terminalStatusColor(status))}>{status}</span></div>{actions && <div className="flex items-center gap-1">{actions}</div>}</div>
+export function TerminalHeader({ actions, status, title }: {
+  actions?: ReactNode
+  status: TerminalStatus
+  title: string
+}) {
+  return (
+    <div className="flex h-11 min-w-0 shrink-0 items-center justify-between border-b border-border bg-card px-3 text-card-foreground">
+      <div className="flex min-w-0 items-center gap-2" title={title}>
+        <Monitor className="h-4 w-4 shrink-0 text-primary" />
+        <span className="truncate text-sm font-medium text-foreground">{title}</span>
+        <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[10px]', terminalStatusColor(status))}>
+          {status}
+        </span>
+      </div>
+      {actions && <div className="flex items-center gap-1">{actions}</div>}
+    </div>
+  )
 }
 
 export function SessionNavigator({ activeID, emptyText = 'No sessions', header, listLabel = 'Sessions', onSelect, sessions, summary, unreadIDs }: { activeID: string; emptyText?: string; header?: ReactNode; listLabel?: string; onSelect: (session: PTYSession) => void; sessions: PTYSession[]; summary?: string; unreadIDs?: Set<string> }) {

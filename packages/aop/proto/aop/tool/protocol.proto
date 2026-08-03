@@ -19,6 +19,7 @@ message Progress {
   string target = 3;
   google.protobuf.Timestamp timestamp = 5;
   string text = 6;
+  string call_id = 7;
 }
 
 // Artifact carries one scanner-native structured record. Nodes remain thin:
@@ -30,6 +31,7 @@ message Artifact {
   bytes data = 4;
   string media_type = 5;
   google.protobuf.Timestamp timestamp = 6;
+  string call_id = 7;
 }
 
 message ProtocolMessage {

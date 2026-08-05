@@ -1435,6 +1435,8 @@ export function CSTXTable({
                       const isFirst = cellIdx === 0 && stickyFirstColumn;
                       const isSystemCol = cell.column.id.startsWith('__');
                       const isActions = cell.column.id === '__actions';
+                      const isSticky = isFirst || isActions;
+                      const isHighlighted = row.getIsSelected() || isActive;
                       const externalHref = isSystemCol ? null : asHttpUrl(cell.getValue());
                       return (
                         <div
@@ -1447,22 +1449,18 @@ export function CSTXTable({
                             (cell.column.columnDef.meta as Record<string, unknown>)?.align === 'right' && 'text-right',
                             isFirst && 'sticky left-0 z-[1] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
                             isActions && 'sticky right-0 z-[2] shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]',
+                            // Sticky cells overlay horizontally-scrolled content, so they paint
+                            // their own opaque background instead of revealing the row's. Mirror
+                            // the row's fill in every state — resting surface, the selected/active
+                            // highlight layered over that surface, and (via group-hover) the same
+                            // hover tint the row uses — so the frozen checkbox/index/actions column
+                            // tracks the rest of the row instead of staying flat on hover. The
+                            // group-hover rule outranks the resting/highlight ones on specificity,
+                            // so hover wins in every state, matching the non-sticky cells.
+                            isSticky && !isHighlighted && '[background:var(--c-surface,var(--color-surface,#fff))]',
+                            isSticky && isHighlighted && '[background:linear-gradient(var(--c-row-highlight,var(--c-accent-soft)),var(--c-row-highlight,var(--c-accent-soft))),var(--c-surface,var(--color-surface,#fff))]',
+                            isSticky && 'group-hover:[background:var(--c-surface-2,#f8fafc)]',
                           )}
-                          style={
-                            isFirst || isActions
-                              ? {
-                                  // Sticky cells need an opaque base so scrolled content can't
-                                  // bleed through. When the row is selected/active, layer the same
-                                  // row-highlight tint the row carries over that base, so the
-                                  // highlight reads as one continuous band instead of leaving the
-                                  // sticky checkbox/actions columns white.
-                                  background:
-                                    row.getIsSelected() || isActive
-                                      ? 'linear-gradient(var(--c-row-highlight, var(--c-accent-soft)), var(--c-row-highlight, var(--c-accent-soft))), var(--c-surface, var(--color-surface, #fff))'
-                                      : 'var(--c-surface, var(--color-surface, #fff))',
-                                }
-                              : undefined
-                          }
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           {!isSystemCol && (

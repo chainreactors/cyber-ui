@@ -1,5 +1,5 @@
 import type { CstxReportPreview } from '@cyber/cstx'
-import { normalizeReportVulnerability, type ReportVulnerabilityRecord } from './vulnerability'
+import { normalizeReportVulnerability, type ReportVulnerabilityRecord } from './vulnerability.js'
 
 export interface StandaloneReportOptions {
   title?: string
@@ -43,9 +43,9 @@ export const STANDALONE_REPORT_CSS = `
   --report-accent: #1d5fd6;
   --report-accent-soft: rgba(59, 111, 206, 0.08);
   --report-green: #0f8a6e;
-  --report-yellow: #947614;
+  --report-yellow: #9a6207;
   --report-red: #c53554;
-  --report-orange: #a66c12;
+  --report-orange: #c2410c;
   --report-purple: #7c5cbf;
   --report-shadow: 0 12px 36px rgba(12, 15, 20, 0.1), 0 0 0 1px rgba(59, 111, 206, 0.05);
   --report-sans: Inter, "Noto Sans SC", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -174,14 +174,14 @@ body {
 .cyber-report [data-report-component="finding-card"][data-report-severity="info"] { border-top-color: var(--report-dim); }
 .cyber-report [data-report-component="severity-badge"] { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--report-card); color: var(--report-muted); font-size: 11px; font-weight: 700; line-height: 1.5; }
 .cyber-report [data-report-component="severity-badge"][data-report-severity="critical"] { background: rgba(197, 53, 84, 0.12); color: var(--report-red); }
-.cyber-report [data-report-component="severity-badge"][data-report-severity="high"] { background: rgba(166, 108, 18, 0.12); color: var(--report-orange); }
-.cyber-report [data-report-component="severity-badge"][data-report-severity="medium"] { background: rgba(148, 118, 20, 0.12); color: var(--report-yellow); }
+.cyber-report [data-report-component="severity-badge"][data-report-severity="high"] { background: rgba(194, 65, 12, 0.12); color: var(--report-orange); }
+.cyber-report [data-report-component="severity-badge"][data-report-severity="medium"] { background: rgba(154, 98, 7, 0.12); color: var(--report-yellow); }
 .cyber-report [data-report-component="severity-badge"][data-report-severity="low"] { background: var(--report-accent-soft); color: var(--report-accent); }
 .cyber-report [data-report-component="http-evidence"] { margin: 14px 0; padding: 12px 14px; border: 1px solid var(--report-border); border-radius: 10px; background: #fbfdff; }
 .cyber-report [data-report-component="http-evidence"] > h4:first-child { margin-top: 0; }
 .cyber-report [data-report-component="data-table"] { display: table; }
 .cyber-report [data-report-component="toc"] { margin: 14px 0; padding: 12px 16px; border: 1px solid var(--report-border); border-radius: 9px; background: var(--report-card); }
-.cyber-report [data-report-component="callout"][data-report-tone="warn"] { border-left-color: var(--report-yellow); background: rgba(148, 118, 20, 0.08); }
+.cyber-report [data-report-component="callout"][data-report-tone="warn"] { border-left-color: var(--report-yellow); background: rgba(154, 98, 7, 0.08); }
 .cyber-report [data-report-component="callout"][data-report-tone="danger"] { border-left-color: var(--report-red); background: rgba(197, 53, 84, 0.08); }
 .cyber-report [data-report-component="callout"][data-report-tone="info"],
 .cyber-report [data-report-component="callout"][data-report-tone="note"] { border-left-color: var(--report-accent); background: var(--report-accent-soft); }
@@ -231,8 +231,8 @@ body {
 .cyber-report [data-report-vulnerability] > summary strong { min-width: 0; flex: 1; color: var(--report-heading); }
 .cyber-report .report-severity { display: inline-flex; padding: 2px 7px; border-radius: 999px; background: var(--report-card); color: var(--report-muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
 .cyber-report .report-severity[data-severity="critical"] { background: rgba(197, 53, 84, 0.12); color: var(--report-red); }
-.cyber-report .report-severity[data-severity="high"] { background: rgba(166, 108, 18, 0.12); color: var(--report-orange); }
-.cyber-report .report-severity[data-severity="medium"] { background: rgba(148, 118, 20, 0.12); color: var(--report-yellow); }
+.cyber-report .report-severity[data-severity="high"] { background: rgba(194, 65, 12, 0.12); color: var(--report-orange); }
+.cyber-report .report-severity[data-severity="medium"] { background: rgba(154, 98, 7, 0.12); color: var(--report-yellow); }
 .cyber-report .report-severity[data-severity="low"] { background: var(--report-accent-soft); color: var(--report-accent); }
 .cyber-report .report-vulnerability-body { padding: 13px 15px 15px; border-top: 1px solid var(--report-border); }
 .cyber-report .report-vulnerability-narrative { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--report-border-subtle); border-radius: 8px; background: var(--report-accent-soft); white-space: pre-wrap; }

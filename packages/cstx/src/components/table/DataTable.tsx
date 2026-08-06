@@ -59,6 +59,21 @@ import type {CSTXNode} from '../../types/transport.gen';
 
 type Row = Record<string, unknown>;
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+// Edge shadows for the frozen index / actions columns. These are a scroll
+// affordance — "content is sliding under this column" — so they only paint
+// while that side actually has content off-screen (see `stickyEdges`). Painted
+// unconditionally they left a permanent vertical rule beside the first value of
+// every row on any table that fits its container, which is most of them.
+// Spread == -offset puts the shadow rect's edge exactly on the cell's, so the
+// whole falloff lands outside the frozen column instead of hugging it as a line.
+// Neutral black, not slate-900: a blue-tinted shadow reads cold against Cairn's
+// near-neutral dark surface. Dark needs the heavier alpha — black on #1e2025 has
+// far less room to fall off than black on white.
+const STICKY_START_SHADOW =
+  'shadow-[8px_0_10px_-8px_rgba(0,0,0,0.28)] dark:shadow-[8px_0_12px_-8px_rgba(0,0,0,0.80)]';
+const STICKY_END_SHADOW =
+  'shadow-[-8px_0_10px_-8px_rgba(0,0,0,0.28)] dark:shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.80)]';
 type TableActionVariant = 'default' | 'danger' | 'secondary';
 interface TableActionConfig {
   id: string;
@@ -1029,6 +1044,41 @@ export function CSTXTable({
   const useCards =
     layoutMode === 'cards' ||
     (layoutMode === 'auto' && containerWidth != null && containerWidth < tablePreferredWidth);
+
+  // Which side (if either) currently has content hidden under a frozen column.
+  const [stickyEdges, setStickyEdges] = useState({ start: false, end: false });
+  useIsomorphicLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      // 1px slack: fractional grid tracks routinely leave scrollWidth a hair
+      // over clientWidth on a table that visually fits.
+      const overflow = el.scrollWidth - el.clientWidth;
+      const offset = Math.abs(el.scrollLeft); // RTL reports this negative
+      const next = {
+        start: !useCards && offset > 1,
+        end: !useCards && overflow - offset > 1,
+      };
+      // Bail when nothing crossed an edge — `measure` runs on every scroll
+      // event, and a fresh object each time would re-render the whole grid per
+      // scrolled frame.
+      setStickyEdges((prev) => (prev.start === next.start && prev.end === next.end ? prev : next));
+    };
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    let observer: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(measure);
+      observer.observe(el);
+    }
+    return () => {
+      el.removeEventListener('scroll', measure);
+      observer?.disconnect();
+    };
+    // The observer above watches the scroll *box*; column resizes and page-size
+    // changes resize its *content*, so re-measure whenever the grid changes too.
+  }, [useCards, gridTemplateColumns, tableMinWidth, table.getRowModel().rows.length]);
+
   const primaryKey = visibleColumns[0]?.key;
 
   // --- Handlers ---
@@ -1391,8 +1441,10 @@ export function CSTXTable({
                       className={cn(
                         'relative min-w-0 font-medium',
                         compact ? 'py-1.5 pr-1.5' : 'py-2 pr-2',
-                        isFirst && 'sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
-                        isActions && 'sticky right-0 z-10 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]',
+                        isFirst && 'sticky left-0 z-10',
+                        isFirst && stickyEdges.start && STICKY_START_SHADOW,
+                        isActions && 'sticky right-0 z-10',
+                        isActions && stickyEdges.end && STICKY_END_SHADOW,
                       )}
                       style={isSticky ? { background: 'var(--c-surface, var(--color-surface, #fff))' } : undefined}
                     >
@@ -1448,8 +1500,10 @@ export function CSTXTable({
                             compact ? 'py-1.5 pr-1.5' : 'py-2 pr-2',
                             !isSystemCol && (externalHref ? '!pr-10' : '!pr-6'),
                             (cell.column.columnDef.meta as Record<string, unknown>)?.align === 'right' && 'text-right',
-                            isFirst && 'sticky left-0 z-[1] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]',
-                            isActions && 'sticky right-0 z-[2] shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.06)]',
+                            isFirst && 'sticky left-0 z-[1]',
+                            isFirst && stickyEdges.start && STICKY_START_SHADOW,
+                            isActions && 'sticky right-0 z-[2]',
+                            isActions && stickyEdges.end && STICKY_END_SHADOW,
                             // Sticky cells overlay horizontally-scrolled content, so they paint
                             // their own opaque background instead of revealing the row's. Mirror
                             // the row's fill in every state — resting surface, the selected/active

@@ -279,7 +279,13 @@ function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: stri
     <button
       type="button"
       className={cn(
-        'absolute right-0.5 top-1/2 -translate-y-1/2 rounded p-0.5 opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100',
+        // Anchor near the top (on the first text line), not the cell's vertical
+        // center. Grid cells stretch to the tallest row and their text is
+        // top-aligned; a centered icon droops to mid-row on tall rows (e.g. a
+        // multi-line `sources` stack), detaching from its own text and from the
+        // row's top-pinned flag/action cluster. top-2.5 centers the 16px button
+        // on the ~18px first-line baseline, matching the flag.
+        'absolute right-0.5 top-2.5 rounded p-0.5 opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100',
         copied
           ? 'text-green-500'
           : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300',
@@ -310,7 +316,7 @@ function CellOpenLinkButton({ href }: { href: string | null }) {
   return (
     <button
       type="button"
-      className="absolute right-5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-600 group-hover:opacity-100 focus-visible:opacity-100 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+      className="absolute right-5 top-2.5 rounded p-0.5 text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-600 group-hover:opacity-100 focus-visible:opacity-100 dark:hover:bg-slate-700 dark:hover:text-slate-300"
       onClick={(event) => {
         event.stopPropagation();
         window.open(href, '_blank', 'noopener,noreferrer');

@@ -876,6 +876,8 @@ export interface SigmaGraphProps {
     signalConfig?: Record<string, SignalConfig>;
     signalTypeField?: string;
     colorManager?: ColorManager;
+    /** Show the ForceAtlas2 slider panel. Layout debugging, off by default. */
+    showLayoutTuning?: boolean;
 }
 
 const SigmaGraph: React.FC<SigmaGraphProps> = ({
@@ -909,6 +911,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
                         signalConfig = {},
                         signalTypeField = 'signal_type',
                         colorManager = DEFAULT_COLOR_MANAGER,
+                        showLayoutTuning = false,
                     }) => {
     _signalConfig = signalConfig;
     _colorManager = colorManager;
@@ -1139,7 +1142,10 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
         edgeProgramClasses: {
             arrow: DIRECTIONAL_EDGE_PROGRAM
         },
-        stagePadding: 8,
+        // Labels are drawn beside their node, so a node sitting on the stage
+        // edge has its label cut in half. Inset the graph enough to keep the
+        // outermost ring readable.
+        stagePadding: 40,
         pixelRatio: getNumberOrDefault(window.devicePixelRatio, 1),
         // Disable double-click zoom
         mouseWheelZoomEnabled: true,
@@ -2111,11 +2117,11 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
 
     if (error) {
         return (
-            <div className={`flex items-center justify-center bg-gray-50 ${className}`} style={{height}}>
+            <div className={`flex items-center justify-center bg-gray-50 dark:bg-slate-900 ${className}`} style={{height}}>
                 <div className="text-center">
                     <Network className="w-12 h-12 text-red-500 mx-auto mb-2"/>
                     <p className="text-sm text-red-600 mb-1">Graph render failed</p>
-                    <p className="text-xs text-gray-500 max-w-xs">{error}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 max-w-xs">{error}</p>
                 </div>
             </div>
         );
@@ -2123,17 +2129,20 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
 
     if (nodes.length === 0) {
         return (
-            <div className={`flex items-center justify-center bg-gray-50 ${className}`} style={{height}}>
+            <div className={`flex items-center justify-center bg-gray-50 dark:bg-slate-900 ${className}`} style={{height}}>
                 <div className="text-center">
-                    <Network className="w-16 h-16 text-gray-400 mx-auto mb-2"/>
-                    <p className="text-sm text-gray-600">No graph data</p>
+                    <Network className="w-16 h-16 text-gray-400 dark:text-slate-500 mx-auto mb-2"/>
+                    <p className="text-sm text-gray-600 dark:text-slate-300">No graph data</p>
                 </div>
             </div>
         );
     }
 
+    // No own background: the canvas layers are transparent, so the host's
+    // surface shows through and the graph is not a light slab dropped into a
+    // dark page.
     return (
-        <div className={`relative bg-white ${className}`} style={{height}}>
+        <div className={`relative ${className}`} style={{height}}>
             <div
                 ref={containerRef}
                 className="w-full h-full"
@@ -2145,33 +2154,40 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
                 }}
             />
 
-            {/* Controls - demo style */}
-            <div className="absolute bottom-2 left-2">
-                <div className="flex flex-col gap-1">
+            {/* Camera controls. One segmented pill rather than four floating
+                slabs, painted with the theme tokens (popover/border/secondary) so
+                it follows the host's palette instead of a hardcoded slate — the
+                previous `dark:bg-slate-800` read as four blue chips on a neutral
+                dark canvas, and `shadow-lg` only muddied them.
+                The hover surface is `secondary` and not `muted` on purpose: hosts
+                that own `muted` as a text colour (cairn does) turn hover:bg-muted
+                into a near-white block on dark. */}
+            <div className="absolute bottom-3 left-3">
+                <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-popover/90 shadow-sm backdrop-blur-sm">
                     {[
                         {icon: ZoomIn, action: controls.zoomIn, title: "Zoom in"},
                         {icon: ZoomOut, action: controls.zoomOut, title: "Zoom out"},
                         {icon: Home, action: controls.resetView, title: "Reset view"},
                         {icon: RotateCcw, action: controls.relayout, title: "Re-layout"}
                     ].map(({icon: Icon, action, title}, index) => (
-                        <div key={index} className="bg-white rounded shadow-lg">
-                            <button
-                                onClick={action}
-                                className="block relative w-8 h-8 rounded border-none outline-none text-black bg-white cursor-pointer hover:text-gray-600 transition-colors"
-                                title={title}
-                                aria-label={title}
-                            >
-                                <Icon
-                                    className="absolute inset-0 left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4"/>
-                            </button>
-                        </div>
+                        <button
+                            key={index}
+                            type="button"
+                            onClick={action}
+                            className="flex h-8 w-8 cursor-pointer items-center justify-center border-0 border-t border-border/60 bg-transparent text-muted-foreground transition-colors first:border-t-0 hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
+                            title={title}
+                            aria-label={title}
+                        >
+                            <Icon className="h-4 w-4" strokeWidth={1.75}/>
+                        </button>
                     ))}
                 </div>
             </div>
 
-            {/* ForceAtlas2 tuning panel */}
-            <div className="absolute bottom-2 right-2">
-                <div className="bg-white/95 backdrop-blur rounded shadow-lg p-2 border border-gray-200">
+            {/* ForceAtlas2 tuning panel — layout-debugging chrome, off unless a
+                host asks for it. It reads as part of the product otherwise. */}
+            {showLayoutTuning && <div className="absolute bottom-2 right-2">
+                <div className="bg-white/95 dark:bg-slate-800/95 dark:border-slate-700 backdrop-blur rounded shadow-lg p-2 border border-gray-200">
                     <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-gray-600">Force Layout</span>
                         <button
@@ -2264,14 +2280,14 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
                         </div>
                     )}
                 </div>
-            </div>
+            </div>}
 
             {/* Loading indicator */}
             {!isInitialized && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 flex items-center justify-center">
                     <div className="flex items-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-violet-500"/>
-                        <span className="text-sm text-gray-600">Loading...</span>
+                        <span className="text-sm text-gray-600 dark:text-slate-300">Loading...</span>
                     </div>
                 </div>
             )}

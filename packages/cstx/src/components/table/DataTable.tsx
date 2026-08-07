@@ -38,6 +38,7 @@ import {
   inferColumns,
   applyExclusions,
   flattenRow,
+  getColumnValue,
   isMetaKey,
 } from './columns';
 import { TypeFilterBar } from './sub/TypeFilterBar';
@@ -51,6 +52,7 @@ import { ExportButton } from './sub/ExportButton';
 import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, FLAG_DESCRIPTION_MAP } from './sub/FlagCell';
 import { Flag as FlagIcon } from 'lucide-react';
 import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
+import { getFieldValue } from '../../lib/fieldPath';
 import { useColumnResize } from './hooks/useColumnResize';
 import { parseSearchQuery, matchesFieldSearch } from './hooks/useFieldSearch';
 import { useUrlSlot } from './hooks/useUrlState';
@@ -85,7 +87,7 @@ function resolveCommonValue(rows: Row[], key: string): string | null {
   if (rows.length === 0) return null;
   const values = new Set<string>();
   for (const row of rows) {
-    const value = row[key];
+    const value = getFieldValue(row, key);
     if (!hasDisplayValue(value)) return null;
     values.add(String(value));
     if (values.size > 1) return null;
@@ -127,7 +129,7 @@ function actionButtonClass(variant: string | undefined): string {
 }
 
 function resolveRowId(row: Row, rowIdKey: string, index?: number): string {
-  const value = row[rowIdKey] ?? row.id ?? row.cstx_id ?? row.name ?? row.value;
+  const value = getFieldValue(row, rowIdKey) ?? row.id ?? row.cstx_id ?? row.name ?? row.value;
   if (value != null && String(value).length > 0) return String(value);
   return index != null ? String(index) : '';
 }
@@ -398,7 +400,7 @@ function buildColumns(
   if (options?.diffMode && options.diffField) {
     cols.push({
       id: '__diff',
-      accessorKey: options.diffField,
+      accessorFn: (row) => getFieldValue(row, options.diffField as string),
       header: () => <span>Change</span>,
       cell: ({ getValue }) => <DiffBadge changeKind={getValue() as string | undefined} />,
       size: 90,
@@ -436,7 +438,7 @@ function buildColumns(
     isFirstDataCol = false;
     cols.push({
       id: col.key,
-      accessorKey: col.key,
+      accessorFn: (row) => getColumnValue(row, col),
       header: ({ column }) => {
         const canSort = sortingEnabled && col.sortable !== false;
         if (!canSort) {
@@ -629,7 +631,7 @@ export function CSTXTable({
 
   // --- Data processing ---
   const rows = useMemo(
-    () => (enableFlatten ? rawRows.map(flattenRow) : rawRows),
+    () => enableFlatten ? rawRows.map(flattenRow) : rawRows,
     [rawRows, enableFlatten],
   );
 
@@ -686,20 +688,20 @@ export function CSTXTable({
   const typeValues = useMemo(() => {
     if (!typeFilterKey) return [];
     const vals = new Set<string>();
-    rows.forEach((r) => { const v = r[typeFilterKey]; if (v != null) vals.add(String(v)); });
+    rows.forEach((r) => { const v = getFieldValue(r, typeFilterKey); if (v != null) vals.add(String(v)); });
     return Array.from(vals).sort();
   }, [rows, typeFilterKey]);
 
   const typeCounts = useMemo(() => {
     if (!typeFilterKey) return {};
     const counts: Record<string, number> = {};
-    rows.forEach((r) => { const v = String(r[typeFilterKey] ?? ''); counts[v] = (counts[v] || 0) + 1; });
+    rows.forEach((r) => { const v = String(getFieldValue(r, typeFilterKey) ?? ''); counts[v] = (counts[v] || 0) + 1; });
     return counts;
   }, [rows, typeFilterKey]);
 
   const filteredByType = useMemo(() => {
     if (!typeFilterKey || typeFilter.size === 0) return rows;
-    return rows.filter((r) => typeFilter.has(String(r[typeFilterKey] ?? '')));
+    return rows.filter((r) => typeFilter.has(String(getFieldValue(r, typeFilterKey) ?? '')));
   }, [rows, typeFilterKey, typeFilter]);
 
   const handleTypeToggle = useCallback((val: string) => {
@@ -727,18 +729,17 @@ export function CSTXTable({
   }, [enableColoredTypes, typeValues]);
 
   // --- Field search ---
-  const columnKeys = useMemo(() => resolvedColumns.map((c) => c.key), [resolvedColumns]);
   const customFilterFn = useCallback(
     (row: { original: Row }) => {
       if (!globalFilter) return true;
       if (enableFieldSearch) {
         const parsed = parseSearchQuery(globalFilter);
-        return matchesFieldSearch(row.original, parsed, columnKeys);
+        return matchesFieldSearch(row.original, parsed, resolvedColumns);
       }
       const lower = globalFilter.toLowerCase();
-      return columnKeys.some((k) => String(row.original[k] ?? '').toLowerCase().includes(lower));
+      return resolvedColumns.some((column) => String(getColumnValue(row.original, column) ?? '').toLowerCase().includes(lower));
     },
-    [globalFilter, enableFieldSearch, columnKeys],
+    [globalFilter, enableFieldSearch, resolvedColumns],
   );
 
   // --- Build TanStack columns ---
@@ -879,7 +880,7 @@ export function CSTXTable({
       const csvRows = [
         columnDefs.map((column) => column.title),
         ...exportOriginalRows.map((row) =>
-          columnDefs.map((column) => toCsvCellValue(row[column.key])),
+          visibleColumns.map((column) => toCsvCellValue(getColumnValue(row, column))),
         ),
       ];
       downloadText(
@@ -1171,7 +1172,9 @@ export function CSTXTable({
             {/* Data rows */}
             {table.getRowModel().rows.map((row) => {
               const isActive = activeRowId === row.id;
-              const diffRowClass = diffMode ? getDiffRowClass(row.original[diffField] as string | undefined) : '';
+              const diffRowClass = diffMode
+                ? getDiffRowClass(getFieldValue(row.original, diffField) as string | undefined)
+                : '';
               return (
                 <React.Fragment key={row.id}>
                   <div

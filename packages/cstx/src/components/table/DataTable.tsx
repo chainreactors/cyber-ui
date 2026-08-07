@@ -1126,6 +1126,10 @@ export function CSTXTable({
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const selectedCount = selectedRows.length;
   const selectedOriginalRows = selectedRows.map((row) => row.original);
+  useEffect(() => {
+    onAction?.('selection-change', { count: selectedCount, selectedRows: selectedOriginalRows });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowSelection]);
   const batchActions = config.batchActions as TableActionConfig[] | undefined;
   const showExportButton = enableExport && (!exportRequiresSelection || selectedCount > 0);
 

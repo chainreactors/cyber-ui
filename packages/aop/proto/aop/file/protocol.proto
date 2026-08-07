@@ -4,7 +4,13 @@ package aop.file;
 
 option go_package = "github.com/chainreactors/aiscan/aop/file;file";
 
-message ReadRequest { string path = 1; }
+message ReadRequest {
+  string path = 1;
+  // offset and limit enable bounded reads for large artifacts. A zero limit
+  // preserves the original whole-file behavior for older clients.
+  int64 offset = 2;
+  int32 limit = 3;
+}
 message WriteRequest { string path = 1; bytes data = 2; }
 message ListRequest { string path = 1; }
 message MkdirRequest { string path = 1; }
@@ -28,6 +34,10 @@ message Result {
   bytes data = 4;
   repeated Entry entries = 5;
   string media_type = 6;
+  // offset is the position of data within the file; size remains the total
+  // file size. eof marks the final chunk.
+  int64 offset = 7;
+  bool eof = 8;
 }
 
 message ProtocolMessage {

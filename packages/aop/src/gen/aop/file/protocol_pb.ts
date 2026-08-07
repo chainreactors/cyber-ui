@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/file/protocol.proto.
  */
 export const file_aop_file_protocol: GenFile = /*@__PURE__*/
-  fileDesc("Chdhb3AvZmlsZS9wcm90b2NvbC5wcm90bxIIYW9wLmZpbGUiGwoLUmVhZFJlcXVlc3QSDAoEcGF0aBgBIAEoCSIqCgxXcml0ZVJlcXVlc3QSDAoEcGF0aBgBIAEoCRIMCgRkYXRhGAIgASgMIhsKC0xpc3RSZXF1ZXN0EgwKBHBhdGgYASABKAkiHAoMTWtkaXJSZXF1ZXN0EgwKBHBhdGgYASABKAkiVwoNVXBsb2FkUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGZpbGVuYW1lGAIgASgJEhIKCm1lZGlhX3R5cGUYAyABKAkSDAoEZGF0YRgEIAEoDCI5CgVFbnRyeRIMCgRuYW1lGAEgASgJEhQKDGlzX2RpcmVjdG9yeRgCIAEoCBIMCgRzaXplGAMgASgDInoKBlJlc3VsdBIMCgRwYXRoGAEgASgJEhAKCGZpbGVuYW1lGAIgASgJEgwKBHNpemUYAyABKAMSDAoEZGF0YRgEIAEoDBIgCgdlbnRyaWVzGAUgAygLMg8uYW9wLmZpbGUuRW50cnkSEgoKbWVkaWFfdHlwZRgGIAEoCSKzAgoPUHJvdG9jb2xNZXNzYWdlEi0KDHJlYWRfcmVxdWVzdBgKIAEoCzIVLmFvcC5maWxlLlJlYWRSZXF1ZXN0SAASLwoNd3JpdGVfcmVxdWVzdBgLIAEoCzIWLmFvcC5maWxlLldyaXRlUmVxdWVzdEgAEi0KDGxpc3RfcmVxdWVzdBgMIAEoCzIVLmFvcC5maWxlLkxpc3RSZXF1ZXN0SAASLwoNbWtkaXJfcmVxdWVzdBgNIAEoCzIWLmFvcC5maWxlLk1rZGlyUmVxdWVzdEgAEjEKDnVwbG9hZF9yZXF1ZXN0GA4gASgLMhcuYW9wLmZpbGUuVXBsb2FkUmVxdWVzdEgAEiIKBnJlc3VsdBgUIAEoCzIQLmFvcC5maWxlLlJlc3VsdEgAQgkKB21lc3NhZ2VCL1otZ2l0aHViLmNvbS9jaGFpbnJlYWN0b3JzL2Fpc2Nhbi9hb3AvZmlsZTtmaWxlYgZwcm90bzM");
+  fileDesc("Chdhb3AvZmlsZS9wcm90b2NvbC5wcm90bxIIYW9wLmZpbGUiOgoLUmVhZFJlcXVlc3QSDAoEcGF0aBgBIAEoCRIOCgZvZmZzZXQYAiABKAMSDQoFbGltaXQYAyABKAUiKgoMV3JpdGVSZXF1ZXN0EgwKBHBhdGgYASABKAkSDAoEZGF0YRgCIAEoDCIbCgtMaXN0UmVxdWVzdBIMCgRwYXRoGAEgASgJIhwKDE1rZGlyUmVxdWVzdBIMCgRwYXRoGAEgASgJIlcKDVVwbG9hZFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghmaWxlbmFtZRgCIAEoCRISCgptZWRpYV90eXBlGAMgASgJEgwKBGRhdGEYBCABKAwiOQoFRW50cnkSDAoEbmFtZRgBIAEoCRIUCgxpc19kaXJlY3RvcnkYAiABKAgSDAoEc2l6ZRgDIAEoAyKXAQoGUmVzdWx0EgwKBHBhdGgYASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEc2l6ZRgDIAEoAxIMCgRkYXRhGAQgASgMEiAKB2VudHJpZXMYBSADKAsyDy5hb3AuZmlsZS5FbnRyeRISCgptZWRpYV90eXBlGAYgASgJEg4KBm9mZnNldBgHIAEoAxILCgNlb2YYCCABKAgiswIKD1Byb3RvY29sTWVzc2FnZRItCgxyZWFkX3JlcXVlc3QYCiABKAsyFS5hb3AuZmlsZS5SZWFkUmVxdWVzdEgAEi8KDXdyaXRlX3JlcXVlc3QYCyABKAsyFi5hb3AuZmlsZS5Xcml0ZVJlcXVlc3RIABItCgxsaXN0X3JlcXVlc3QYDCABKAsyFS5hb3AuZmlsZS5MaXN0UmVxdWVzdEgAEi8KDW1rZGlyX3JlcXVlc3QYDSABKAsyFi5hb3AuZmlsZS5Na2RpclJlcXVlc3RIABIxCg51cGxvYWRfcmVxdWVzdBgOIAEoCzIXLmFvcC5maWxlLlVwbG9hZFJlcXVlc3RIABIiCgZyZXN1bHQYFCABKAsyEC5hb3AuZmlsZS5SZXN1bHRIAEIJCgdtZXNzYWdlQi9aLWdpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wL2ZpbGU7ZmlsZWIGcHJvdG8z");
 
 /**
  * @generated from message aop.file.ReadRequest
@@ -20,6 +20,19 @@ export type ReadRequest = Message<"aop.file.ReadRequest"> & {
    * @generated from field: string path = 1;
    */
   path: string;
+
+  /**
+   * offset and limit enable bounded reads for large artifacts. A zero limit
+   * preserves the original whole-file behavior for older clients.
+   *
+   * @generated from field: int64 offset = 2;
+   */
+  offset: bigint;
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
 };
 
 /**
@@ -177,6 +190,19 @@ export type Result = Message<"aop.file.Result"> & {
    * @generated from field: string media_type = 6;
    */
   mediaType: string;
+
+  /**
+   * offset is the position of data within the file; size remains the total
+   * file size. eof marks the final chunk.
+   *
+   * @generated from field: int64 offset = 7;
+   */
+  offset: bigint;
+
+  /**
+   * @generated from field: bool eof = 8;
+   */
+  eof: boolean;
 };
 
 /**

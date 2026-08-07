@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/tool/protocol.proto.
  */
 export const file_aop_tool_protocol: GenFile = /*@__PURE__*/
-  fileDesc("Chdhb3AvdG9vbC9wcm90b2NvbC5wcm90bxIIYW9wLnRvb2wiSAoEQ2FsbBISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3R1cm5faWQYAiABKAkSGwoEY2FsbBgDIAEoCzINLmFvcC5Ub29sQ2FsbCKCAQoIUHJvZ3Jlc3MSDAoEdG9vbBgBIAEoCRIOCgZ0YXJnZXQYAyABKAkSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgR0ZXh0GAYgASgJEg8KB2NhbGxfaWQYByABKAlKBAgCEANKBAgEEAUimAEKCEFydGlmYWN0EgwKBHRvb2wYASABKAkSDAoEa2luZBgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDAoEZGF0YRgEIAEoDBISCgptZWRpYV90eXBlGAUgASgJEi0KCXRpbWVzdGFtcBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHY2FsbF9pZBgHIAEoCSKMAQoPUHJvdG9jb2xNZXNzYWdlEiYKCHByb2dyZXNzGAogASgLMhIuYW9wLnRvb2wuUHJvZ3Jlc3NIABIeCgRjYWxsGAsgASgLMg4uYW9wLnRvb2wuQ2FsbEgAEiYKCGFydGlmYWN0GAwgASgLMhIuYW9wLnRvb2wuQXJ0aWZhY3RIAEIJCgdtZXNzYWdlQi9aLWdpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wL3Rvb2w7dG9vbGIGcHJvdG8z", [file_aop_content, file_google_protobuf_timestamp]);
+  fileDesc("Chdhb3AvdG9vbC9wcm90b2NvbC5wcm90bxIIYW9wLnRvb2wiSAoEQ2FsbBISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3R1cm5faWQYAiABKAkSGwoEY2FsbBgDIAEoCzINLmFvcC5Ub29sQ2FsbCKCAQoIUHJvZ3Jlc3MSDAoEdG9vbBgBIAEoCRIOCgZ0YXJnZXQYAyABKAkSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgR0ZXh0GAYgASgJEg8KB2NhbGxfaWQYByABKAlKBAgCEANKBAgEEAUiqwEKCEFydGlmYWN0EgwKBHRvb2wYASABKAkSDAoEa2luZBgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDAoEZGF0YRgEIAEoDBISCgptZWRpYV90eXBlGAUgASgJEi0KCXRpbWVzdGFtcBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHY2FsbF9pZBgHIAEoCRIRCglyZXN1bHRfaWQYCCABKAkiqAEKBExvb3QSEQoJcmVzdWx0X2lkGAEgASgJEgwKBHRvb2wYAiABKAkSDAoEa2luZBgDIAEoCRIOCgZ0YXJnZXQYBCABKAkSEAoIcHJpb3JpdHkYBSABKAkSDAoEdGFncxgGIAMoCRITCgtkZXNjcmlwdGlvbhgHIAEoCRIbChN2ZXJpZmljYXRpb25fc3RhdHVzGAggASgJEg8KB2NhbGxfaWQYCSABKAkirAEKD1Byb3RvY29sTWVzc2FnZRImCghwcm9ncmVzcxgKIAEoCzISLmFvcC50b29sLlByb2dyZXNzSAASHgoEY2FsbBgLIAEoCzIOLmFvcC50b29sLkNhbGxIABImCghhcnRpZmFjdBgMIAEoCzISLmFvcC50b29sLkFydGlmYWN0SAASHgoEbG9vdBgNIAEoCzIOLmFvcC50b29sLkxvb3RIAEIJCgdtZXNzYWdlQi9aLWdpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wL3Rvb2w7dG9vbGIGcHJvdG8z", [file_aop_content, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message aop.tool.Call
@@ -121,6 +121,11 @@ export type Artifact = Message<"aop.tool.Artifact"> & {
    * @generated from field: string call_id = 7;
    */
   callId: string;
+
+  /**
+   * @generated from field: string result_id = 8;
+   */
+  resultId: string;
 };
 
 /**
@@ -129,6 +134,66 @@ export type Artifact = Message<"aop.tool.Artifact"> & {
  */
 export const ArtifactSchema: GenMessage<Artifact> = /*@__PURE__*/
   messageDesc(file_aop_tool_protocol, 2);
+
+/**
+ * Loot marks a scanner-native artifact as valuable without replacing or
+ * duplicating its evidence. result_id joins the marker back to Artifact.
+ *
+ * @generated from message aop.tool.Loot
+ */
+export type Loot = Message<"aop.tool.Loot"> & {
+  /**
+   * @generated from field: string result_id = 1;
+   */
+  resultId: string;
+
+  /**
+   * @generated from field: string tool = 2;
+   */
+  tool: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string target = 4;
+   */
+  target: string;
+
+  /**
+   * @generated from field: string priority = 5;
+   */
+  priority: string;
+
+  /**
+   * @generated from field: repeated string tags = 6;
+   */
+  tags: string[];
+
+  /**
+   * @generated from field: string description = 7;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string verification_status = 8;
+   */
+  verificationStatus: string;
+
+  /**
+   * @generated from field: string call_id = 9;
+   */
+  callId: string;
+};
+
+/**
+ * Describes the message aop.tool.Loot.
+ * Use `create(LootSchema)` to create a new message.
+ */
+export const LootSchema: GenMessage<Loot> = /*@__PURE__*/
+  messageDesc(file_aop_tool_protocol, 3);
 
 /**
  * @generated from message aop.tool.ProtocolMessage
@@ -155,6 +220,12 @@ export type ProtocolMessage = Message<"aop.tool.ProtocolMessage"> & {
      */
     value: Artifact;
     case: "artifact";
+  } | {
+    /**
+     * @generated from field: aop.tool.Loot loot = 13;
+     */
+    value: Loot;
+    case: "loot";
   } | { case: undefined; value?: undefined };
 };
 
@@ -163,5 +234,5 @@ export type ProtocolMessage = Message<"aop.tool.ProtocolMessage"> & {
  * Use `create(ProtocolMessageSchema)` to create a new message.
  */
 export const ProtocolMessageSchema: GenMessage<ProtocolMessage> = /*@__PURE__*/
-  messageDesc(file_aop_tool_protocol, 3);
+  messageDesc(file_aop_tool_protocol, 4);
 

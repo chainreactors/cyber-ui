@@ -608,6 +608,7 @@ function RecordCard({
       }}
       className={cn(
         'group rounded-lg border text-left transition-colors',
+        'outline-none focus-visible:ring-2 focus-visible:ring-[var(--c-accent,#3b82f6)]/35 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--c-surface,#fff)]',
         'border-[var(--c-line,#e2e8f0)] dark:border-[var(--c-line,#334155)]',
         compact ? 'p-2.5' : 'p-3',
         'cursor-pointer hover:border-[var(--c-accent,#3b82f6)]/40 hover:bg-[var(--c-surface-2,#f8fafc)] dark:hover:bg-[var(--c-surface-2,rgba(30,41,59,0.4))]',

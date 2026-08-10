@@ -8,6 +8,15 @@ import { create } from '@bufbuild/protobuf'
 import { PtySessionSchema, type PtyProtocolMessage, type PtySession } from '@cyber/aop'
 import type { Timestamp } from '@bufbuild/protobuf/wkt'
 
+export {
+  decodeLegacyPTYData,
+  encodeLegacyPTYData,
+  parseLegacyPTYFrame,
+  type LegacyPTYFrame,
+  type LegacyPTYFrameType,
+  type LegacyPTYSession,
+} from './legacy-pty'
+
 const Monitor = LucideMonitor as unknown as ComponentType<SVGProps<SVGSVGElement>>
 const X = LucideX as unknown as ComponentType<SVGProps<SVGSVGElement>>
 

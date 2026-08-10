@@ -41,9 +41,29 @@ export {
 } from './gen/aop/sco/protocol_pb.js'
 export * from './client.js'
 
-import { fromJson, type JsonValue } from '@bufbuild/protobuf'
+import { createRegistry, fromJson, type JsonValue } from '@bufbuild/protobuf'
+import { EnvelopeSchema, type Envelope } from './gen/aop/envelope_pb.js'
 import { EventSchema, type Event } from './gen/aop/event_pb.js'
+import { file_aop_protocol } from './gen/aop/protocol_pb.js'
+import { file_aop_file_protocol } from './gen/aop/file/protocol_pb.js'
+import { file_aop_exec_protocol } from './gen/aop/exec/protocol_pb.js'
+import { file_aop_pty_protocol } from './gen/aop/pty/protocol_pb.js'
+import { file_aop_tool_protocol } from './gen/aop/tool/protocol_pb.js'
+import { file_aop_sco_protocol } from './gen/aop/sco/protocol_pb.js'
+
+export const aopRegistry = createRegistry(
+  file_aop_protocol,
+  file_aop_file_protocol,
+  file_aop_exec_protocol,
+  file_aop_pty_protocol,
+  file_aop_tool_protocol,
+  file_aop_sco_protocol,
+)
 
 export function eventFromJson(value: unknown): Event {
-  return fromJson(EventSchema, value as JsonValue)
+  return fromJson(EventSchema, value as JsonValue, { registry: aopRegistry })
+}
+
+export function envelopeFromJson(value: unknown): Envelope {
+  return fromJson(EnvelopeSchema, value as JsonValue, { registry: aopRegistry })
 }

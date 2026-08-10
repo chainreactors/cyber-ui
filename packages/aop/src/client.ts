@@ -8,12 +8,12 @@ import {
 } from '@bufbuild/protobuf'
 import { anyPack, anyUnpack } from '@bufbuild/protobuf/wkt'
 import { EnvelopeSchema, type Envelope } from './gen/aop/envelope_pb.js'
-import { ProtocolMessageSchema as CoreSchema, type ProtocolMessage as CoreMessage } from './gen/aop/protocol_pb.js'
-import { ProtocolMessageSchema as FileSchema, type ProtocolMessage as FileMessage } from './gen/aop/file/protocol_pb.js'
-import { ProtocolMessageSchema as ExecSchema, type ProtocolMessage as ExecMessage } from './gen/aop/exec/protocol_pb.js'
-import { ProtocolMessageSchema as PtySchema, type ProtocolMessage as PtyMessage } from './gen/aop/pty/protocol_pb.js'
-import { ProtocolMessageSchema as ToolSchema, type ProtocolMessage as ToolMessage } from './gen/aop/tool/protocol_pb.js'
-import { ProtocolMessageSchema as SCOSchema, type ProtocolMessage as SCOMessage } from './gen/aop/sco/protocol_pb.js'
+import { ProtocolMessageSchema as CoreSchema } from './gen/aop/protocol_pb.js'
+import { ProtocolMessageSchema as FileSchema } from './gen/aop/file/protocol_pb.js'
+import { ProtocolMessageSchema as ExecSchema } from './gen/aop/exec/protocol_pb.js'
+import { ProtocolMessageSchema as PtySchema } from './gen/aop/pty/protocol_pb.js'
+import { ProtocolMessageSchema as ToolSchema } from './gen/aop/tool/protocol_pb.js'
+import { ProtocolMessageSchema as SCOSchema } from './gen/aop/sco/protocol_pb.js'
 
 export type AOPPayload = Message
 

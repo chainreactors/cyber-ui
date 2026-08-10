@@ -77,7 +77,7 @@ export type { ChatThinkingProps } from './components/chat/ChatThinking'
 export type { AssistantResponseProps } from './components/chat/AssistantResponse'
 export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
 export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
-export type { ChatInputProps, CommandHint, ChatAttachment, AttachmentMode, Mentionable, MentionPopupApi, PopupNavigationCommand, PopupNavigationKey } from './components/chat/ChatInput'
+export type { ChatInputProps, CommandHint, ComposerHelpContent, ComposerHelpItem, ComposerHelpPrefix, ChatAttachment, AttachmentMode, Mentionable, MentionPopupApi, PopupNavigationCommand, PopupNavigationKey } from './components/chat/ChatInput'
 export type { ChatPanelProps, ChatPanelTimelineProps, ChatPanelInputProps, ChatPanelHeaderProps } from './components/chat/ChatPanel'
 export type { ChatSessionState, ChatSessionActions, ChatSessionContextValue } from './providers/ChatSessionProvider'
 export type {

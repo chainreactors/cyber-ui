@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback, type DragEvent, type ReactNode } from 'react'
-import { AtSign, FileText, Paperclip, Send, Slash, Square, Upload, Wrench, X } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback, useId, type DragEvent, type ReactNode } from 'react'
+import { AtSign, CircleHelp, FileText, Keyboard, Paperclip, Send, Slash, Square, Upload, Wrench, X } from 'lucide-react'
 import { cn } from '@cyber/theme'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@cyber/ui'
 function formatBytes(bytes: number): string { if (bytes < 1024) return bytes + "B"; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + "KB"; return (bytes / 1048576).toFixed(1) + "MB" }
 
 export interface CommandHint {
@@ -38,6 +39,24 @@ export interface MentionPopupApi {
   onAttach?: () => void
 }
 
+export type ComposerHelpPrefix = '@' | '/' | '!'
+
+export interface ComposerHelpItem {
+  prefix: ComposerHelpPrefix
+  title: string
+  description: string
+  meta?: string
+  disabled?: boolean
+}
+
+export interface ComposerHelpContent {
+  label: string
+  closeLabel: string
+  title: string
+  hint: string
+  items: ComposerHelpItem[]
+}
+
 export type PopupNavigationKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | 'Enter'
 
 export interface PopupNavigationCommand {
@@ -54,6 +73,7 @@ export interface ChatInputProps {
   commands?: CommandHint[]
   toolCommands?: CommandHint[]
   mentionables?: Mentionable[]
+  composerHelp?: ComposerHelpContent
   // Replace the default @-mention dropdown with a custom renderer (e.g. a
   // CSTXTable picker that supports multi-select). When provided, the built-in
   // simple list is skipped entirely.
@@ -179,6 +199,7 @@ export default function ChatInput({
   commands = [],
   toolCommands = [],
   mentionables = [],
+  composerHelp,
   renderMentionPopup,
   injectText,
   enableAttachments = false,
@@ -191,6 +212,7 @@ export default function ChatInput({
   const [draft, setDraft] = useState('')
   const [showHints, setShowHints] = useState(false)
   const [showToolHints, setShowToolHints] = useState(false)
+  const [showComposerHelp, setShowComposerHelp] = useState(false)
   const [activeOptionIndex, setActiveOptionIndex] = useState(0)
   const [mentionNavigation, setMentionNavigation] = useState<PopupNavigationCommand | undefined>()
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null)
@@ -198,6 +220,8 @@ export default function ChatInput({
   const [dragOver, setDragOver] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const composerHelpID = useId()
   // Guards the injectText effect: only fire when the nonce actually advances,
   // so a StrictMode double-invoke or an unrelated re-render can't re-append.
   const lastInjectRef = useRef(0)
@@ -285,6 +309,7 @@ export default function ChatInput({
     setAttachments([])
     setShowHints(false)
     setShowToolHints(false)
+    setShowComposerHelp(false)
     setMention(null)
   }, [draft, attachments, disabled, onSend])
 
@@ -325,6 +350,7 @@ export default function ChatInput({
     if (e.key === 'Escape') {
       setShowHints(false)
       setShowToolHints(false)
+      setShowComposerHelp(false)
       setMention(null)
     }
   }
@@ -332,6 +358,7 @@ export default function ChatInput({
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const value = e.target.value
     setDraft(value)
+    setShowComposerHelp(false)
     setShowHints(value === '/' || (value.startsWith('/') && !value.includes(' ')))
     setShowToolHints(value === '!' || (value.startsWith('!') && !value.includes(' ')))
     const caret = e.target.selectionStart ?? value.length
@@ -352,6 +379,38 @@ export default function ChatInput({
     setShowHints(false)
     setShowToolHints(false)
     textareaRef.current?.focus()
+  }
+
+  function insertHelpPrefix(prefix: ComposerHelpPrefix) {
+    setShowComposerHelp(false)
+    setShowHints(false)
+    setShowToolHints(false)
+
+    const el = textareaRef.current
+    if (prefix === '@') {
+      const caret = el?.selectionStart ?? draft.length
+      const needsSpace = caret > 0 && !/\s/.test(draft[caret - 1] ?? '')
+      const token = `${needsSpace ? ' ' : ''}@`
+      const start = caret + (needsSpace ? 1 : 0)
+      const next = draft.slice(0, caret) + token + draft.slice(caret)
+      const pos = caret + token.length
+      setDraft(next)
+      setMention({ start, query: '' })
+      requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos, pos) })
+      return
+    }
+
+    // Slash and tool commands are only recognized at the start of a message.
+    // Help actions never overwrite an in-progress draft.
+    if (draft.trim()) {
+      el?.focus()
+      return
+    }
+    setDraft(prefix)
+    setMention(null)
+    setShowHints(prefix === '/')
+    setShowToolHints(prefix === '!')
+    requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(1, 1) })
   }
 
   // Splice the asset in place of the "@frag" under the caret (mentions can be
@@ -436,6 +495,22 @@ export default function ChatInput({
     })
   }, [injectText])
 
+  useEffect(() => {
+    if (!showComposerHelp) return
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setShowComposerHelp(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowComposerHelp(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePress)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [showComposerHelp])
+
   const hasCommands = commands.length > 0
   const defaultPlaceholder = hasCommands
     ? 'Type a message... (/ for commands)'
@@ -445,6 +520,7 @@ export default function ChatInput({
 
   return (
     <div
+      ref={rootRef}
       className={cn(
         'relative border-t border-border bg-card/80 backdrop-blur-sm',
         className,
@@ -473,6 +549,62 @@ export default function ChatInput({
             else insertCommand(option.cmd)
           }}
         />
+      )}
+
+      {showComposerHelp && composerHelp && (
+        <div
+          id={composerHelpID}
+          role="dialog"
+          aria-label={composerHelp.label}
+          className="absolute bottom-[calc(100%+0.5rem)] right-0 z-40 w-[min(28rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border/70 bg-popover/95 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-1 duration-150"
+        >
+          <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5">
+            <CircleHelp className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-medium text-foreground">{composerHelp.title}</h2>
+            <button
+              type="button"
+              onClick={() => setShowComposerHelp(false)}
+              className="ml-auto grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label={composerHelp.closeLabel}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="p-1.5">
+            {composerHelp.items.map((item) => {
+              const blockedByDraft = item.prefix !== '@' && draft.trim().length > 0
+              return (
+                <button
+                  key={item.prefix}
+                  type="button"
+                  disabled={item.disabled || blockedByDraft}
+                  onClick={() => insertHelpPrefix(item.prefix)}
+                  className="group flex w-full items-start gap-3 rounded-md px-2.5 py-2.5 text-left transition-colors hover:bg-accent/70 disabled:cursor-default disabled:hover:bg-transparent"
+                >
+                  <span className={cn(
+                    'grid h-8 w-8 shrink-0 place-items-center rounded-md font-mono text-sm font-semibold',
+                    item.prefix === '@' && 'bg-ai/10 text-ai',
+                    item.prefix === '/' && 'bg-primary/10 text-primary',
+                    item.prefix === '!' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                  )}>
+                    {item.prefix}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-foreground">{item.title}</span>
+                      {item.meta && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">{item.meta}</span>}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">{item.description}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-start gap-2 border-t border-border/60 bg-muted/30 px-3 py-2 text-[10px] leading-relaxed text-muted-foreground">
+            <Keyboard className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>{composerHelp.hint}</span>
+          </div>
+        </div>
       )}
 
       {/* @-mention popup — custom renderer or built-in simple list */}
@@ -586,6 +718,33 @@ export default function ChatInput({
               inputClassName,
             )}
           />
+
+          {composerHelp && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowHints(false)
+                    setShowToolHints(false)
+                    setMention(null)
+                    setShowComposerHelp((open) => !open)
+                  }}
+                  className={cn(
+                    'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                    showComposerHelp && 'bg-accent text-foreground',
+                  )}
+                  aria-label={composerHelp.label}
+                  aria-expanded={showComposerHelp}
+                  aria-controls={composerHelpID}
+                  aria-haspopup="dialog"
+                >
+                  <CircleHelp className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{composerHelp.label}</TooltipContent>
+            </Tooltip>
+          )}
 
           <button
             type="button"

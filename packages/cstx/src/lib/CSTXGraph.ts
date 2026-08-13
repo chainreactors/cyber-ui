@@ -12,7 +12,7 @@ export class CSTXGraph {
   }
 
   static empty(): CSTXGraph {
-    return CSTXGraph.fromSnapshot({ format: 'cstx.snapshot', version: 1, nodes: [], edges: [], types: {} });
+    return CSTXGraph.fromSnapshot({ format: 'cstx.snapshot', nodes: [], edges: [], types: {} });
   }
 
   static fromSnapshot(snapshot: CSTXSnapshot): CSTXGraph {
@@ -38,7 +38,6 @@ export class CSTXGraph {
   toSnapshot(): CSTXSnapshot {
     return {
       format: 'cstx.snapshot',
-      version: 1,
       nodes: this.nodes(),
       edges: this.edges(),
       types: { ...this.graph.getAttribute('types') },
@@ -104,7 +103,6 @@ export class CSTXGraph {
     const edges = this.edges().filter((edge) => selected.has(edge.source_id) && selected.has(edge.target_id));
     return CSTXGraph.fromSnapshot({
       format: 'cstx.snapshot',
-      version: 1,
       nodes,
       edges,
       types: { ...this.graph.getAttribute('types') },
@@ -128,23 +126,4 @@ export const getCSTXNodeLabel = (node: CSTXNode): string => {
   }
   if (node.value.length > 0) return node.value;
   return node.id;
-};
-
-export const getCSTXNodeField = (node: CSTXNode, key: string): unknown => {
-  if (key in node.extras) return node.extras[key];
-  if (key in node.model) return node.model[key];
-  if (key === 'id' || key === 'type' || key === 'value' || key === 'sources') return node[key];
-  return undefined;
-};
-
-export const getCSTXEdgeField = (edge: CSTXEdge, key: string): unknown => {
-  if (key in edge.attrs) return edge.attrs[key];
-  if (
-    key === 'id'
-    || key === 'source_id'
-    || key === 'target_id'
-    || key === 'relation_type'
-    || key === 'sources'
-  ) return edge[key];
-  return undefined;
 };

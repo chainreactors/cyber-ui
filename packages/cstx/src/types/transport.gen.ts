@@ -20,7 +20,6 @@ export interface CSTXEdge {
 
 export interface CSTXSnapshot {
   format: "cstx.snapshot";
-  version: 1;
   nodes: CSTXNode[];
   edges: CSTXEdge[];
   types: Record<string, unknown>;

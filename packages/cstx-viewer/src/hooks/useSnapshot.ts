@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo } from 'react';
-import { unwrapSnapshot } from '@cyber/cstx';
-import type { CstxGraphPayload } from '@cyber/cstx';
+import { parseCSTXSnapshot } from '@cyber/cstx';
+import type { CSTXSnapshot } from '@cyber/cstx';
 import { computeStats, type GraphStats } from '../lib/stats';
 
 export interface SnapshotState {
-  payload: CstxGraphPayload | null;
+  payload: CSTXSnapshot | null;
   stats: GraphStats | null;
   filename: string | null;
   error: string | null;
@@ -20,7 +20,7 @@ export interface UseSnapshotReturn extends SnapshotState {
 
 function parseAndLoad(raw: unknown, name: string): Omit<SnapshotState, 'loading'> {
   try {
-    const payload = unwrapSnapshot(raw);
+    const payload = parseCSTXSnapshot(raw);
     if (!payload.nodes.length && !payload.edges.length) {
       return { payload: null, stats: null, filename: name, error: 'Snapshot is empty (no nodes or edges)' };
     }

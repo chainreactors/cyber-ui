@@ -58,12 +58,19 @@ interface Heading {
   level: number
 }
 
+/** What a finding card binds to, for owners that can resolve the binding. */
+export interface ReportFindingBinding {
+  vulnId?: string
+  severity?: string
+}
+
 interface RenderContext {
   headingIds: WeakMap<Element, string>
   sectionHeadings: Heading[]
   headingsByLabel: Map<string, Heading[]>
   componentNames: ReadonlySet<string>
   renderHttpView?: (view: TrafficHttpView) => ReactNode
+  renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
 }
 
 const HEADING = /^h([1-6])$/
@@ -128,6 +135,7 @@ function prepareContext(
   nodes: RootContent[],
   componentNames: readonly string[],
   renderHttpView?: (view: TrafficHttpView) => ReactNode,
+  renderFindingActions?: (finding: ReportFindingBinding) => ReactNode,
 ): RenderContext {
   const headingIds = new WeakMap<Element, string>()
   const headings: Heading[] = []
@@ -163,6 +171,7 @@ function prepareContext(
     headingsByLabel,
     componentNames: new Set(componentNames),
     renderHttpView,
+    renderFindingActions,
   }
 }
 
@@ -304,12 +313,20 @@ function SeverityBadge({ node, context }: { node: Element; context: RenderContex
 
 function FindingCard({ node, context }: { node: Element; context: RenderContext }) {
   const severity = (reportAttr(node, 'severity') || 'info').toLowerCase()
+  // A card names the finding it was written about; only an owner that holds the
+  // live data can turn that name into something to click, so the actions row is
+  // theirs to render. Without it the card stays exactly what it was.
+  const actions = context.renderFindingActions?.({
+    vulnId: stringProp(node, 'dataVulnId'),
+    severity,
+  })
   return (
     <section
       {...passthroughProps(node)}
       className="my-3 rounded-lg border border-t-2 border-border bg-card px-4 py-3"
       style={{ borderTopColor: SEVERITY_EDGE[severity] ?? SEVERITY_EDGE.info }}
     >
+      {actions ? <div className="mb-2 flex flex-wrap items-center gap-2">{actions}</div> : null}
       {renderNodes(node.children, context)}
     </section>
   )
@@ -571,6 +588,12 @@ export interface ReportDocumentProps {
   componentNames: readonly string[]
   /** Optional owner-provided upgrade for parsed HTTP evidence. */
   renderHttpView?: (view: TrafficHttpView) => ReactNode
+  /**
+   * Optional owner-provided actions for a finding card — resolving `vulnId`
+   * against live platform data, for example. Omitted, cards render as before,
+   * which is what keeps a frozen export identical to the document it came from.
+   */
+  renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
   /** CSTX assets associated with the report's task. */
   assetPreview?: CstxReportPreview | null
   /** Raw CSTX vulnerability records associated with the report's task. */
@@ -586,6 +609,7 @@ export function ReportDocument({
   tree,
   componentNames,
   renderHttpView,
+  renderFindingActions,
   assetPreview,
   vulnerabilities,
   vulnerabilitiesTitle,
@@ -594,7 +618,7 @@ export function ReportDocument({
   className,
 }: ReportDocumentProps) {
   const rendered = useMemo(() => {
-    const context = prepareContext(tree.children, componentNames, renderHttpView)
+    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions)
     const firstContentIndex = tree.children.findIndex((node) => (
       isElement(node) || (node.type === 'text' && node.value.trim() !== '')
     ))
@@ -609,7 +633,7 @@ export function ReportDocument({
         context,
       ),
     }
-  }, [tree, componentNames, renderHttpView])
+  }, [tree, componentNames, renderHttpView, renderFindingActions])
 
   return (
     <div className={cn('cyber-report text-muted-foreground', className)}>

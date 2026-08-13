@@ -23,7 +23,6 @@ export interface LayoutSection {
 }
 
 export interface PerspectiveConfig {
-  version: 1;
   id: string;
   title: string;
   description?: string;

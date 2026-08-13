@@ -3,8 +3,6 @@ export type { CSTXNode, CSTXEdge, CSTXSnapshot, CSTXDelta, CSTXStat } from './ty
 export {
   CSTXGraph,
   getCSTXNodeLabel,
-  getCSTXNodeField,
-  getCSTXEdgeField,
 } from './lib/CSTXGraph';
 export {
   getCSTXDiffChangeKind,
@@ -261,6 +259,7 @@ export {
 // Snapshot / envelope helpers
 export {
   mergeSnapshots,
+  parseCSTXSnapshot,
 } from './lib/snapshot';
 
 // CSTX query DSL utilities

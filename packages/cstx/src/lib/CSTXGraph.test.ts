@@ -1,11 +1,10 @@
 import {describe, expect, it} from 'vitest';
 
 import type {CSTXSnapshot} from '../types/transport.gen';
-import {CSTXGraph, mergeSnapshots} from '../index';
+import {CSTXGraph, mergeSnapshots, parseCSTXSnapshot} from '../index';
 
 const snapshot: CSTXSnapshot = {
   format: 'cstx.snapshot',
-  version: 1,
   nodes: [
     {id: 'domain:example.com', type: 'domain-name', value: 'example.com', model: {host: 'example.com'}, sources: ['target'], extras: {}},
     {id: 'domain:api.example.com', type: 'subdomain', value: 'api.example.com', model: {host: 'api.example.com'}, sources: ['dnsx'], extras: {}},
@@ -17,7 +16,7 @@ const snapshot: CSTXSnapshot = {
 };
 
 describe('CSTXGraph', () => {
-  it('hydrates and serializes the canonical snapshot without changing its shape', () => {
+  it('hydrates and serializes the CSTX snapshot without changing its shape', () => {
     const graph = CSTXGraph.fromSnapshot(snapshot);
 
     expect(graph.size).toBe(2);
@@ -38,10 +37,9 @@ describe('CSTXGraph', () => {
     expect(() => CSTXGraph.fromSnapshot({...snapshot, nodes: snapshot.nodes.slice(0, 1)})).toThrow();
   });
 
-  it('merges snapshots by canonical node and edge identity', () => {
+  it('merges snapshots by CSTX node and edge identity', () => {
     const merged = mergeSnapshots(snapshot, {
       format: 'cstx.snapshot',
-      version: 1,
       nodes: [{...snapshot.nodes[0], sources: ['override']}],
       edges: [],
       types: {subdomain: {title: 'Subdomain'}},
@@ -50,5 +48,12 @@ describe('CSTXGraph', () => {
     expect(merged.nodes).toHaveLength(2);
     expect(merged.nodes[0].sources).toEqual(['override']);
     expect(merged.types).toEqual({...snapshot.types, subdomain: {title: 'Subdomain'}});
+  });
+
+  it('parses only the strict direct snapshot contract', () => {
+    expect(parseCSTXSnapshot(snapshot)).toEqual(snapshot);
+    expect(() => parseCSTXSnapshot({snapshot})).toThrow('Unsupported CSTX snapshot');
+    expect(() => parseCSTXSnapshot({...snapshot, legacy: true})).toThrow('unsupported fields');
+    expect(() => parseCSTXSnapshot({...snapshot, nodes: [{id: 'legacy-flat'}]})).toThrow('invalid nodes');
   });
 });

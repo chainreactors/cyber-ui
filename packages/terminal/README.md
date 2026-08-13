@@ -16,9 +16,8 @@
 
 | 函数 | 说明 |
 |------|------|
-| `parseLegacyPTYFrame` | 解析旧版 JSON PTY 帧 |
-| `encodeLegacyPTYData` / `decodeLegacyPTYData` | 转换旧版 PTY 帧中的 base64 数据 |
 | `encodeTerminalData` | 将终端输入编码为规范 PTY 帧的 UTF-8 字节 |
+| `encodePTYFrame` / `decodePTYFrame` | 编解码规范 Protobuf PTY 二进制帧 |
 | `writeTerminalData` | 写入终端数据 |
 | `sessionsFromFrame` / `sessionFromFrame` | 从 PTY 帧读取会话数据 |
 | `mergeSession` / `upsertSession` | 会话合并/更新 |
@@ -31,15 +30,14 @@
 
 - `TerminalStatus` — 终端状态
 - `PTYFrame` — 规范 Protobuf PTY 帧
-- `LegacyPTYFrame` / `LegacyPTYFrameType` — 旧版 JSON PTY 帧及类型
 - `PTYSession` — PTY 会话数据
 
 ## 使用
 
 ```ts
-import { TerminalView, SessionNavigator, parseLegacyPTYFrame } from "@cyber/terminal"
+import { TerminalView, SessionNavigator, decodePTYFrame } from "@cyber/terminal"
 ```
 
-应用负责建立 WebSocket，并在协议边界调用对应的 PTY codec；终端组件不持有网络连接。
+应用负责建立 WebSocket，并以一条二进制 WebSocket 消息承载一个规范 `aop.pty.ProtocolMessage`；终端组件不持有网络连接。
 
 Peer dependencies: `react`, `react-dom`

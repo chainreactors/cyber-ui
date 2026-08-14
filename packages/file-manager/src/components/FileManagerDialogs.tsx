@@ -8,6 +8,7 @@ import {
   AlertTriangle,
 } from "../icons"
 import type { FileNode, UploadQueueState, DownloadQueueState } from "../types"
+import type { OpenNode } from "../hooks/useOpenNode"
 import { formatFileSize } from "../utils/file-manager-utils"
 import { useFileManagerRuntime } from "../runtime"
 import { UploadProgressDialog } from "./UploadProgressDialog"
@@ -61,6 +62,7 @@ interface FileManagerDialogsProps {
   // File size warning
   fileSizeWarning: { file: FileNode; sizeInBytes: number } | null
   setFileSizeWarning: (warning: { file: FileNode; sizeInBytes: number } | null) => void
+  openNode: OpenNode
   // Upload progress
   showUploadProgress: boolean
   setShowUploadProgress: (show: boolean) => void
@@ -121,6 +123,7 @@ export function FileManagerDialogs({
   executeUpload,
   fileSizeWarning,
   setFileSizeWarning,
+  openNode,
   showUploadProgress,
   setShowUploadProgress,
   uploadQueue,
@@ -437,7 +440,10 @@ export function FileManagerDialogs({
               </Button>
               <Button
                 onClick={() => {
-                  setSelectedFile(fileSizeWarning.file)
+                  // Same open path as everywhere else, minus the size gate the
+                  // user just cleared — a plain setSelectedFile only works for
+                  // hosts that render the built-in preview.
+                  openNode(fileSizeWarning.file, { force: true })
                   setFileSizeWarning(null)
                 }}
               >

@@ -15,14 +15,14 @@ import {
   X,
 } from "../icons"
 import type { FileNode } from "../types"
-import { parseFileSize, LARGE_FILE_WARNING_BYTES, HUGE_FILE_WARNING_BYTES } from "../utils/file-manager-utils"
+import type { OpenNode } from "../hooks/useOpenNode"
 import { useFileManagerRuntime } from "../runtime"
 
 interface UseFileContextMenuParams {
   isWindowsSession: boolean
   onOpenTab?: (title: string, module: string, subModule?: string, component?: unknown) => void
   sessionId: string
-  navigateToPath: (path: string) => void
+  openNode: OpenNode
   handleRefreshCurrentDirectory: (targetPath?: string) => Promise<void>
   handleDownload: (node: FileNode) => Promise<void>
   handleRename: (node: FileNode) => void
@@ -40,18 +40,16 @@ interface UseFileContextMenuParams {
   setShowProperties: (show: boolean) => void
   setSelectedPermissionFile: (file: FileNode | null) => void
   setShowPermissionEditor: (show: boolean) => void
-  setFileSizeWarning: (warning: { file: FileNode; sizeInBytes: number } | null) => void
-  setSelectedFile: (file: FileNode | null) => void
 }
 
 export function useFileContextMenu(params: UseFileContextMenuParams) {
   const t = useTranslations('Sessions.fileManagement')
-  const { capabilities, onOpenFile, renderPreview } = useFileManagerRuntime()
+  const { capabilities } = useFileManagerRuntime()
   const {
     isWindowsSession,
     onOpenTab,
     sessionId,
-    navigateToPath,
+    openNode,
     handleRefreshCurrentDirectory,
     handleDownload,
     handleRename,
@@ -69,8 +67,6 @@ export function useFileContextMenu(params: UseFileContextMenuParams) {
     setShowProperties,
     setSelectedPermissionFile,
     setShowPermissionEditor,
-    setFileSizeWarning,
-    setSelectedFile,
   } = params
 
   // Generate context menu for directory/blank area
@@ -181,23 +177,7 @@ export function useFileContextMenu(params: UseFileContextMenuParams) {
           id: 'open',
           label: t('open'),
           icon: <Eye className="w-4 h-4" />,
-          onSelect: () => {
-            if (node.isDirectory && node.fullPath) {
-              navigateToPath(node.fullPath)
-            } else if (!node.isDirectory && node.fullPath) {
-              const fileSizeInBytes = parseFileSize(node.size)
-
-              if (fileSizeInBytes >= HUGE_FILE_WARNING_BYTES) {
-                setFileSizeWarning({ file: node, sizeInBytes: fileSizeInBytes })
-              } else if (fileSizeInBytes >= LARGE_FILE_WARNING_BYTES) {
-                setFileSizeWarning({ file: node, sizeInBytes: fileSizeInBytes })
-              } else if (onOpenFile) {
-                onOpenFile(node)
-              } else if (renderPreview) {
-                setSelectedFile(node)
-              }
-            }
-          }
+          onSelect: () => openNode(node)
         }] : []),
         ...(onOpenTab ? [{
           id: 'openInNewTab',
@@ -300,7 +280,7 @@ export function useFileContextMenu(params: UseFileContextMenuParams) {
     }
 
     return sections
-  }, [t, capabilities, handleDownload, handleRename, handleCopy, handleCopyName, handleCopyPath, handleDelete, navigateToPath, handleRefreshCurrentDirectory, isWindowsSession, onOpenFile, renderPreview, onOpenTab, sessionId, setContextMenuTargetPath, setShowCreateFolder, setShowCreateFile, setShowUploadDialog, setUploadTargetPath, setSelectedUploadFile, setSelectedPropertyFile, setShowProperties, setSelectedPermissionFile, setShowPermissionEditor, setFileSizeWarning, setSelectedFile])
+  }, [t, capabilities, handleDownload, handleRename, handleCopy, handleCopyName, handleCopyPath, handleDelete, openNode, handleRefreshCurrentDirectory, isWindowsSession, onOpenTab, sessionId, setContextMenuTargetPath, setShowCreateFolder, setShowCreateFile, setShowUploadDialog, setUploadTargetPath, setSelectedUploadFile, setSelectedPropertyFile, setShowProperties, setSelectedPermissionFile, setShowPermissionEditor])
 
   return {
     generateDirectoryContextMenu,

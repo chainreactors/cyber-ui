@@ -20,11 +20,11 @@ import {
 } from "../icons"
 import type { FileNode } from "../types"
 import type { FileSortKey } from "../hooks/useFileSort"
-import { parseFileSize, formatTime, LARGE_FILE_WARNING_BYTES, HUGE_FILE_WARNING_BYTES } from "../utils/file-manager-utils"
+import type { OpenNode } from "../hooks/useOpenNode"
+import { formatTime } from "../utils/file-manager-utils"
 import { getFileIcon } from "../utils/file-icons"
 import { cn } from "../class-names"
 import { FileSelectionBar } from "./FileSelectionBar"
-import { useFileManagerRuntime } from "../runtime"
 
 interface FileListViewProps {
   currentDirFiles: FileNode[]
@@ -38,9 +38,7 @@ interface FileListViewProps {
   dragHandlers: Record<string, (e: React.DragEvent) => void>
   handleFileListScroll: (event: React.UIEvent<HTMLDivElement>) => void
   handleSort: (key: FileSortKey) => void
-  navigateToPath: (path: string) => void
-  setSelectedFile: (file: FileNode | null) => void
-  setFileSizeWarning: (warning: { file: FileNode; sizeInBytes: number } | null) => void
+  openNode: OpenNode
   generateDirectoryContextMenu: (targetPath: string) => ContextMenuSection[]
   generateContextMenu: (node: FileNode) => ContextMenuSection[]
   selectedIds?: Set<string>
@@ -62,9 +60,7 @@ export function FileListView({
   dragHandlers,
   handleFileListScroll,
   handleSort,
-  navigateToPath,
-  setSelectedFile,
-  setFileSizeWarning,
+  openNode,
   generateDirectoryContextMenu,
   generateContextMenu,
   selectedIds,
@@ -74,7 +70,6 @@ export function FileListView({
   onClearSelection,
 }: FileListViewProps) {
   const t = useTranslations('Sessions.fileManagement')
-  const { onOpenFile, renderPreview } = useFileManagerRuntime()
   const showModeColumn = visibleFiles.some(file => Boolean(file.mode))
   const showLinkColumn = visibleFiles.some(file => Boolean(file.link))
 
@@ -115,21 +110,7 @@ export function FileListView({
 
   const handleFileDoubleClick = (e: React.MouseEvent, file: FileNode) => {
     e.stopPropagation()
-    if (file.isDirectory && file.fullPath) {
-      navigateToPath(file.fullPath)
-    } else if (!file.isDirectory && file.fullPath) {
-      const fileSizeInBytes = parseFileSize(file.size)
-
-      if (fileSizeInBytes >= HUGE_FILE_WARNING_BYTES) {
-        setFileSizeWarning({ file, sizeInBytes: fileSizeInBytes })
-      } else if (fileSizeInBytes >= LARGE_FILE_WARNING_BYTES) {
-        setFileSizeWarning({ file, sizeInBytes: fileSizeInBytes })
-      } else if (onOpenFile) {
-        onOpenFile(file)
-      } else if (renderPreview) {
-        setSelectedFile(file)
-      }
-    }
+    openNode(file)
   }
 
   return (

@@ -8,8 +8,9 @@ import { formatPathForDisplay, normalizeCacheEntries, buildBoundedMapFromEntries
 import { useDragAndDrop } from "./hooks/useDragAndDrop"
 import { useFileManagerState } from "./hooks/useFileManagerState"
 import { useFileActions } from "./hooks/useFileActions"
+import { useOpenNode } from "./hooks/useOpenNode"
 import { useFileContextMenu } from "./components/FileContextMenu"
-import { useFileNodeRenderer } from "./components/FileNodeRenderer"
+import { FileNodeRenderer, FileNodeRendererProvider } from "./components/FileNodeRenderer"
 import { FileTree } from "./components/FileTree"
 import { FileToolbar } from "./components/FileToolbar"
 import { FileListView } from "./components/FileListView"
@@ -138,12 +139,19 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     onFilesDropped: actions.handleFilesDropped,
   })
 
+  // Opening a node (double-click, context menu, large-file confirm)
+  const openNode = useOpenNode({
+    navigateToPath: state.navigateToPath,
+    setFileSizeWarning: state.setFileSizeWarning,
+    setSelectedFile: state.setSelectedFile,
+  })
+
   // Context menus
   const { generateDirectoryContextMenu, generateContextMenu } = useFileContextMenu({
     isWindowsSession: state.isWindowsSession,
     onOpenTab,
     sessionId,
-    navigateToPath: state.navigateToPath,
+    openNode,
     handleRefreshCurrentDirectory: actions.handleRefreshCurrentDirectory,
     handleDownload: actions.handleDownload,
     handleRename: actions.handleRename,
@@ -161,19 +169,6 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
     setShowProperties: state.setShowProperties,
     setSelectedPermissionFile: state.setSelectedPermissionFile,
     setShowPermissionEditor: state.setShowPermissionEditor,
-    setFileSizeWarning: state.setFileSizeWarning,
-    setSelectedFile: state.setSelectedFile,
-  })
-
-  // File node renderer
-  const FileNodeRenderer = useFileNodeRenderer({
-    loadingNodes: state.loadingNodes,
-    currentDirPath: state.currentDirPath,
-    operatingFiles: state.operatingFiles,
-    navigateToPath: state.navigateToPath,
-    generateContextMenu,
-    matchedNodeIds: state.matchedNodeIds,
-    treeSearchQuery: state.treeSearchQuery,
   })
 
   // Auto-expand matched nodes
@@ -401,6 +396,15 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
   )
 
   return (
+    <FileNodeRendererProvider
+      loadingNodes={state.loadingNodes}
+      currentDirPath={state.currentDirPath}
+      operatingFiles={state.operatingFiles}
+      openNode={openNode}
+      generateContextMenu={generateContextMenu}
+      matchedNodeIds={state.matchedNodeIds}
+      treeSearchQuery={state.treeSearchQuery}
+    >
     <div className={`h-full flex flex-col file-manager-container ${className}`}>
       {showTree && !state.isMobile && (splitDirection === 'vertical' || layoutMode === 'tree') && fileToolbar}
       {/* Main content */}
@@ -436,9 +440,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
                   dragHandlers={dragHandlers}
                   handleFileListScroll={state.handleFileListScroll}
                   handleSort={state.handleSort}
-                  navigateToPath={state.navigateToPath}
-                  setSelectedFile={state.setSelectedFile}
-                  setFileSizeWarning={state.setFileSizeWarning}
+                  openNode={openNode}
                   generateDirectoryContextMenu={generateDirectoryContextMenu}
                   generateContextMenu={generateContextMenu}
                   selectedIds={state.selection.selectedIds}
@@ -467,9 +469,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
               dragHandlers={dragHandlers}
               handleFileListScroll={state.handleFileListScroll}
               handleSort={state.handleSort}
-              navigateToPath={state.navigateToPath}
-              setSelectedFile={state.setSelectedFile}
-              setFileSizeWarning={state.setFileSizeWarning}
+              openNode={openNode}
               generateDirectoryContextMenu={generateDirectoryContextMenu}
               generateContextMenu={generateContextMenu}
               selectedIds={state.selection.selectedIds}
@@ -521,6 +521,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
         executeUpload={actions.executeUpload}
         fileSizeWarning={state.fileSizeWarning}
         setFileSizeWarning={state.setFileSizeWarning}
+        openNode={openNode}
         showUploadProgress={state.showUploadProgress}
         setShowUploadProgress={state.setShowUploadProgress}
         uploadQueue={state.uploadQueue}
@@ -538,6 +539,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
         handleSavePermissions={actions.handleSavePermissions}
       />
     </div>
+    </FileNodeRendererProvider>
   )
 }
 

@@ -104,16 +104,27 @@ export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
         ? v.split(',').map((s) => s.trim()).filter(Boolean)
         : [];
     if (items.length === 0) return <span className="text-[var(--c-faint,#94a3b8)]">-</span>;
+    // Provenance tokens (e.g. a `sources` column) are often long opaque ids such as
+    // `task:89a3f347-3995-466c-a061-ec087757f58b`. Rendered verbatim they blow the
+    // column width out and stack into a tall block. Show a compact head with an
+    // ellipsis and keep the full value one hover away via `title` (and copyable when
+    // the cell is widened). Short tokens (`cairn-runner`, `oracle:p_ee9d440b`) are
+    // left untouched.
+    const MAX_TAG_CHARS = 22;
     return (
       <span className="flex flex-wrap gap-1">
-        {items.map((item, i) => (
-          <span
-            key={i}
-            className="inline-flex rounded border border-[var(--c-line,#e2e8f0)] bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-xs text-[var(--c-muted,#475569)]"
-          >
-            {item}
-          </span>
-        ))}
+        {items.map((item, i) => {
+          const clipped = item.length > MAX_TAG_CHARS;
+          return (
+            <span
+              key={i}
+              title={clipped ? item : undefined}
+              className="inline-flex max-w-full whitespace-nowrap rounded border border-[var(--c-line,#e2e8f0)] bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-xs text-[var(--c-muted,#475569)]"
+            >
+              {clipped ? `${item.slice(0, MAX_TAG_CHARS - 1)}…` : item}
+            </span>
+          );
+        })}
       </span>
     );
   });

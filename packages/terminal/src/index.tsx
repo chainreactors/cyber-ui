@@ -4,8 +4,8 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import { Monitor as LucideMonitor, X as LucideX } from 'lucide-react'
 import { cn } from '@cyber/theme'
-import { create } from '@bufbuild/protobuf'
-import { PtySessionSchema, type PtyProtocolMessage, type PtySession } from '@cyber/aop'
+import { create, fromBinary, toBinary } from '@bufbuild/protobuf'
+import { PtyProtocolMessageSchema, PtySessionSchema, type PtyProtocolMessage, type PtySession } from '@cyber/aop'
 import type { Timestamp } from '@bufbuild/protobuf/wkt'
 
 const Monitor = LucideMonitor as unknown as ComponentType<SVGProps<SVGSVGElement>>
@@ -71,6 +71,8 @@ export function DetailGroup({ children, title }: { children: ReactNode; title: s
 export function DetailRow({ label, mono, value }: { label: string; mono?: boolean; value?: ReactNode }) { if (value === undefined || value === null || value === '') return null; return <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2"><span className="text-muted-foreground">{label}</span><span className={cn('min-w-0 break-words text-foreground', mono && 'font-mono text-[11px]')}>{value}</span></div> }
 
 export function encodeTerminalData(value: string): Uint8Array { return new TextEncoder().encode(value) }
+export function encodePTYFrame(frame: PTYFrame): Uint8Array { return toBinary(PtyProtocolMessageSchema, frame) }
+export function decodePTYFrame(frame: Uint8Array): PTYFrame { return fromBinary(PtyProtocolMessageSchema, frame) }
 export function writeTerminalData(terminal: XTerm, frame: PTYFrame) { if (frame.message.case === 'output') terminal.write(new TextDecoder().decode(frame.message.value.data)) }
 export function sessionsFromFrame(frame: PTYFrame): PTYSession[] { return frame.message.case === 'sessions' ? frame.message.value.sessions.filter((session) => !!session.id) : [] }
 export function sessionFromFrame(frame: PTYFrame): PTYSession | null {

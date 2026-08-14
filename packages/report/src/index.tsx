@@ -1,4 +1,8 @@
-export { ReportDocument, type ReportDocumentProps } from './ReportDocument'
+export {
+  ReportDocument,
+  type ReportDocumentProps,
+  type ReportFindingBinding,
+} from './ReportDocument'
 export { ReportTaskPreview } from './ReportAppendix'
 export type {
   ReportVulnerabilityRecord,

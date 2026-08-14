@@ -8,7 +8,6 @@
 |------|------|
 | `TerminalView` | xterm.js 终端渲染器 |
 | `TerminalHeader` | 终端标题栏 |
-| `WebSocketTerminal` | 完整 PTY WebSocket 生命周期、重连、输入输出与 resize |
 | `SessionNavigator` | 会话列表导航面板 |
 | `SessionButton` | 单个会话切换按钮 |
 | `DetailPanel` / `DetailGroup` / `DetailRow` | 会话详情展示 |
@@ -17,8 +16,8 @@
 
 | 函数 | 说明 |
 |------|------|
-| `parsePTYFrame` | 解析规范化 PTY 帧 |
-| `encodeTerminalData` | 将终端输入编码为 PTY 帧的 base64 数据 |
+| `encodeTerminalData` | 将终端输入编码为规范 PTY 帧的 UTF-8 字节 |
+| `encodePTYFrame` / `decodePTYFrame` | 编解码规范 Protobuf PTY 二进制帧 |
 | `writeTerminalData` | 写入终端数据 |
 | `sessionsFromFrame` / `sessionFromFrame` | 从 PTY 帧读取会话数据 |
 | `mergeSession` / `upsertSession` | 会话合并/更新 |
@@ -30,13 +29,15 @@
 ## 类型
 
 - `TerminalStatus` — 终端状态
-- `PTYFrame` / `PTYFrameType` — PTY 帧及类型
+- `PTYFrame` — 规范 Protobuf PTY 帧
 - `PTYSession` — PTY 会话数据
 
 ## 使用
 
 ```ts
-import { WebSocketTerminal, TerminalView, SessionNavigator, parsePTYFrame } from "@cyber/terminal"
+import { TerminalView, SessionNavigator, decodePTYFrame } from "@cyber/terminal"
 ```
+
+应用负责建立 WebSocket，并以一条二进制 WebSocket 消息承载一个规范 `aop.pty.ProtocolMessage`；终端组件不持有网络连接。
 
 Peer dependencies: `react`, `react-dom`

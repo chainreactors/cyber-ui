@@ -276,9 +276,16 @@ function renderTimelineItem(
           streaming={item.streaming}
           showResponseLabel={false}
           labels={{ tools: `${item.tools.length} ${item.tools.length === 1 ? 'Tool' : 'Tools'}` }}
-          tools={item.tools.length > 0 ? item.tools.map(tc => (
-            <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} error={tc.error} />
-          )) : undefined}
+          // A host that replaced the tool-call renderer meant *tool calls*, not
+          // "tool calls that happen to arrive on their own": the same override
+          // has to reach the ones nested in a response, or half the transcript
+          // silently keeps the default.
+          tools={item.tools.length > 0 ? item.tools.map(tc => {
+            const Override = overrides.toolCall
+            return Override
+              ? <Override key={tc.id} item={{ kind: 'tool_call', id: tc.id, timestamp: item.timestamp, toolCall: tc }} context={context} />
+              : <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} error={tc.error} />
+          }) : undefined}
         />
       )
     }

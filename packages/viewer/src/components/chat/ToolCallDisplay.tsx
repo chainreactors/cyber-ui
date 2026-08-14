@@ -25,14 +25,14 @@ const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
   xml: 'xml', yaml: 'yaml', yml: 'yaml', zig: 'zig',
 }
 
-type ReadResultFormat = { kind: 'markdown' } | { kind: 'code'; language: string } | { kind: 'text' }
+type ResultFormat = { kind: 'markdown' } | { kind: 'code'; language: string } | { kind: 'text' }
 
-function readPath(toolName: string, toolArgs: string): string | undefined {
-  if (toolName.trim().toLowerCase() !== 'read') return undefined
+/** The path a call names, if it names one. */
+function argPath(toolArgs: string): string | undefined {
   try {
     const args = JSON.parse(toolArgs) as Record<string, unknown>
     for (const key of ['path', 'file_path', 'filename']) {
-      if (typeof args[key] === 'string' && args[key]) return args[key]
+      if (typeof args[key] === 'string' && args[key]) return args[key] as string
     }
   } catch {
     // A malformed/legacy argument string simply falls back to plain text.
@@ -40,8 +40,20 @@ function readPath(toolName: string, toolArgs: string): string | undefined {
   return undefined
 }
 
-function readResultFormat(toolName: string, toolArgs: string): ReadResultFormat {
-  const path = readPath(toolName, toolArgs)
+/**
+ * How to render a tool's result, decided from the shape of the call rather than
+ * the tool's name.
+ *
+ * Tool names are an open set: `read`, `cat`, `view_file`, a runner download, and
+ * whatever the next agent calls it are all the same act. Gating the preview on
+ * one spelling means every other one silently loses it. What actually marks a
+ * result as a document is the call naming a path and the body spanning lines —
+ * a write or an edit names a path too, but answers in a single line
+ * ("wrote 42 bytes"), which is a status message and reads worst as a code block.
+ */
+function resultFormat(toolArgs: string, result: string): ResultFormat {
+  if (!result.includes('\n')) return { kind: 'text' }
+  const path = argPath(toolArgs)
   if (!path) return { kind: 'text' }
   const cleanPath = path.split(/[?#]/, 1)[0].toLowerCase()
   const fileName = cleanPath.split(/[\\/]/).pop() || ''
@@ -53,16 +65,8 @@ function readResultFormat(toolName: string, toolArgs: string): ReadResultFormat 
   return language ? { kind: 'code', language } : { kind: 'text' }
 }
 
-function ToolResultContent({
-  result,
-  toolName,
-  toolArgs,
-}: {
-  result: string
-  toolName: string
-  toolArgs: string
-}) {
-  const format = readResultFormat(toolName, toolArgs)
+function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: string }) {
+  const format = resultFormat(toolArgs, result)
   if (format.kind === 'markdown') {
     return (
       <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card/40 px-3 py-2">
@@ -177,7 +181,7 @@ export default function ToolCallDisplay({
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   Result
                 </div>
-                <ToolResultContent result={displayResult} toolName={toolName} toolArgs={toolArgs} />
+                <ToolResultContent result={displayResult} toolArgs={toolArgs} />
               </div>
             )}
           </div>

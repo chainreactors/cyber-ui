@@ -141,7 +141,11 @@ export function reduceAOPToTimeline(
         break
 
       case 'turnStarted':
-        ensureResponse(event)
+        // A turn is only a lifecycle boundary. Creating the response here puts an
+        // empty assistant card before a user message when delivery order is
+        // turn.start -> message(user), which reverses the visible conversation.
+        // The first actual assistant delta, tool call, or assistant message owns
+        // the response card and therefore its position in the timeline.
         break
 
       case 'turnEnded': {
@@ -180,10 +184,21 @@ export function reduceAOPToTimeline(
         const reasoning = contentText(message.content, 'reasoning')
         if (message.role === 'assistant') {
           const key = `${scope(event)}:message:${message.id}`
-          const response = responseByMessage.get(key) ?? ensureResponse(event)
+          const existing = responseByMessage.get(key)
+          const response = existing ?? ensureResponse(event)
           responseByMessage.set(key, response)
-          if (reasoning) response.thinking = reasoning
-          if (text) response.response = { ...response.response, content: text }
+          // A complete message replaces its own deltas, but a later assistant
+          // message in the same turn is another step and must not erase the
+          // earlier one.
+          if (reasoning) response.thinking = existing
+            ? reasoning
+            : joinMessageText(response.thinking, reasoning)
+          if (text) response.response = {
+            ...response.response,
+            content: existing
+              ? text
+              : joinMessageText(response.response?.content, text),
+          }
           response.streaming = false
           break
         }
@@ -252,4 +267,8 @@ export function reduceAOPToTimeline(
 
   if (!options.streaming) for (const response of responses.values()) response.streaming = false
   return items
+}
+
+function joinMessageText(current: string | undefined, next: string): string {
+  return current ? `${current}\n\n${next}` : next
 }

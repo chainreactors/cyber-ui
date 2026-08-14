@@ -7,6 +7,7 @@ import {
   TextContentSchema,
   ToolCallSchema,
   ToolResultSchema,
+  TurnStartedSchema,
   type Event,
 } from '@cyber/aop'
 import { describe, expect, it } from 'vitest'
@@ -47,6 +48,33 @@ describe('reduceAOPToTimeline', () => {
     expect(reduceAOPToTimeline(events)[0]).toMatchObject({
       kind: 'assistant_response',
       tools: [{ id: 'call-1', toolName: 'search', result: 'done', pending: false }],
+    })
+  })
+
+  it('places the user message before assistant work even when turn.start arrives first', () => {
+    const events = [
+      event(1, { case: 'turnStarted', value: create(TurnStartedSchema) }),
+      event(2, { case: 'message', value: create(MessageSchema, { id: 'u1', role: 'user', content: [text('check this')] }) }),
+      event(3, { case: 'toolCall', value: create(ToolCallSchema, { id: 'call-1', name: 'read' }) }),
+      event(4, { case: 'message', value: create(MessageSchema, { id: 'm1', role: 'assistant', content: [text('done')] }) }),
+    ]
+
+    expect(reduceAOPToTimeline(events).map(item => item.kind)).toEqual([
+      'message',
+      'assistant_response',
+    ])
+  })
+
+  it('keeps multiple assistant messages from the same turn in order', () => {
+    const events = [
+      event(1, { case: 'message', value: create(MessageSchema, { id: 'm1', role: 'assistant', content: [text('first step')] }) }),
+      event(2, { case: 'toolCall', value: create(ToolCallSchema, { id: 'call-1', name: 'read' }) }),
+      event(3, { case: 'message', value: create(MessageSchema, { id: 'm2', role: 'assistant', content: [text('final answer')] }) }),
+    ]
+
+    expect(reduceAOPToTimeline(events)[0]).toMatchObject({
+      kind: 'assistant_response',
+      response: { content: 'first step\n\nfinal answer' },
     })
   })
 })

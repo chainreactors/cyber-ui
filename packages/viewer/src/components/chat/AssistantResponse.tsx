@@ -53,7 +53,7 @@ export default function AssistantResponse({
   const hasResponse = hasContent(response)
   const showResponse = hasResponse || !!streaming
 
-  // Order: thinking → tools → response. The written answer is the turn's
+  // Order: thinking -> tools -> response. The written answer is the turn's
   // conclusion and must render last so it sits at the bottom of the card, where
   // the transcript's sticky scroll keeps it in view as it streams and once the
   // turn settles. (Tools above it stay collapsed, so they never push the report
@@ -73,14 +73,23 @@ export default function AssistantResponse({
         </Collapsible>
       )}
       {hasTools && (
-        <Collapsible
-          title={labels?.tools || 'Tools'}
-          defaultExpanded={false}
-          className={cn(showResponse && 'border-b border-border')}
-          bodyClassName="space-y-2"
-        >
-          {tools}
-        </Collapsible>
+        variant === 'voice-card' ? (
+          <div
+            data-testid="assistant-tools"
+            className={cn('space-y-2 bg-card px-3 py-2', showResponse && 'border-b border-border')}
+          >
+            {tools}
+          </div>
+        ) : (
+          <Collapsible
+            title={labels?.tools || 'Tools'}
+            defaultExpanded={false}
+            className={cn(showResponse && 'border-b border-border')}
+            bodyClassName="space-y-2"
+          >
+            {tools}
+          </Collapsible>
+        )
       )}
       {showResponse && (
         <Section

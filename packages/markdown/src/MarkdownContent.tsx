@@ -1,8 +1,16 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@cyber/theme'
 import { CodeBlock } from './CodeBlock'
+
+export interface CodeBlockRendererProps {
+  code: string
+  /** The fence's language tag, absent when the block carries none. */
+  language?: string
+  compact: boolean
+  isDark: boolean
+}
 
 interface Props {
   content: string
@@ -12,6 +20,14 @@ interface Props {
   isDark?: boolean
   /** Show anchor links on headings (hover to reveal) */
   headingAnchors?: boolean
+  /**
+   * Replace the renderer for *fenced* code blocks; inline code is untouched.
+   *
+   * Lets a host give a block domain treatment — an HTTP packet header, a diff,
+   * a signature card — without forking the whole components map to reach the one
+   * node it cares about. Absent, blocks render as the ordinary `CodeBlock`.
+   */
+  codeBlock?: ComponentType<CodeBlockRendererProps>
   className?: string
 }
 
@@ -126,6 +142,7 @@ export function MarkdownContent({
   inverted = false,
   isDark = false,
   headingAnchors = false,
+  codeBlock: CodeBlockRenderer,
   className,
 }: Props) {
   const headingSlugs = useMemo(() => new Map<string, number>(), [content])
@@ -192,7 +209,14 @@ export function MarkdownContent({
         const isBlock = Boolean(codeClassName) || codeStr.includes('\n')
 
         if (isBlock) {
-          return (
+          return CodeBlockRenderer ? (
+            <CodeBlockRenderer
+              code={codeStr}
+              language={langMatch?.[1]}
+              compact={compact}
+              isDark={useDarkCode}
+            />
+          ) : (
             <CodeBlock
               code={codeStr}
               language={langMatch?.[1]}
@@ -231,7 +255,7 @@ export function MarkdownContent({
         <hr className={cn('border-none border-t border-line', compact ? 'my-2' : 'my-5')} />
       ),
     }
-  }, [compact, inverted, isDark, muted, headingAnchors, headingSlugs])
+  }, [compact, inverted, isDark, muted, headingAnchors, headingSlugs, CodeBlockRenderer])
 
   return (
     <div

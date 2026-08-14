@@ -69,7 +69,7 @@ function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: str
   const format = resultFormat(toolArgs, result)
   if (format.kind === 'markdown') {
     return (
-      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card/40 px-3 py-2">
+      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
         <MarkdownContent content={result} compact />
       </div>
     )
@@ -119,7 +119,7 @@ export default function ToolCallDisplay({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-lg border transition-colors duration-200',
+        'overflow-hidden rounded-lg border bg-card transition-colors duration-200',
         error ? 'border-destructive/35' : pending ? 'border-warning/30' : 'border-border',
         className,
       )}
@@ -127,7 +127,7 @@ export default function ToolCallDisplay({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50"
+        className="flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50"
       >
         <Wrench
           className={cn(
@@ -135,7 +135,7 @@ export default function ToolCallDisplay({
             error ? 'text-destructive' : pending ? 'text-warning' : 'text-muted-foreground',
           )}
         />
-        <span className="shrink-0 rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono font-medium text-foreground">
+        <span className="shrink-0 rounded border border-border bg-card px-1.5 py-0.5 font-mono font-medium text-foreground">
           {toolName || 'tool'}
         </span>
         <span
@@ -167,7 +167,7 @@ export default function ToolCallDisplay({
         <div className="overflow-hidden">
           <div className="border-t border-border">
             {toolArgs && (
-              <div className="bg-muted/30 px-3 py-2">
+              <div className="bg-card px-3 py-2">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   Arguments
                 </div>

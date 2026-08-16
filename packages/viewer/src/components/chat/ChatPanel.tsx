@@ -65,7 +65,13 @@ function ChatPanelErrorBar({ children, className }: ChatPanelErrorBarProps) {
 
 // ── Timeline ──
 
-export interface ChatPanelTimelineProps {
+/**
+ * Extends the div attributes because the scroll container *is* the live region:
+ * a host that announces streaming replies has to put `role="log"` / `aria-live` /
+ * `aria-busy` on the scrolling element itself, and there is no way to wrap our way
+ * to that from outside. Anything not consumed below is spread onto the scroller.
+ */
+export interface ChatPanelTimelineProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string
   contentClassName?: string
   /** Responsive grid columns for mark / content / side-note rails. */
@@ -78,12 +84,20 @@ export interface ChatPanelTimelineProps {
   stickyScroll?: boolean
   memoItems?: boolean
   scrollResetKey?: string | null
+  /**
+   * How auto-scroll follows new items. `'instant'` suits token-by-token streaming,
+   * where one smooth animation per delta reads as a permanent judder; the default
+   * stays `'smooth'` for transcripts that grow a whole message at a time.
+   * `scrollResetKey` is always instant regardless, and reduced-motion still wins.
+   */
+  scrollBehavior?: 'smooth' | 'instant'
 }
 
 function ChatPanelTimeline({
   className, contentClassName, railLayoutClassName, emptyState, renderItem, autoScroll = true,
   renderMark, renderSideNote, stickyScroll, memoItems,
-  scrollResetKey,
+  scrollResetKey, scrollBehavior = 'smooth',
+  ...scrollerProps
 }: ChatPanelTimelineProps) {
   const { timeline, domainContext, overrides, variant } = useContext(ChatPanelContext)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -123,8 +137,8 @@ function ChatPanelTimeline({
   useEffect(() => {
     if (!autoScroll && !stickyScroll) return
     if (stickyScroll && !stuckRef.current) return
-    scrollToBottom('smooth')
-  }, [timeline, autoScroll, stickyScroll, scrollToBottom])
+    scrollToBottom(scrollBehavior)
+  }, [timeline, autoScroll, stickyScroll, scrollBehavior, scrollToBottom])
 
   useEffect(() => {
     if (!stickyScroll) return
@@ -160,7 +174,7 @@ function ChatPanelTimeline({
   const ItemWrapper = memoItems ? MemoTimelineEntry : PassthroughEntry
 
   return (
-    <div ref={scrollRef} className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-3', className)}>
+    <div {...scrollerProps} ref={scrollRef} className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-3', className)}>
       {timeline.length === 0 && (
         emptyState ?? (
           <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
@@ -262,9 +276,16 @@ function renderTimelineItem(
           streaming={item.streaming}
           showResponseLabel={false}
           labels={{ tools: `${item.tools.length} ${item.tools.length === 1 ? 'Tool' : 'Tools'}` }}
-          tools={item.tools.length > 0 ? item.tools.map(tc => (
-            <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} error={tc.error} />
-          )) : undefined}
+          // A host that replaced the tool-call renderer meant *tool calls*, not
+          // "tool calls that happen to arrive on their own": the same override
+          // has to reach the ones nested in a response, or half the transcript
+          // silently keeps the default.
+          tools={item.tools.length > 0 ? item.tools.map(tc => {
+            const Override = overrides.toolCall
+            return Override
+              ? <Override key={tc.id} item={{ kind: 'tool_call', id: tc.id, timestamp: item.timestamp, toolCall: tc }} context={context} />
+              : <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} error={tc.error} />
+          }) : undefined}
         />
       )
     }

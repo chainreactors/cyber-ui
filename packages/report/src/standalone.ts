@@ -329,7 +329,7 @@ function renderVulnerability(record: ReportVulnerabilityRecord): string {
     ? `<details class="report-vulnerability-detail"><summary>Rule template</summary><div><pre><code>${escapeHtml(item.evidence.templateRaw || JSON.stringify(item.evidence.template, null, 2))}</code></pre></div></details>`
     : ''
   return [
-    `<details data-report-vulnerability="${escapeHtml(item.id)}" data-report-severity="${escapeHtml(item.severity)}">`,
+    `<details data-report-vulnerability="${escapeHtml(item.id)}" data-report-cstx-id="${escapeHtml(record.cstx_id)}" data-report-severity="${escapeHtml(item.severity)}">`,
     `<summary><span class="report-severity" data-severity="${escapeHtml(item.severity)}">${escapeHtml(item.severity)}</span><strong>${escapeHtml(item.title)}</strong></summary>`,
     '<div class="report-vulnerability-body">',
     narratives,

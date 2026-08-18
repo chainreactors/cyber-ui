@@ -3,6 +3,7 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@cyber/theme'
 import { CodeBlock } from './CodeBlock'
+import { remarkCjkAutolinkBoundary } from './remark-cjk-autolink-boundary'
 
 export interface CodeBlockRendererProps {
   code: string
@@ -267,7 +268,7 @@ export function MarkdownContent({
         className,
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkAutolinkBoundary]} components={components}>
         {content || ''}
       </ReactMarkdown>
     </div>

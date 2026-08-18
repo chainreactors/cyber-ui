@@ -39,11 +39,29 @@ export {
   ProtocolMessageSchema as SCOProtocolMessageSchema,
   type ProtocolMessage as SCOProtocolMessage,
 } from './gen/aop/sco/protocol_pb.js'
+export {
+  CaptureMode,
+  FlowSchema as TrafficFlowSchema,
+  HeaderSchema as TrafficHeaderSchema,
+  ProtocolMessageSchema as TrafficProtocolMessageSchema,
+  RoutingMode,
+  StateSchema as TrafficStateSchema,
+  type Flow as TrafficFlow,
+  type Header as TrafficHeader,
+  type ProtocolMessage as TrafficProtocolMessage,
+  type State as TrafficState,
+} from './gen/aop/traffic/protocol_pb.js'
 export * from './client.js'
 
 import { fromJson, type JsonValue } from '@bufbuild/protobuf'
 import { EventSchema, type Event } from './gen/aop/event_pb.js'
+import { FlowSchema, type Flow } from './gen/aop/traffic/protocol_pb.js'
 
 export function eventFromJson(value: unknown): Event {
   return fromJson(EventSchema, value as JsonValue)
+}
+
+/** Decode one captured exchange from the protojson a control plane stored. */
+export function trafficFlowFromJson(value: unknown): Flow {
+  return fromJson(FlowSchema, value as JsonValue)
 }

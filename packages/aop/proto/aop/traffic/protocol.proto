@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package aop.traffic;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop/traffic;traffic";
+
+// The traffic namespace projects the runner's traffic mechanism — the long-lived
+// MITM hub plus its egress chain — as an AOP control surface. Routing and capture
+// become control-plane operations carried over AOP rather than a static boot
+// config or an agent tool, and captured flows stream back correlated by the AOP
+// tool-call id that produced the egress.
+
+// CaptureMode selects what the hub does with traffic it routes. RELAY forwards
+// undecrypted and records nothing; RECORD intercepts (MITM) and stores flows.
+enum CaptureMode {
+  CAPTURE_MODE_UNSPECIFIED = 0; // leave capture unchanged (Configure)
+  CAPTURE_MODE_RELAY = 1;       // route only: no interception, no record
+  CAPTURE_MODE_RECORD = 2;      // intercept + record
+}
+
+// RoutingMode selects how the egress chain is set. UNSPECIFIED leaves routing
+// unchanged so a Configure can steer capture without touching the proxy.
+enum RoutingMode {
+  ROUTING_MODE_UNSPECIFIED = 0;
+  ROUTING_MODE_DIRECT = 1;    // revert to the original/direct egress
+  ROUTING_MODE_PROXY = 2;     // single proxy URL (url)
+  ROUTING_MODE_SUBSCRIBE = 3; // load a clash subscription (url), no switch
+  ROUTING_MODE_AUTO = 4;      // subscription + adaptive load balancing
+  ROUTING_MODE_SWITCH = 5;    // switch active node within a loaded subscription
+  ROUTING_MODE_CLEAR = 6;     // clear subscription, revert to original
+}
+
+// RoutingConfig steers the egress chain (State in tools/proxy). Fields beyond
+// mode/url/selector are the auto-mode subscription filters.
+message RoutingConfig {
+  RoutingMode mode = 1;
+  string url = 2;      // proxy URL (PROXY) or subscription URL (SUBSCRIBE/AUTO)
+  string selector = 3; // node name or 1-based index (SWITCH)
+  string type = 4;     // protocol filter, e.g. "trojan,vless" (AUTO)
+  string name = 5;     // node name keyword (AUTO)
+  string country = 6;  // ISO 3166-1 alpha-2 filter, e.g. "HK,JP" (AUTO)
+  string strategy = 7; // adaptive|url-test|round-robin|random (AUTO)
+}
+
+// FlowFilter bounds which flows are recorded (CaptureConfig) or returned (Query).
+message FlowFilter {
+  string host = 1;   // host substring
+  string status = 2; // status class or code, e.g. "2xx", "404", "5xx"
+  string type = 3;   // Content-Type substring
+  uint32 last = 4;   // return only the last N flows (Query)
+}
+
+// CaptureConfig sets the hub's capture behaviour. It flips the runtime record
+// flag; the listener address never changes so in-flight children are unaffected.
+message CaptureConfig {
+  CaptureMode mode = 1;
+  bool decrypt_https = 2; // intercept CONNECT to MITM-decrypt HTTPS
+  FlowFilter filter = 3;  // record only matching flows
+  bool stream = 4;        // push Flow messages as they are captured
+}
+
+// Configure declares desired routing and/or capture state. An absent sub-message
+// leaves that facet unchanged; the handler replies with the resulting State.
+message Configure {
+  RoutingConfig routing = 1;
+  CaptureConfig capture = 2;
+}
+
+// Query requests a snapshot: the current State and/or the recorded flows.
+message Query {
+  bool state = 1;        // request current State
+  bool flows = 2;        // request recorded flows (batched Flow replies)
+  FlowFilter filter = 3; // filter for flows = true
+}
+
+message RoutingState {
+  string active_node = 1;
+  string egress_url = 2;
+  bool auto = 3;
+}
+
+message CaptureState {
+  CaptureMode mode = 1;
+  bool capturing = 2;
+}
+
+// State is the runner's reply to Configure/Query.
+message State {
+  RoutingState routing = 1;
+  CaptureState capture = 2;
+  string error = 3;
+}
+
+message Header {
+  string name = 1;
+  string value = 2;
+}
+
+// Flow is one captured request/response pair. Its fields mirror the consumer's
+// http.exchange shape so a consumer can map it directly; tool_id is the AOP
+// tool-call id whose egress produced this flow.
+message Flow {
+  string id = 1;
+  string tool_id = 2;
+  string method = 3;
+  string url = 4;
+  string protocol = 5;
+  int32 status_code = 6;
+  string reason_phrase = 7;
+  repeated Header request_headers = 8;
+  repeated Header response_headers = 9;
+  bytes request_body = 10;
+  bytes response_body = 11;
+  string error = 12;
+  bool complete = 13;
+  google.protobuf.Timestamp timestamp = 14;
+}
+
+message ProtocolMessage {
+  oneof message {
+    Configure configure = 10;
+    Query query = 11;
+    State state = 12;
+    Flow flow = 13;
+  }
+}

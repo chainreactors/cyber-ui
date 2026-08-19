@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package aop.file;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/chainreactors/aiscan/aop/file;file";
 
 message ReadRequest {
@@ -40,6 +42,85 @@ message Result {
   bool eof = 8;
 }
 
+// ---------------------------------------------------------------------------
+// Observation
+//
+// Everything above is imperative: a peer asks this node to read, write, list or
+// create something. The messages below are the other half — what the node saw
+// happen to its own files, whoever caused it. An agent's read/write tools, the
+// files a shell command left behind, and the requests above all report here, so
+// one namespace answers both "operate on this file" and "who touched it".
+//
+// Access is a fire-and-forget push: it is never a reply, never satisfies a
+// pending request, and must never sit on the critical path of the tool call it
+// describes. A consumer that drops one loses an observation, never a result.
+// ---------------------------------------------------------------------------
+
+// AccessOp is what happened to the path. EDIT is a targeted patch and WRITE a
+// full-content overwrite; both are distinguished from CREATE, which says the
+// path did not exist beforehand.
+enum AccessOp {
+  ACCESS_OP_UNSPECIFIED = 0;
+  ACCESS_OP_READ = 1;
+  ACCESS_OP_WRITE = 2;
+  ACCESS_OP_EDIT = 3;
+  ACCESS_OP_CREATE = 4;
+  ACCESS_OP_DELETE = 5;
+}
+
+// AccessSource is how the access was observed, which is also how far it can be
+// trusted. TOOL is an exact record taken inside the tool that performed it.
+// SNAPSHOT is derived by diffing the work dir around a shell execution: the
+// path and the operation are real, but attribution to that execution is an
+// inference, and reads are invisible to it entirely. CONTROL is a file request
+// this node served for a peer rather than anything the agent did.
+enum AccessSource {
+  ACCESS_SOURCE_UNSPECIFIED = 0;
+  ACCESS_SOURCE_TOOL = 1;
+  ACCESS_SOURCE_SNAPSHOT = 2;
+  ACCESS_SOURCE_CONTROL = 3;
+}
+
+// Access is one observed file access.
+message Access {
+  string id = 1;
+  // tool_id is the AOP tool-call id whose execution produced this access, empty
+  // when it happened outside one (a control request, a detached session).
+  string tool_id = 2;
+  AccessOp op = 3;
+  AccessSource source = 4;
+  // path is absolute; work_dir is the execution's working directory, carried so
+  // a consumer can present the path relative to it without guessing.
+  string path = 5;
+  string work_dir = 6;
+  int64 size = 7;   // file size after the access
+  int64 bytes = 8;  // bytes read or written by this access, 0 when unknown
+  uint32 edits = 9; // patch count for EDIT
+  string digest = 10; // sha256 of the content after a write, when computed
+  string error = 11;
+  google.protobuf.Timestamp timestamp = 12;
+}
+
+// WatchConfig steers observation. Disabling it stops the node reporting, which
+// is the only way a peer can opt out of the stream it would otherwise receive.
+message WatchConfig {
+  bool enabled = 1;
+  // ignore holds path substrings excluded from snapshot diffing; empty leaves
+  // the node's own defaults (VCS metadata, dependency trees) in place.
+  repeated string ignore = 2;
+  // max_entries bounds one snapshot. A work dir over it is not diffed at all,
+  // and the node says so through an Access carrying error rather than
+  // reporting a silently partial diff.
+  uint32 max_entries = 3;
+}
+
+message Configure { WatchConfig watch = 1; }
+
+message WatchState {
+  bool watching = 1;
+  string error = 2;
+}
+
 message ProtocolMessage {
   oneof message {
     ReadRequest read_request = 10;
@@ -48,5 +129,8 @@ message ProtocolMessage {
     MkdirRequest mkdir_request = 13;
     UploadRequest upload_request = 14;
     Result result = 20;
+    Configure configure = 21;
+    WatchState state = 22;
+    Access access = 23;
   }
 }

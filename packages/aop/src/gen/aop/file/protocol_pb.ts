@@ -2,15 +2,17 @@
 // @generated from file aop/file/protocol.proto (package aop.file, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file aop/file/protocol.proto.
  */
 export const file_aop_file_protocol: GenFile = /*@__PURE__*/
-  fileDesc("Chdhb3AvZmlsZS9wcm90b2NvbC5wcm90bxIIYW9wLmZpbGUiOgoLUmVhZFJlcXVlc3QSDAoEcGF0aBgBIAEoCRIOCgZvZmZzZXQYAiABKAMSDQoFbGltaXQYAyABKAUiKgoMV3JpdGVSZXF1ZXN0EgwKBHBhdGgYASABKAkSDAoEZGF0YRgCIAEoDCIbCgtMaXN0UmVxdWVzdBIMCgRwYXRoGAEgASgJIhwKDE1rZGlyUmVxdWVzdBIMCgRwYXRoGAEgASgJIlcKDVVwbG9hZFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghmaWxlbmFtZRgCIAEoCRISCgptZWRpYV90eXBlGAMgASgJEgwKBGRhdGEYBCABKAwiOQoFRW50cnkSDAoEbmFtZRgBIAEoCRIUCgxpc19kaXJlY3RvcnkYAiABKAgSDAoEc2l6ZRgDIAEoAyKXAQoGUmVzdWx0EgwKBHBhdGgYASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEc2l6ZRgDIAEoAxIMCgRkYXRhGAQgASgMEiAKB2VudHJpZXMYBSADKAsyDy5hb3AuZmlsZS5FbnRyeRISCgptZWRpYV90eXBlGAYgASgJEg4KBm9mZnNldBgHIAEoAxILCgNlb2YYCCABKAgiswIKD1Byb3RvY29sTWVzc2FnZRItCgxyZWFkX3JlcXVlc3QYCiABKAsyFS5hb3AuZmlsZS5SZWFkUmVxdWVzdEgAEi8KDXdyaXRlX3JlcXVlc3QYCyABKAsyFi5hb3AuZmlsZS5Xcml0ZVJlcXVlc3RIABItCgxsaXN0X3JlcXVlc3QYDCABKAsyFS5hb3AuZmlsZS5MaXN0UmVxdWVzdEgAEi8KDW1rZGlyX3JlcXVlc3QYDSABKAsyFi5hb3AuZmlsZS5Na2RpclJlcXVlc3RIABIxCg51cGxvYWRfcmVxdWVzdBgOIAEoCzIXLmFvcC5maWxlLlVwbG9hZFJlcXVlc3RIABIiCgZyZXN1bHQYFCABKAsyEC5hb3AuZmlsZS5SZXN1bHRIAEIJCgdtZXNzYWdlQi9aLWdpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wL2ZpbGU7ZmlsZWIGcHJvdG8z");
+  fileDesc("Chdhb3AvZmlsZS9wcm90b2NvbC5wcm90bxIIYW9wLmZpbGUiOgoLUmVhZFJlcXVlc3QSDAoEcGF0aBgBIAEoCRIOCgZvZmZzZXQYAiABKAMSDQoFbGltaXQYAyABKAUiKgoMV3JpdGVSZXF1ZXN0EgwKBHBhdGgYASABKAkSDAoEZGF0YRgCIAEoDCIbCgtMaXN0UmVxdWVzdBIMCgRwYXRoGAEgASgJIhwKDE1rZGlyUmVxdWVzdBIMCgRwYXRoGAEgASgJIlcKDVVwbG9hZFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghmaWxlbmFtZRgCIAEoCRISCgptZWRpYV90eXBlGAMgASgJEgwKBGRhdGEYBCABKAwiOQoFRW50cnkSDAoEbmFtZRgBIAEoCRIUCgxpc19kaXJlY3RvcnkYAiABKAgSDAoEc2l6ZRgDIAEoAyKXAQoGUmVzdWx0EgwKBHBhdGgYASABKAkSEAoIZmlsZW5hbWUYAiABKAkSDAoEc2l6ZRgDIAEoAxIMCgRkYXRhGAQgASgMEiAKB2VudHJpZXMYBSADKAsyDy5hb3AuZmlsZS5FbnRyeRISCgptZWRpYV90eXBlGAYgASgJEg4KBm9mZnNldBgHIAEoAxILCgNlb2YYCCABKAgihwIKBkFjY2VzcxIKCgJpZBgBIAEoCRIPCgd0b29sX2lkGAIgASgJEh4KAm9wGAMgASgOMhIuYW9wLmZpbGUuQWNjZXNzT3ASJgoGc291cmNlGAQgASgOMhYuYW9wLmZpbGUuQWNjZXNzU291cmNlEgwKBHBhdGgYBSABKAkSEAoId29ya19kaXIYBiABKAkSDAoEc2l6ZRgHIAEoAxINCgVieXRlcxgIIAEoAxINCgVlZGl0cxgJIAEoDRIOCgZkaWdlc3QYCiABKAkSDQoFZXJyb3IYCyABKAkSLQoJdGltZXN0YW1wGAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJDCgtXYXRjaENvbmZpZxIPCgdlbmFibGVkGAEgASgIEg4KBmlnbm9yZRgCIAMoCRITCgttYXhfZW50cmllcxgDIAEoDSIxCglDb25maWd1cmUSJAoFd2F0Y2gYASABKAsyFS5hb3AuZmlsZS5XYXRjaENvbmZpZyItCgpXYXRjaFN0YXRlEhAKCHdhdGNoaW5nGAEgASgIEg0KBWVycm9yGAIgASgJIqgDCg9Qcm90b2NvbE1lc3NhZ2USLQoMcmVhZF9yZXF1ZXN0GAogASgLMhUuYW9wLmZpbGUuUmVhZFJlcXVlc3RIABIvCg13cml0ZV9yZXF1ZXN0GAsgASgLMhYuYW9wLmZpbGUuV3JpdGVSZXF1ZXN0SAASLQoMbGlzdF9yZXF1ZXN0GAwgASgLMhUuYW9wLmZpbGUuTGlzdFJlcXVlc3RIABIvCg1ta2Rpcl9yZXF1ZXN0GA0gASgLMhYuYW9wLmZpbGUuTWtkaXJSZXF1ZXN0SAASMQoOdXBsb2FkX3JlcXVlc3QYDiABKAsyFy5hb3AuZmlsZS5VcGxvYWRSZXF1ZXN0SAASIgoGcmVzdWx0GBQgASgLMhAuYW9wLmZpbGUuUmVzdWx0SAASKAoJY29uZmlndXJlGBUgASgLMhMuYW9wLmZpbGUuQ29uZmlndXJlSAASJQoFc3RhdGUYFiABKAsyFC5hb3AuZmlsZS5XYXRjaFN0YXRlSAASIgoGYWNjZXNzGBcgASgLMhAuYW9wLmZpbGUuQWNjZXNzSABCCQoHbWVzc2FnZSqOAQoIQWNjZXNzT3ASGQoVQUNDRVNTX09QX1VOU1BFQ0lGSUVEEAASEgoOQUNDRVNTX09QX1JFQUQQARITCg9BQ0NFU1NfT1BfV1JJVEUQAhISCg5BQ0NFU1NfT1BfRURJVBADEhQKEEFDQ0VTU19PUF9DUkVBVEUQBBIUChBBQ0NFU1NfT1BfREVMRVRFEAUqfAoMQWNjZXNzU291cmNlEh0KGUFDQ0VTU19TT1VSQ0VfVU5TUEVDSUZJRUQQABIWChJBQ0NFU1NfU09VUkNFX1RPT0wQARIaChZBQ0NFU1NfU09VUkNFX1NOQVBTSE9UEAISGQoVQUNDRVNTX1NPVVJDRV9DT05UUk9MEANCL1otZ2l0aHViLmNvbS9jaGFpbnJlYWN0b3JzL2Fpc2Nhbi9hb3AvZmlsZTtmaWxlYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message aop.file.ReadRequest
@@ -213,6 +215,170 @@ export const ResultSchema: GenMessage<Result> = /*@__PURE__*/
   messageDesc(file_aop_file_protocol, 6);
 
 /**
+ * Access is one observed file access.
+ *
+ * @generated from message aop.file.Access
+ */
+export type Access = Message<"aop.file.Access"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * tool_id is the AOP tool-call id whose execution produced this access, empty
+   * when it happened outside one (a control request, a detached session).
+   *
+   * @generated from field: string tool_id = 2;
+   */
+  toolId: string;
+
+  /**
+   * @generated from field: aop.file.AccessOp op = 3;
+   */
+  op: AccessOp;
+
+  /**
+   * @generated from field: aop.file.AccessSource source = 4;
+   */
+  source: AccessSource;
+
+  /**
+   * path is absolute; work_dir is the execution's working directory, carried so
+   * a consumer can present the path relative to it without guessing.
+   *
+   * @generated from field: string path = 5;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string work_dir = 6;
+   */
+  workDir: string;
+
+  /**
+   * file size after the access
+   *
+   * @generated from field: int64 size = 7;
+   */
+  size: bigint;
+
+  /**
+   * bytes read or written by this access, 0 when unknown
+   *
+   * @generated from field: int64 bytes = 8;
+   */
+  bytes: bigint;
+
+  /**
+   * patch count for EDIT
+   *
+   * @generated from field: uint32 edits = 9;
+   */
+  edits: number;
+
+  /**
+   * sha256 of the content after a write, when computed
+   *
+   * @generated from field: string digest = 10;
+   */
+  digest: string;
+
+  /**
+   * @generated from field: string error = 11;
+   */
+  error: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 12;
+   */
+  timestamp?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message aop.file.Access.
+ * Use `create(AccessSchema)` to create a new message.
+ */
+export const AccessSchema: GenMessage<Access> = /*@__PURE__*/
+  messageDesc(file_aop_file_protocol, 7);
+
+/**
+ * WatchConfig steers observation. Disabling it stops the node reporting, which
+ * is the only way a peer can opt out of the stream it would otherwise receive.
+ *
+ * @generated from message aop.file.WatchConfig
+ */
+export type WatchConfig = Message<"aop.file.WatchConfig"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * ignore holds path substrings excluded from snapshot diffing; empty leaves
+   * the node's own defaults (VCS metadata, dependency trees) in place.
+   *
+   * @generated from field: repeated string ignore = 2;
+   */
+  ignore: string[];
+
+  /**
+   * max_entries bounds one snapshot. A work dir over it is not diffed at all,
+   * and the node says so through an Access carrying error rather than
+   * reporting a silently partial diff.
+   *
+   * @generated from field: uint32 max_entries = 3;
+   */
+  maxEntries: number;
+};
+
+/**
+ * Describes the message aop.file.WatchConfig.
+ * Use `create(WatchConfigSchema)` to create a new message.
+ */
+export const WatchConfigSchema: GenMessage<WatchConfig> = /*@__PURE__*/
+  messageDesc(file_aop_file_protocol, 8);
+
+/**
+ * @generated from message aop.file.Configure
+ */
+export type Configure = Message<"aop.file.Configure"> & {
+  /**
+   * @generated from field: aop.file.WatchConfig watch = 1;
+   */
+  watch?: WatchConfig | undefined;
+};
+
+/**
+ * Describes the message aop.file.Configure.
+ * Use `create(ConfigureSchema)` to create a new message.
+ */
+export const ConfigureSchema: GenMessage<Configure> = /*@__PURE__*/
+  messageDesc(file_aop_file_protocol, 9);
+
+/**
+ * @generated from message aop.file.WatchState
+ */
+export type WatchState = Message<"aop.file.WatchState"> & {
+  /**
+   * @generated from field: bool watching = 1;
+   */
+  watching: boolean;
+
+  /**
+   * @generated from field: string error = 2;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message aop.file.WatchState.
+ * Use `create(WatchStateSchema)` to create a new message.
+ */
+export const WatchStateSchema: GenMessage<WatchState> = /*@__PURE__*/
+  messageDesc(file_aop_file_protocol, 10);
+
+/**
  * @generated from message aop.file.ProtocolMessage
  */
 export type ProtocolMessage = Message<"aop.file.ProtocolMessage"> & {
@@ -255,6 +421,24 @@ export type ProtocolMessage = Message<"aop.file.ProtocolMessage"> & {
      */
     value: Result;
     case: "result";
+  } | {
+    /**
+     * @generated from field: aop.file.Configure configure = 21;
+     */
+    value: Configure;
+    case: "configure";
+  } | {
+    /**
+     * @generated from field: aop.file.WatchState state = 22;
+     */
+    value: WatchState;
+    case: "state";
+  } | {
+    /**
+     * @generated from field: aop.file.Access access = 23;
+     */
+    value: Access;
+    case: "access";
   } | { case: undefined; value?: undefined };
 };
 
@@ -263,5 +447,88 @@ export type ProtocolMessage = Message<"aop.file.ProtocolMessage"> & {
  * Use `create(ProtocolMessageSchema)` to create a new message.
  */
 export const ProtocolMessageSchema: GenMessage<ProtocolMessage> = /*@__PURE__*/
-  messageDesc(file_aop_file_protocol, 7);
+  messageDesc(file_aop_file_protocol, 11);
+
+/**
+ * AccessOp is what happened to the path. EDIT is a targeted patch and WRITE a
+ * full-content overwrite; both are distinguished from CREATE, which says the
+ * path did not exist beforehand.
+ *
+ * @generated from enum aop.file.AccessOp
+ */
+export enum AccessOp {
+  /**
+   * @generated from enum value: ACCESS_OP_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ACCESS_OP_READ = 1;
+   */
+  READ = 1,
+
+  /**
+   * @generated from enum value: ACCESS_OP_WRITE = 2;
+   */
+  WRITE = 2,
+
+  /**
+   * @generated from enum value: ACCESS_OP_EDIT = 3;
+   */
+  EDIT = 3,
+
+  /**
+   * @generated from enum value: ACCESS_OP_CREATE = 4;
+   */
+  CREATE = 4,
+
+  /**
+   * @generated from enum value: ACCESS_OP_DELETE = 5;
+   */
+  DELETE = 5,
+}
+
+/**
+ * Describes the enum aop.file.AccessOp.
+ */
+export const AccessOpSchema: GenEnum<AccessOp> = /*@__PURE__*/
+  enumDesc(file_aop_file_protocol, 0);
+
+/**
+ * AccessSource is how the access was observed, which is also how far it can be
+ * trusted. TOOL is an exact record taken inside the tool that performed it.
+ * SNAPSHOT is derived by diffing the work dir around a shell execution: the
+ * path and the operation are real, but attribution to that execution is an
+ * inference, and reads are invisible to it entirely. CONTROL is a file request
+ * this node served for a peer rather than anything the agent did.
+ *
+ * @generated from enum aop.file.AccessSource
+ */
+export enum AccessSource {
+  /**
+   * @generated from enum value: ACCESS_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ACCESS_SOURCE_TOOL = 1;
+   */
+  TOOL = 1,
+
+  /**
+   * @generated from enum value: ACCESS_SOURCE_SNAPSHOT = 2;
+   */
+  SNAPSHOT = 2,
+
+  /**
+   * @generated from enum value: ACCESS_SOURCE_CONTROL = 3;
+   */
+  CONTROL = 3,
+}
+
+/**
+ * Describes the enum aop.file.AccessSource.
+ */
+export const AccessSourceSchema: GenEnum<AccessSource> = /*@__PURE__*/
+  enumDesc(file_aop_file_protocol, 1);
 

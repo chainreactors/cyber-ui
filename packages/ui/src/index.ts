@@ -22,6 +22,7 @@ export {
 export {
   Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger,
   DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+  type DialogContentProps,
 } from './dialog'
 export {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,

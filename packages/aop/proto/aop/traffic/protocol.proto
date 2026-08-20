@@ -98,24 +98,38 @@ message Header {
   string value = 2;
 }
 
-// Flow is one captured request/response pair. Its fields mirror the consumer's
-// http.exchange shape so a consumer can map it directly; tool_id is the AOP
-// tool-call id whose egress produced this flow.
+// HttpRequest is the request half of an exchange.
+message HttpRequest {
+  string method = 1;
+  string url = 2;
+  string protocol = 3;
+  repeated Header headers = 4;
+  bytes body = 5;
+}
+
+// HttpResponse is the response half of an exchange. It is optional on Flow: a
+// request that never got a response (timeout, refused connection, one-way
+// capture) has no response half.
+message HttpResponse {
+  int32 status_code = 1;
+  string reason_phrase = 2;
+  repeated Header headers = 3;
+  bytes body = 4;
+}
+
+// Flow is one captured request/response exchange. Its nested shape mirrors the
+// consumer's http.exchange form so a consumer can map it directly; tool_id is
+// the AOP tool-call id whose egress produced this flow. Fields 3-11 were the
+// pre-nesting flat shape.
 message Flow {
+  reserved 3 to 11;
   string id = 1;
   string tool_id = 2;
-  string method = 3;
-  string url = 4;
-  string protocol = 5;
-  int32 status_code = 6;
-  string reason_phrase = 7;
-  repeated Header request_headers = 8;
-  repeated Header response_headers = 9;
-  bytes request_body = 10;
-  bytes response_body = 11;
   string error = 12;
   bool complete = 13;
   google.protobuf.Timestamp timestamp = 14;
+  HttpRequest request = 15;
+  HttpResponse response = 16; // absent when no response was received
 }
 
 message ProtocolMessage {

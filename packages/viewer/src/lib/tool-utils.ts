@@ -22,6 +22,26 @@ export function summarizeArgs(args: string): string {
   }
 }
 
+const RESULT_SUMMARY_MAX = 240
+
+/** Keep the concrete failure visible in a collapsed tool row while the full
+ * result remains available in the expanded inspector. */
+export function summarizeResult(result: string): string {
+  const compact = stripAnsiControl(result).replace(/\s+/g, ' ').trim()
+  if (compact.length <= RESULT_SUMMARY_MAX) return compact
+  return `${compact.slice(0, RESULT_SUMMARY_MAX - 1)}…`
+}
+
+export function summarizeToolCall(
+  args: string,
+  result: string | undefined,
+  pending: boolean,
+  error: boolean,
+): string {
+  if (error) return summarizeResult(result ?? '') || 'No failure details returned'
+  return summarizeArgs(args) || (pending ? 'running' : 'completed')
+}
+
 function summaryFromValue(value: unknown): string {
   if (value == null) return ''
   if (typeof value === 'string') return value

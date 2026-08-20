@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
-import { stripAnsiControl, formatArgs, summarizeArgs } from '../../lib/tool-utils'
+import { stripAnsiControl, formatArgs, summarizeArgs, summarizeToolCall } from '../../lib/tool-utils'
 
 const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
   bat: 'batch', c: 'c', cc: 'cpp', cfg: 'ini', conf: 'ini', cpp: 'cpp',
@@ -115,6 +115,8 @@ export default function ToolCallDisplay({
   const summary = summarizeArgs(toolArgs)
   const formattedArgs = formatArgs(toolArgs)
   const displayResult = result === undefined ? undefined : stripAnsiControl(result)
+  const rowSummary = summarizeToolCall(toolArgs, displayResult, pending, error)
+  const errorSummary = error ? rowSummary : ''
 
   return (
     <div
@@ -139,10 +141,13 @@ export default function ToolCallDisplay({
           {toolName || 'tool'}
         </span>
         <span
-          className="min-w-0 flex-1 truncate font-mono text-muted-foreground"
-          title={summary || formattedArgs}
+          className={cn(
+            'min-w-0 flex-1 truncate font-mono',
+            error ? 'text-destructive' : 'text-muted-foreground',
+          )}
+          title={errorSummary || summary || formattedArgs}
         >
-          {summary || (error ? 'failed' : pending ? 'running' : 'completed')}
+          {rowSummary}
         </span>
         {error ? (
           <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />

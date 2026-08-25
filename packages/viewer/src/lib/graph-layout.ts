@@ -12,7 +12,6 @@
  * Back-edges and self-loops are ignored during layout — they are rendered
  * as curved paths by custom edge components (@xyflow/react).
  *
- * Exported API is backward-compatible: `layoutDAG` is an alias for `layoutGraph`.
  */
 
 interface LayoutNode {
@@ -149,9 +148,6 @@ export function layoutGraph(
 
   return positions
 }
-
-/** Backward-compatible alias. */
-export const layoutDAG = layoutGraph
 
 // ── Cycle breaking ────────────────────────────────────────────────
 

@@ -35,7 +35,7 @@ function argPath(toolArgs: string): string | undefined {
       if (typeof args[key] === 'string' && args[key]) return args[key] as string
     }
   } catch {
-    // A malformed/legacy argument string simply falls back to plain text.
+    // Malformed arguments cannot identify a file, so render the result as text.
   }
   return undefined
 }

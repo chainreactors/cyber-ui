@@ -66,7 +66,6 @@ type PocYamlRequest = {
 
 type PocYamlDocument = {
   http?: unknown
-  requests?: unknown
   matchers?: unknown
   extractors?: unknown
 }
@@ -118,7 +117,7 @@ export function ResultCard({ result, index, onViewPoc, onRescan }: ResultCardPro
       }
       const parsed = parsedValue as PocYamlDocument
 
-      const httpRequests = toYamlRequests(parsed.http || parsed.requests)
+      const httpRequests = toYamlRequests(parsed.http)
       const matchers: PocYamlRuleDefinition[] = []
       const extractors: PocYamlRuleDefinition[] = []
 

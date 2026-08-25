@@ -94,7 +94,7 @@ export function parseNucleiTemplate(rawContent: string): NucleiTemplateModel {
     const metadata = asRecord(info.metadata)
     return {
       id: asString(parsed.id),
-      name: asString(info.name) || asString(parsed.name),
+      name: asString(info.name),
       severity: asString(info.severity),
       author: asString(info.author),
       description: asString(info.description),

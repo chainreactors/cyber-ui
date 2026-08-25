@@ -89,7 +89,7 @@ export function CyberHubPocTemplateViewer({
   const pocInfo = asRecord(poc.info)
   const classification = asRecord(pocInfo.classification)
   const metadata = asRecord(pocInfo.metadata)
-  const cveId = normalizeDisplayText(classification['cve-id']) || normalizeDisplayText(classification.cve_id) || poc.cve
+  const cveId = normalizeDisplayText(classification['cve-id']) || poc.cve
   const cweId = normalizeDisplayText(classification['cwe-id']) || normalizeDisplayText(classification.cwe_id)
   const cvssScore = normalizeFiniteNumber(classification['cvss-score']) || normalizeFiniteNumber(classification.cvss_score) || 0
   const cvssMetrics = normalizeDisplayText(classification['cvss-metrics']) || normalizeDisplayText(classification.cvss_metrics)

@@ -1,15 +1,11 @@
 import type { Node, Edge } from '@xyflow/react'
 import type { WireEvent } from '../types/protocol'
 import { eventType, eventTimestamp, eventAgent, isAgentEvent } from '../types/protocol'
-import { layoutDAG } from './graph-layout'
+import { layoutGraph } from './graph-layout'
 import type { TokenUsageSummary } from './token-usage'
 import { mergeTokenUsage, normalizeTokenUsage } from './token-usage'
 
 // --- helpers ---
-
-function parseJsonSafe(raw: string): Record<string, unknown> {
-  try { return JSON.parse(raw) } catch { return {} }
-}
 
 function parseJsonObjectSafe(raw: string): Record<string, unknown> | null {
   try {
@@ -225,7 +221,7 @@ export function reduceGraphState(events: WireEvent[]): GraphState {
 
   const allNodes = Array.from(nodeMap.values())
   const allEdges = Array.from(edgeMap.values())
-  const positions = layoutDAG(
+  const positions = layoutGraph(
     allNodes.map((n) => ({ id: n.id, width: 200, height: 60 })),
     allEdges.map((e) => ({ source: e.source, target: e.target })),
   )
@@ -238,25 +234,9 @@ export function reduceGraphState(events: WireEvent[]): GraphState {
 }
 
 // =====================================================================
-// Legacy platform chat reducer. AOP agent output is reduced exclusively by
+// Platform chat reducer. AOP agent output is reduced exclusively by
 // reduceAOPToTimeline in aop-reducer.ts.
 // =====================================================================
-
-interface MessagePart {
-  part_kind: string
-  content?: unknown
-  tool_name?: string
-  tool_call_id?: string
-  args?: unknown
-}
-
-function extractTextContent(raw: string): string | null {
-  try {
-    const parsed = JSON.parse(raw)
-    if (typeof parsed === 'object' && parsed !== null && typeof parsed.text === 'string') return parsed.text
-    return null
-  } catch { return raw }
-}
 
 function extractStreamingText(rawJson: string): string | null {
   try {
@@ -313,35 +293,6 @@ export function reduceChatState(events: WireEvent[]): ChatState {
   const seenToolCallIds = new Set<string>()
   const toolNames = new Map<string, string>()
 
-  function appendStructuredParts(agentName: string, parts: MessagePart[], timestamp: string): void {
-    for (const part of parts) {
-      if (part.part_kind === 'tool-call') {
-        const tcId = part.tool_call_id ?? ''
-        if (seenToolCallIds.has(tcId)) continue
-        seenToolCallIds.add(tcId)
-        if (tcId && part.tool_name) toolNames.set(tcId, part.tool_name)
-        const args: Record<string, unknown> = typeof part.args === 'string' ? parseJsonSafe(part.args) : (part.args as Record<string, unknown>) ?? {}
-        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-call', agentName, content: JSON.stringify(args, null, 2), toolName: part.tool_name ?? '', args, toolCallId: tcId, timestamp, rawContent: args })
-      } else if (part.part_kind === 'tool-return') {
-        const tcId = part.tool_call_id ?? ''
-        if (seenToolCallIds.has(tcId)) continue
-        seenToolCallIds.add(tcId)
-        const { text, rawContent } = normalizeToolReturnContent(part.content)
-        state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-return', agentName, content: text, toolName: part.tool_name ?? (tcId ? toolNames.get(tcId) ?? '' : ''), toolCallId: tcId, timestamp, rawContent })
-      } else if (part.part_kind === 'text' && part.content) {
-        const batchText = extractTextContent(String(part.content))
-        if (batchText === null) continue
-        let replaced = false
-        for (let i = state.messages.length - 1; i >= 0; i--) {
-          const m = state.messages[i]
-          if (m.kind === 'assistant' && m.agentName === agentName) { m.content = batchText; delete m._rawJson; replaced = true; break }
-          if (m.kind === 'user') break
-        }
-        if (!replaced) state.messages.push({ id: `msg-${msgIdx++}`, kind: 'assistant', agentName, content: batchText, timestamp })
-      }
-    }
-  }
-
   for (const evt of events) {
     if (!isAgentEvent(evt)) continue
     const t = eventType(evt)
@@ -389,14 +340,6 @@ export function reduceChatState(events: WireEvent[]): ChatState {
         seenToolCallIds.add(tcId)
         const { text, rawContent } = normalizeToolReturnContent(d.content)
         state.messages.push({ id: `msg-${msgIdx++}`, kind: 'tool-return', agentName: agent, content: text, toolName: (d.tool_name as string) || (tcId ? toolNames.get(tcId) ?? '' : ''), toolCallId: tcId, timestamp: ts, rawContent })
-        break
-      }
-
-      // ── Structured message parts (legacy only) ──
-      case 'ModelResponseEvent':
-      case 'ModelRequestEvent': {
-        const parts = d.parts as MessagePart[] | undefined
-        if (parts) appendStructuredParts(agent, parts, ts)
         break
       }
     }

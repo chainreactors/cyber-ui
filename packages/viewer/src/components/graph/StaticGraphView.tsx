@@ -15,7 +15,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { X } from 'lucide-react'
 import { useResolvedTheme } from '../../lib/use-resolved-theme'
-import { layoutDAG } from '../../lib/graph-layout'
+import { layoutGraph } from '../../lib/graph-layout'
 import StaticAPGNode from './StaticAPGNode'
 import { SelfLoopEdge, BackEdge } from './SelfLoopEdge'
 import PromptContent from '../shared/PromptContent'
@@ -117,7 +117,7 @@ export default function StaticGraphView({
     }
 
     // Run DAG layout
-    const positions = layoutDAG(
+    const positions = layoutGraph(
       graph.nodes.map((n) => ({ id: n.id, width: 200, height: 60 })),
       layoutEdges,
     )

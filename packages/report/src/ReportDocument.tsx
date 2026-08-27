@@ -559,6 +559,25 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'aside': return <aside {...props}>{children()}</aside>
     case 'footer': return <footer {...props}>{children()}</footer>
     case 'div': return <div {...props}>{children()}</div>
+    // A report image is an operator-supplied screenshot. The host resolves the
+    // reference before rendering — an unresolved one is left as-is and degrades to
+    // the alt text, which is the caption the author wrote.
+    case 'img': {
+      const src = stringProp(node, 'src')
+      const alt = stringProp(node, 'alt') ?? ''
+      if (!src || src.startsWith('cairn-shot:')) {
+        return alt ? <span className="text-xs italic text-muted-foreground">{alt}</span> : null
+      }
+      return (
+        <img
+          {...props}
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="my-2 block max-w-full rounded-md border border-primary/15"
+        />
+      )
+    }
     case 'figure': return <figure {...props} className="my-3">{children()}</figure>
     case 'figcaption': return <figcaption {...props} className="mt-1 text-xs text-muted-foreground">{children()}</figcaption>
     case 'address': return <address {...props}>{children()}</address>

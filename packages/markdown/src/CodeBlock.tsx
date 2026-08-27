@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -12,6 +12,7 @@ export interface CodeBlockProps {
   showLineNumbers?: boolean
   maxHeight?: number
   copyable?: boolean
+  /** Explicit override; when omitted, follow the host document's dark class. */
   isDark?: boolean
   className?: string
 }
@@ -30,16 +31,36 @@ const lineNumStyle: CSSProperties = {
   opacity: 0.5,
 }
 
+function useHostDarkTheme(): boolean {
+  const [dark, setDark] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
+  )
+
+  useEffect(() => {
+    const root = document.documentElement
+    const sync = () => setDark(root.classList.contains('dark'))
+    sync()
+    if (typeof MutationObserver === 'undefined') return
+    const observer = new MutationObserver(sync)
+    observer.observe(root, { attributes: true, attributeFilter: ['class', 'data-theme'] })
+    return () => observer.disconnect()
+  }, [])
+
+  return dark
+}
+
 export function CodeBlock({
   code,
   language,
   showLineNumbers = false,
   maxHeight,
   copyable = false,
-  isDark = false,
+  isDark: isDarkProp,
   className,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
+  const hostDark = useHostDarkTheme()
+  const isDark = isDarkProp ?? hostDark
   const trimmed = code.replace(/\n$/, '')
 
   const handleCopy = async () => {
@@ -50,7 +71,7 @@ export function CodeBlock({
 
   const wrapClass = cn(
     isDark
-      ? 'group relative overflow-hidden rounded-lg border border-background/20 bg-background/10'
+      ? 'group relative overflow-hidden rounded-lg border border-line bg-card'
       : 'group relative overflow-hidden rounded-lg border border-line bg-surface-2/80',
     className,
   )
@@ -84,7 +105,7 @@ export function CodeBlock({
             {trimmed}
           </SyntaxHighlighter>
         ) : (
-          <pre className={cn('p-3 font-mono text-xs leading-relaxed', isDark ? 'text-background' : 'text-fg')}>
+          <pre className={cn('p-3 font-mono text-xs leading-relaxed', 'text-fg')}>
             {trimmed}
           </pre>
         )}

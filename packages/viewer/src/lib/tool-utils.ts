@@ -12,6 +12,31 @@ export function formatArgs(args: string): string {
   }
 }
 
+/** Extract the command-like payload used by shell tools. A few historical
+ * callers persisted the command as plain text, while current Runner calls use
+ * an object; malformed or unrelated JSON deliberately returns undefined so
+ * the caller can keep the complete request in the JSON/text fallback. */
+export function extractShellCommand(args: string): string | undefined {
+  const raw = args.trim()
+  if (!raw) return undefined
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (typeof parsed === 'string' && parsed.trim()) return parsed.trim()
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined
+    const record = parsed as Record<string, unknown>
+    for (const key of ['command', 'cmd', 'script', 'shell_command', 'input']) {
+      if (typeof record[key] === 'string' && record[key].trim()) return (record[key] as string).trim()
+    }
+    if (Array.isArray(record.commands)) {
+      const commands = record.commands.filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+      if (commands.length > 0) return commands.join('\n')
+    }
+  } catch {
+    return raw
+  }
+  return undefined
+}
+
 export function summarizeArgs(args: string): string {
   const raw = args.trim()
   if (!raw) return ''

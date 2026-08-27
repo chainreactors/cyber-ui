@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeResult, summarizeToolCall } from './tool-utils'
+import { extractShellCommand, summarizeResult, summarizeToolCall } from './tool-utils'
+
+describe('extractShellCommand', () => {
+  it('reads current and legacy shell request shapes', () => {
+    expect(extractShellCommand('{"command":"printf hello"}')).toBe('printf hello')
+    expect(extractShellCommand('"printf world"')).toBe('printf world')
+    expect(extractShellCommand('printf legacy')).toBe('printf legacy')
+  })
+
+  it('leaves unrelated structured requests for the JSON fallback', () => {
+    expect(extractShellCommand('{"path":"README.md"}')).toBeUndefined()
+  })
+})
 
 describe('summarizeResult', () => {
   it('strips terminal control sequences and collapses a failure to one line', () => {

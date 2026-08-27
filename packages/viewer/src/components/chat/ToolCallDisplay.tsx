@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
-import { stripAnsiControl, formatArgs, summarizeArgs, summarizeToolCall } from '../../lib/tool-utils'
+import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeToolCall } from '../../lib/tool-utils'
 
 const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
   bat: 'batch', c: 'c', cc: 'cpp', cfg: 'ini', conf: 'ini', cpp: 'cpp',
@@ -92,31 +92,89 @@ function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: str
   )
 }
 
+function RequestContent({ args, language }: { args: string; language?: string }) {
+  const formatted = formatArgs(args)
+  const command = language ? extractShellCommand(args) : undefined
+  if (command) {
+    const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
+    const code = command
+      .split('\n')
+      .map((line, index) => index === 0 ? `${prompt}${line}` : line)
+      .join('\n')
+    return <CodeBlock code={code} language={language} maxHeight={192} className="rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words" />
+  }
+  let json = false
+  try {
+    JSON.parse(args)
+    json = true
+  } catch {
+    // Keep plain-text legacy arguments as text rather than claiming JSON.
+  }
+  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className="rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words" />
+}
+
 export interface ToolCallDisplayProps {
   toolName: string
   toolArgs?: string
   result?: string
+  /** Syntax used for shell-like requests; unknown shapes fall back to JSON. */
+  requestLanguage?: string
+  /** Reasoning emitted in the same agent turn as this call. */
+  thinking?: string
   pending?: boolean
   error?: boolean
   defaultExpanded?: boolean
+  /** Keep request/response summaries out of the compact header when desired. */
+  showHeaderSummary?: boolean
+  /** Host theme override for the compact header's hover treatment. */
+  headerClassName?: string
+  /** Optional localized labels for the expanded body sections. */
+  sectionLabels?: {
+    thinking?: string
+    request?: string
+    response?: string
+  }
   className?: string
+  /** Optional content rendered in the shared call header (for example, an
+   *  owning Oracle intent). Keeping this slot here lets host surfaces reuse the
+   *  Harness renderer instead of rebuilding a second tool card. */
+  headerMeta?: ReactNode
 }
 
 export default function ToolCallDisplay({
   toolName,
   toolArgs = '',
   result,
+  requestLanguage,
+  thinking,
   pending = false,
   error = false,
   defaultExpanded = false,
+  showHeaderSummary = true,
+  headerClassName,
+  sectionLabels,
   className,
+  headerMeta,
 }: ToolCallDisplayProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+  const hasThinking = Boolean(thinking?.trim())
+  const [expanded, setExpanded] = useState(defaultExpanded || hasThinking)
+  useEffect(() => {
+    // Thinking can arrive after a call row (or a live stream) has mounted.
+    // Reveal it automatically so the association is observable without making
+    // every ordinary tool call expand by default.
+    if (hasThinking) setExpanded(true)
+  }, [hasThinking])
   const summary = summarizeArgs(toolArgs)
   const formattedArgs = formatArgs(toolArgs)
   const displayResult = result === undefined ? undefined : stripAnsiControl(result)
+  const displayThinking = thinking?.trim() || undefined
   const rowSummary = summarizeToolCall(toolArgs, displayResult, pending, error)
   const errorSummary = error ? rowSummary : ''
+  const labels = {
+    thinking: sectionLabels?.thinking || 'Thinking',
+    request: sectionLabels?.request || 'Arguments',
+    response: sectionLabels?.response || 'Result',
+  }
 
   return (
     <div
@@ -129,7 +187,10 @@ export default function ToolCallDisplay({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50"
+        className={cn(
+          'flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-surface-2',
+          headerClassName,
+        )}
       >
         <Wrench
           className={cn(
@@ -140,15 +201,20 @@ export default function ToolCallDisplay({
         <span className="shrink-0 rounded border border-border bg-card px-1.5 py-0.5 font-mono font-medium text-foreground">
           {toolName || 'tool'}
         </span>
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate font-mono',
-            error ? 'text-destructive' : 'text-muted-foreground',
-          )}
-          title={errorSummary || summary || formattedArgs}
-        >
-          {rowSummary}
-        </span>
+        {headerMeta}
+        {showHeaderSummary ? (
+          <span
+            className={cn(
+              'min-w-0 flex-1 truncate font-mono',
+              error ? 'text-destructive' : 'text-muted-foreground',
+            )}
+            title={errorSummary || summary || formattedArgs}
+          >
+            {rowSummary}
+          </span>
+        ) : (
+          <span className="min-w-0 flex-1" aria-hidden="true" />
+        )}
         {error ? (
           <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
         ) : pending ? (
@@ -170,21 +236,27 @@ export default function ToolCallDisplay({
         )}
       >
         <div className="overflow-hidden">
-          <div className="border-t border-border">
+          <div className="divide-y divide-border border-t border-border">
+            {displayThinking && (
+              <div className="bg-card px-3 py-2">
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {labels.thinking}
+                </div>
+                <MarkdownContent content={displayThinking} compact muted />
+              </div>
+            )}
             {toolArgs && (
               <div className="bg-card px-3 py-2">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Arguments
+                  {labels.request}
                 </div>
-                <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
-                  {formattedArgs}
-                </pre>
+                <RequestContent args={toolArgs} language={requestLanguage} />
               </div>
             )}
             {displayResult !== undefined && (
-              <div className="border-t border-border px-3 py-2">
+              <div className="px-3 py-2">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Result
+                  {labels.response}
                 </div>
                 <ToolResultContent result={displayResult} toolArgs={toolArgs} />
               </div>

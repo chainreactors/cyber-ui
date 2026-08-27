@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   Code2,
+  Copy,
   Loader2,
   Terminal,
   Wrench,
@@ -13,60 +14,9 @@ import {
 import { cn } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeToolCall } from '../../lib/tool-utils'
+import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
 
-const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
-  bat: 'batch', c: 'c', cc: 'cpp', cfg: 'ini', conf: 'ini', cpp: 'cpp',
-  cs: 'csharp', css: 'css', dockerfile: 'dockerfile', env: 'bash', go: 'go',
-  graphql: 'graphql', h: 'c', hpp: 'cpp', html: 'html', ini: 'ini', java: 'java',
-  js: 'javascript', json: 'json', jsonl: 'json', jsx: 'jsx', kt: 'kotlin',
-  lua: 'lua', mjs: 'javascript', php: 'php', proto: 'protobuf', ps1: 'powershell',
-  py: 'python', rb: 'ruby', rs: 'rust', sh: 'bash', sql: 'sql', svelte: 'svelte',
-  swift: 'swift', toml: 'toml', ts: 'typescript', tsx: 'tsx', vue: 'vue',
-  xml: 'xml', yaml: 'yaml', yml: 'yaml', zig: 'zig',
-}
-
-type ResultFormat = { kind: 'markdown' } | { kind: 'code'; language: string } | { kind: 'text' }
-
-/** The path a call names, if it names one. */
-function argPath(toolArgs: string): string | undefined {
-  try {
-    const args = JSON.parse(toolArgs) as Record<string, unknown>
-    for (const key of ['path', 'file_path', 'filename']) {
-      if (typeof args[key] === 'string' && args[key]) return args[key] as string
-    }
-  } catch {
-    // Malformed arguments cannot identify a file, so render the result as text.
-  }
-  return undefined
-}
-
-/**
- * How to render a tool's result, decided from the shape of the call rather than
- * the tool's name.
- *
- * Tool names are an open set: `read`, `cat`, `view_file`, a runner download, and
- * whatever the next agent calls it are all the same act. Gating the preview on
- * one spelling means every other one silently loses it. What actually marks a
- * result as a document is the call naming a path and the body spanning lines —
- * a write or an edit names a path too, but answers in a single line
- * ("wrote 42 bytes"), which is a status message and reads worst as a code block.
- */
-function resultFormat(toolArgs: string, result: string): ResultFormat {
-  if (!result.includes('\n')) return { kind: 'text' }
-  const path = argPath(toolArgs)
-  if (!path) return { kind: 'text' }
-  const cleanPath = path.split(/[?#]/, 1)[0].toLowerCase()
-  const fileName = cleanPath.split(/[\\/]/).pop() || ''
-  const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.') + 1) : fileName
-  if (extension === 'md' || extension === 'mdx' || extension === 'markdown') {
-    return { kind: 'markdown' }
-  }
-  const language = CODE_LANGUAGE_BY_EXTENSION[extension]
-  return language ? { kind: 'code', language } : { kind: 'text' }
-}
-
-function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: string }) {
-  const format = resultFormat(toolArgs, result)
+function ToolResultContent({ result, format }: { result: string; format: ToolResultFormat }) {
   if (format.kind === 'markdown') {
     return (
       <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
@@ -77,7 +27,7 @@ function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: str
   if (format.kind === 'code') {
     return (
       <CodeBlock
-        code={result}
+        code={format.code ?? result}
         language={format.language}
         showLineNumbers
         maxHeight={320}
@@ -89,6 +39,39 @@ function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: str
     <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
       {result}
     </pre>
+  )
+}
+
+function requestCopyValue(args: string, language?: string): string {
+  const command = language ? extractShellCommand(args) : undefined
+  return command || formatArgs(args)
+}
+
+function CopyButton({ value, label, copiedLabel }: { value: string; label: string; copiedLabel: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    try {
+      if (!navigator.clipboard?.writeText) return
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1600)
+    } catch {
+      // Clipboard access can be denied in an embedded/insecure browser context.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-surface-2 hover:text-accent-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={copied ? copiedLabel : label}
+      title={copied ? copiedLabel : label}
+    >
+      {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+    </button>
   )
 }
 
@@ -133,6 +116,9 @@ export interface ToolCallDisplayProps {
     thinking?: string
     request?: string
     response?: string
+    copyRequest?: string
+    copyResponse?: string
+    copied?: string
   }
   className?: string
   /** Optional content rendered in the shared call header (for example, an
@@ -171,6 +157,20 @@ export default function ToolCallDisplay({
     request: sectionLabels?.request || 'Arguments',
     response: sectionLabels?.response || 'Result',
   }
+  const copyLabels = {
+    request: sectionLabels?.copyRequest || `Copy ${labels.request.toLowerCase()}`,
+    response: sectionLabels?.copyResponse || `Copy ${labels.response.toLowerCase()}`,
+    copied: sectionLabels?.copied || 'Copied',
+  }
+  const displayResultFormat = useMemo(
+    () => displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult),
+    [toolArgs, displayResult],
+  )
+  const formattedResult = displayResult === undefined
+    ? undefined
+    : displayResultFormat?.kind === 'code'
+      ? (displayResultFormat.code ?? displayResult)
+      : displayResult
 
   return (
     <div
@@ -243,18 +243,20 @@ export default function ToolCallDisplay({
             )}
             {toolArgs && (
               <div className="bg-card px-3 py-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {labels.request}
+                <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <span>{labels.request}</span>
+                  <CopyButton value={requestCopyValue(toolArgs, requestLanguage)} label={copyLabels.request} copiedLabel={copyLabels.copied} />
                 </div>
                 <RequestContent args={toolArgs} language={requestLanguage} />
               </div>
             )}
             {displayResult !== undefined && (
               <div className="px-3 py-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {labels.response}
+                <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  <span>{labels.response}</span>
+                  <CopyButton value={formattedResult ?? displayResult} label={copyLabels.response} copiedLabel={copyLabels.copied} />
                 </div>
-                <ToolResultContent result={displayResult} toolArgs={toolArgs} />
+                <ToolResultContent result={displayResult} format={displayResultFormat ?? { kind: 'text' }} />
               </div>
             )}
           </div>

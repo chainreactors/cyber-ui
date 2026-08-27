@@ -212,7 +212,7 @@ export default function ToolCallDisplay({
           >
             {rowSummary}
           </span>
-        ) : (
+        ) : headerMeta ? null : (
           <span className="min-w-0 flex-1" aria-hidden="true" />
         )}
         {error ? (

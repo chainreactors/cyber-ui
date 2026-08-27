@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -156,14 +156,10 @@ export default function ToolCallDisplay({
   className,
   headerMeta,
 }: ToolCallDisplayProps) {
-  const hasThinking = Boolean(thinking?.trim())
-  const [expanded, setExpanded] = useState(defaultExpanded || hasThinking)
-  useEffect(() => {
-    // Thinking can arrive after a call row (or a live stream) has mounted.
-    // Reveal it automatically so the association is observable without making
-    // every ordinary tool call expand by default.
-    if (hasThinking) setExpanded(true)
-  }, [hasThinking])
+  // Keep every tool body collapsed on first render, including calls that have
+  // persisted reasoning. Thinking remains available in the body when the user
+  // explicitly opens the call, which keeps long tool lists scannable.
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const summary = summarizeArgs(toolArgs)
   const formattedArgs = formatArgs(toolArgs)
   const displayResult = result === undefined ? undefined : stripAnsiControl(result)

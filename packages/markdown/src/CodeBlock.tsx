@@ -12,7 +12,7 @@ export interface CodeBlockProps {
   showLineNumbers?: boolean
   maxHeight?: number
   copyable?: boolean
-  /** Explicit override; when omitted, follow the host document's dark class. */
+  /** Explicit override; when omitted, follow the host document's theme markers. */
   isDark?: boolean
   className?: string
 }
@@ -31,14 +31,22 @@ const lineNumStyle: CSSProperties = {
   opacity: 0.5,
 }
 
+function hostIsDark(root: HTMLElement): boolean {
+  // Cairn stamps `data-theme` before the app mounts and adds `.dark` from its
+  // provider. Read both so a code block never paints the light highlighter in
+  // the gap between those two writes (and so embedded hosts may use either
+  // convention).
+  return root.classList.contains('dark') || root.dataset.theme === 'dark'
+}
+
 function useHostDarkTheme(): boolean {
   const [dark, setDark] = useState(() =>
-    typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
+    typeof document !== 'undefined' && hostIsDark(document.documentElement),
   )
 
   useEffect(() => {
     const root = document.documentElement
-    const sync = () => setDark(root.classList.contains('dark'))
+    const sync = () => setDark(hostIsDark(root))
     sync()
     if (typeof MutationObserver === 'undefined') return
     const observer = new MutationObserver(sync)

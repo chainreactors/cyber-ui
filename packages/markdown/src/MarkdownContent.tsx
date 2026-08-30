@@ -277,6 +277,16 @@ export function MarkdownContent({
 
 /* ---------- inline code with click-to-copy ---------- */
 
+/**
+ * Inline code is useful as a compact token until it starts wrapping. At that
+ * point a border and vertical padding are painted once per line fragment by
+ * the browser, which makes a long payload look like a stack of overlapping
+ * pills. Keep the threshold deliberately conservative: identifiers and short
+ * paths retain the copy-chip affordance, while SQL, URLs and JSON stay part of
+ * the paragraph without adding a second visual frame.
+ */
+const LONG_INLINE_CODE_LENGTH = 48
+
 function InlineCode({
   children,
   inverted,
@@ -287,9 +297,10 @@ function InlineCode({
   compact: boolean
 }) {
   const [copied, setCopied] = useState(false)
+  const text = typeof children === 'string' ? children : nodeText(children)
+  const isLong = text.length >= LONG_INLINE_CODE_LENGTH
 
   const handleClick = () => {
-    const text = typeof children === 'string' ? children : nodeText(children)
     if (!text) return
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true)
@@ -304,15 +315,25 @@ function InlineCode({
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
       title={copied ? 'Copied!' : 'Click to copy'}
+      data-inline-code={isLong ? 'long' : undefined}
       className={cn(
-        'font-mono cursor-pointer transition-colors',
+        'font-mono transition-colors align-baseline',
+        isLong ? 'cursor-copy' : 'cursor-pointer',
         compact ? 'text-caption' : 'text-xs',
-        'rounded border px-1.5 py-0.5 break-words text-[0.92em]',
+        isLong
+          ? 'text-[0.92em] leading-[inherit] [overflow-wrap:anywhere]'
+          : 'rounded border px-1.5 py-0.5 break-words text-[0.92em]',
         copied
-          ? 'border-ok bg-ok-soft text-ok'
-          : inverted
-            ? 'border-background/20 bg-background/20 text-background hover:bg-background/30'
-            : 'border-line bg-surface-2 text-accent-fg hover:bg-surface-2/60',
+          ? isLong
+            ? 'text-ok'
+            : 'border-ok bg-ok-soft text-ok'
+          : isLong
+            ? inverted
+              ? 'text-background'
+              : 'text-accent-fg'
+            : inverted
+              ? 'border-background/20 bg-background/20 text-background hover:bg-background/30'
+              : 'border-line bg-surface-2 text-accent-fg hover:bg-surface-2/60',
       )}
     >
       {children}

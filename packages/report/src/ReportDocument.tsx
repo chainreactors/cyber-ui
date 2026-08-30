@@ -75,6 +75,14 @@ interface RenderContext {
 
 const HEADING = /^h([1-6])$/
 
+/**
+ * Keep short inline code as a scannable token, but flatten payloads once they
+ * are long enough to wrap. Browsers paint an inline element's border and
+ * padding on every line fragment; with the report paragraph rhythm that makes
+ * a long SQL/URL look like overlapping blue boxes.
+ */
+const LONG_INLINE_CODE_LENGTH = 48
+
 function isElement(node: RootContent | ElementContent | undefined): node is Element {
   return !!node && node.type === 'element'
 }
@@ -486,7 +494,21 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'b': return <strong {...props} className="font-semibold">{children()}</strong>
     case 'em':
     case 'i': return <em {...props} className="italic">{children()}</em>
-    case 'code': return <code {...props} className="rounded border border-primary/10 bg-primary/[0.065] px-1 py-0.5 font-mono text-xs text-primary">{children()}</code>
+    case 'code': {
+      const isLong = stringProp(node, 'dataInlineCode') === 'long'
+        || textOf(node).length >= LONG_INLINE_CODE_LENGTH
+      return (
+        <code
+          {...props}
+          data-inline-code={isLong ? 'long' : undefined}
+          className={isLong
+            ? 'font-mono text-xs leading-[inherit] align-baseline text-primary [overflow-wrap:anywhere]'
+            : 'rounded border border-primary/10 bg-primary/[0.065] px-1 py-0.5 font-mono text-xs text-primary'}
+        >
+          {children()}
+        </code>
+      )
+    }
     case 'kbd': return <kbd {...props} className="rounded border border-primary/15 bg-primary/[0.04] px-1 py-0.5 font-mono text-xs text-primary">{children()}</kbd>
     case 'samp': return <samp {...props} className="font-mono text-xs">{children()}</samp>
     case 'var': return <var {...props}>{children()}</var>

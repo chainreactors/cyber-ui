@@ -117,6 +117,18 @@ body {
   background: var(--report-card);
   color: var(--report-accent);
 }
+/* Long inline payloads carry a generated data-inline-code marker from the
+   report Markdown pipeline. Remove the chip chrome and inherit the paragraph
+   rhythm so wrapped SQL/URLs stay readable in downloaded reports too. */
+.cyber-report code[data-inline-code="long"] {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: inherit;
+  vertical-align: baseline;
+  overflow-wrap: anywhere;
+}
 .cyber-report pre {
   margin: 10px 0;
   padding: 13px 15px;

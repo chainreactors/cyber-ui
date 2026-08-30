@@ -10,7 +10,11 @@ export interface CodeBlockRendererProps {
   /** The fence's language tag, absent when the block carries none. */
   language?: string
   compact: boolean
-  isDark: boolean
+  /**
+   * Explicit theme override. When omitted, the renderer should follow its host
+   * document's theme (the built-in CodeBlock does this reactively).
+   */
+  isDark?: boolean
 }
 
 interface Props {
@@ -18,6 +22,7 @@ interface Props {
   compact?: boolean
   muted?: boolean
   inverted?: boolean
+  /** Explicit code-theme override; omitted means follow the host document. */
   isDark?: boolean
   /** Show anchor links on headings (hover to reveal) */
   headingAnchors?: boolean
@@ -141,7 +146,7 @@ export function MarkdownContent({
   compact = false,
   muted = false,
   inverted = false,
-  isDark = false,
+  isDark,
   headingAnchors = false,
   codeBlock: CodeBlockRenderer,
   className,
@@ -149,7 +154,10 @@ export function MarkdownContent({
   const headingSlugs = useMemo(() => new Map<string, number>(), [content])
 
   const components: Components = useMemo(() => {
-    const useDarkCode = inverted || isDark
+    // Preserve an omitted override so CodeBlock can resolve and observe the
+    // host theme. Coercing `undefined` to false here made every chat/report
+    // consumer that relied on the default render oneLight in dark mode.
+    const useDarkCode = inverted ? true : isDark
     const headings = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).reduce(
       (acc, tag) => {
         acc[tag] = headingAnchors

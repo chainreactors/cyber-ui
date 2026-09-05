@@ -7,6 +7,7 @@ export interface SCOBase {
 
 export interface Domain extends SCOBase {
   host: string;
+  extra?: string;
 }
 
 export interface Subdomain extends SCOBase {
@@ -20,6 +21,7 @@ export interface Subdomain extends SCOBase {
   mx?: string[];
   ns?: string[];
   txt?: string[];
+  extra?: string;
 }
 
 export interface Ip extends SCOBase {
@@ -34,16 +36,19 @@ export interface Ip extends SCOBase {
   cdn?: boolean;
   cloud?: boolean;
   waf?: boolean;
+  extra?: string;
 }
 
 export interface Cidr extends SCOBase {
   cidr: string;
+  extra?: string;
 }
 
 export interface Port extends SCOBase {
   ip: string;
   port: string;
   protocol: string;
+  extra?: string;
 }
 
 export interface App extends SCOBase {
@@ -62,6 +67,7 @@ export interface App extends SCOBase {
   screenshot_path?: string;
   ip?: string;
   port?: string;
+  extra?: string;
 }
 
 export interface Url extends SCOBase {
@@ -76,6 +82,8 @@ export interface Url extends SCOBase {
   content_type?: string;
   redirect_url?: string;
   frameworks?: string[];
+  url: string;
+  extra?: string;
 }
 
 export interface Framework extends SCOBase {
@@ -87,6 +95,7 @@ export interface Framework extends SCOBase {
   tags?: string[];
   is_focus?: boolean;
   sources?: string[];
+  extra?: string;
 }
 
 export interface Vuln extends SCOBase {
@@ -110,6 +119,7 @@ export interface Vuln extends SCOBase {
   password?: string;
   matched?: boolean;
   extracted?: boolean;
+  extra?: string;
 }
 
 export interface SarifVuln extends SCOBase {
@@ -126,6 +136,7 @@ export interface SarifVuln extends SCOBase {
   baseline_state?: string;
   rule_id?: string;
   evidence?: string;
+  extra?: string;
 }
 
 export interface Certificate extends SCOBase {
@@ -138,6 +149,7 @@ export interface Certificate extends SCOBase {
   san?: string[];
   host?: string;
   ip?: string;
+  extra?: string;
 }
 
 export interface Company extends SCOBase {
@@ -146,6 +158,7 @@ export interface Company extends SCOBase {
   tycid?: string;
   icp?: string;
   parent?: string;
+  extra?: string;
 }
 
 export interface Icp extends SCOBase {
@@ -156,6 +169,7 @@ export interface Icp extends SCOBase {
   title?: string;
   domain?: string;
   ip?: string;
+  extra?: string;
 }
 
 export interface Bucket extends SCOBase {
@@ -167,6 +181,7 @@ export interface Bucket extends SCOBase {
   object_count?: number;
   known_paths?: string[];
   source_url?: string;
+  extra?: string;
 }
 
 export interface Endpoint extends SCOBase {
@@ -179,6 +194,7 @@ export interface Endpoint extends SCOBase {
   source_url?: string;
   parameters?: string[];
   tags?: string[];
+  extra?: string;
 }
 
 export interface Host extends SCOBase {
@@ -188,6 +204,7 @@ export interface Host extends SCOBase {
   dns_servers?: string[];
   domain_name?: string;
   domain_role?: string;
+  extra?: string;
 }
 
 export interface Repository extends SCOBase {
@@ -199,6 +216,7 @@ export interface Repository extends SCOBase {
   stars?: number;
   is_fork?: boolean;
   matched_dorks?: string[];
+  extra?: string;
 }
 
 export interface Secret extends SCOBase {
@@ -213,6 +231,7 @@ export interface Secret extends SCOBase {
   commit?: string;
   verified?: boolean;
   severity?: string;
+  extra?: string;
 }
 
 export type SCONode =

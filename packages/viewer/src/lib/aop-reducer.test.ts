@@ -1,4 +1,5 @@
 import { create } from '@bufbuild/protobuf'
+import { timestampFromDate } from '@bufbuild/protobuf/wkt'
 import {
   ContentSchema,
   EventSchema,
@@ -7,6 +8,7 @@ import {
   TextContentSchema,
   ToolCallSchema,
   ToolResultSchema,
+  TurnEndedSchema,
   TurnStartedSchema,
   type Event,
 } from '@cyber/aop'
@@ -20,6 +22,7 @@ function event(seq: number, payload: Event['payload']): Event {
     turnId: 'turn-1',
     emitter: 'agent-1',
     seq: BigInt(seq),
+    emittedAt: timestampFromDate(new Date(seq * 1000)),
     payload,
   })
 }
@@ -75,6 +78,17 @@ describe('reduceAOPToTimeline', () => {
     expect(reduceAOPToTimeline(events)[0]).toMatchObject({
       kind: 'assistant_response',
       response: { content: 'first step\n\nfinal answer' },
+    })
+  })
+
+  it('timestamps a completed response at turn end', () => {
+    const events = [
+      event(1, { case: 'message', value: create(MessageSchema, { id: 'm1', role: 'assistant', content: [text('done')] }) }),
+      event(2, { case: 'turnEnded', value: create(TurnEndedSchema, { stopReason: 'completed' }) }),
+    ]
+
+    expect(reduceAOPToTimeline(events)[0]).toMatchObject({
+      kind: 'assistant_response', timestamp: 2000, streaming: false,
     })
   })
 })

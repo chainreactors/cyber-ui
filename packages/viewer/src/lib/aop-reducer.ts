@@ -157,6 +157,7 @@ export function reduceAOPToTimeline(
           label: failure, variant: 'warning',
         })
         const response = responses.get(scope(event))
+        if (response) response.timestamp = timestamp(event)
         if (response && ended.usage) response.response = {
           content: response.response?.content ?? '',
           metadata: { ...response.response?.metadata, ...usageMetadata(ended.usage) },

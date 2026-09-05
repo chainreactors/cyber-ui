@@ -1,4 +1,4 @@
-import React, { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, Fragment } from 'react'
+import React, { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
 import { cn } from '@cyber/theme'
 import { MarkdownContent } from '@cyber/markdown'
@@ -171,7 +171,7 @@ function ChatPanelTimeline({
     return renderTimelineItem(item, domainContext, overrides, variant)
   }, [renderItem, domainContext, overrides, variant])
 
-  const ItemWrapper = memoItems ? MemoTimelineEntry : PassthroughEntry
+  const ItemWrapper = memoItems ? MemoTimelineEntry : TimelineEntry
 
   return (
     <div {...scrollerProps} ref={scrollRef} className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-3', className)}>
@@ -194,13 +194,13 @@ function ChatPanelTimeline({
         )}
       >
         {timeline.map(item => (
-          <Fragment key={item.id}>
-            {hasRail && <div className="flex min-w-0 items-start pt-1">{renderMark?.(item)}</div>}
-            <div className="min-w-0">
-              <ItemWrapper item={item} render={renderOne} />
-            </div>
-            {hasRail && <div className="flex min-w-0 items-start pt-1">{renderSideNote?.(item)}</div>}
-          </Fragment>
+          <ItemWrapper
+            key={item.id}
+            item={item}
+            render={renderOne}
+            renderMark={renderMark}
+            renderSideNote={renderSideNote}
+          />
         ))}
       </div>
 
@@ -209,16 +209,31 @@ function ChatPanelTimeline({
   )
 }
 
-const MemoTimelineEntry = memo(
-  ({ item, render }: { item: TimelineItem; render: (item: TimelineItem) => React.ReactNode }) =>
-    <>{render(item)}</>,
-  (prev, next) => prev.item === next.item && prev.render === next.render,
-)
-MemoTimelineEntry.displayName = 'MemoTimelineEntry'
-
-function PassthroughEntry({ item, render }: { item: TimelineItem; render: (item: TimelineItem) => React.ReactNode }) {
-  return <>{render(item)}</>
+interface TimelineEntryProps {
+  item: TimelineItem
+  render: (item: TimelineItem) => React.ReactNode
+  renderMark?: ChatPanelTimelineProps['renderMark']
+  renderSideNote?: ChatPanelTimelineProps['renderSideNote']
 }
+
+function TimelineEntry({ item, render, renderMark, renderSideNote }: TimelineEntryProps) {
+  const content = render(item)
+  // Hidden events (such as unregistered artifact extensions) must not leave
+  // layout cells behind: each empty rail row still adds padding and a row gap.
+  if (content == null || typeof content === 'boolean' || content === '') return null
+
+  const hasRail = !!(renderMark || renderSideNote)
+  return (
+    <>
+      {hasRail && <div className="flex min-w-0 items-start pt-1">{renderMark?.(item)}</div>}
+      <div className="min-w-0">{content}</div>
+      {hasRail && <div className="flex min-w-0 items-start pt-1">{renderSideNote?.(item)}</div>}
+    </>
+  )
+}
+
+const MemoTimelineEntry = memo(TimelineEntry)
+MemoTimelineEntry.displayName = 'MemoTimelineEntry'
 
 // ── Input ──
 

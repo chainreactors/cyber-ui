@@ -27,6 +27,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { RuntimeComponentProps } from '../../runtime/registry';
 import { cn } from '../../lib/cn';
+import { copyToClipboard } from '@cyber/theme';
 import { asRecord, asStringArray } from '../../lib/coerce';
 import { downloadText, rowsToCsv } from '../../lib/downloadUtils';
 import { defaultCellRenderers, type CellRendererRegistry } from '../../lib/renderers';
@@ -93,6 +94,7 @@ interface TableActionConfig {
 const DEFAULT_COLUMN_WIDTH_PX = 128;
 const DEFAULT_COMMON_BADGE_KEYS = ['type'];
 const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100, 500];
+const MAX_LOADING_COLUMNS = 32;
 const IDENTITY_KEEP_KEYS = new Set(['name', 'title', 'sources']);
 
 function hasDisplayValue(value: unknown): boolean {
@@ -127,6 +129,68 @@ function estimateColumnWidth(width: string | undefined): number {
 // of short cells fits instead of forcing a scrollbar at the summed preferred widths.
 function columnFloorWidth(width: string | undefined): number {
   return Math.max(64, Math.round(estimateColumnWidth(width) * 0.5));
+}
+
+/**
+ * Keep the table and its loading state on the same set of CSS grid tracks.
+ *
+ * The table has a few tracks that do not come from data (selection, diff,
+ * expansion and actions).  Treating those as an implementation detail in the
+ * loading renderer used to leave the skeleton with fewer children than the
+ * grid template, which made CSS create implicit columns and stacked the bars
+ * in the first cell.  Building both layouts from this one helper makes the
+ * number and order of tracks explicit.
+ */
+function buildGridLayout(
+  columns: ColumnConfig[],
+  options: {
+    enableRowSelection: boolean;
+    diffMode: boolean;
+    enableExpanding: boolean;
+    actionsColumnWidth: number;
+  },
+): { tracks: string[]; ids: string[]; minWidth: number } {
+  const tracks: string[] = [];
+  const ids: string[] = [];
+  if (options.enableRowSelection) {
+    tracks.push('72px');
+    ids.push('__row_control');
+  }
+  if (options.diffMode) {
+    tracks.push('90px');
+    ids.push('__diff');
+  }
+  if (options.enableExpanding) {
+    tracks.push('32px');
+    ids.push('__expand');
+  }
+  for (const column of columns) {
+    if (!column.width) {
+      tracks.push('minmax(0,1fr)');
+    } else {
+      // Treat inferred widths as preferred sizes.  This mirrors the real table
+      // grid and lets a loading placeholder occupy the same columns without a
+      // hard-coded, guessed percentage layout.
+      tracks.push(
+        `minmax(${columnFloorWidth(column.width)}px,${(estimateColumnWidth(column.width) / 100).toFixed(2)}fr)`,
+      );
+    }
+    ids.push(column.key);
+  }
+  if (options.actionsColumnWidth > 0) {
+    tracks.push(`${options.actionsColumnWidth}px`);
+    ids.push('__actions');
+  }
+
+  const minWidth = columns.reduce(
+    (total, column) => total + columnFloorWidth(column.width),
+    32,
+  ) + (options.enableRowSelection ? 72 : 0)
+    + (options.diffMode ? 90 : 0)
+    + (options.enableExpanding ? 32 : 0)
+    + options.actionsColumnWidth;
+
+  return { tracks, ids, minWidth };
 }
 
 function resolveIcon(name: string | undefined): LucideIcon | null {
@@ -233,43 +297,6 @@ function RowControlCell({ row, table }: {
   );
 }
 
-/**
- * Copy `text` to the clipboard, resolving to whether it actually succeeded.
- * The async Clipboard API only exists in a secure context (https / localhost);
- * this table is frequently served over plain http on a bare IP, where
- * `navigator.clipboard` is undefined — so fall back to a hidden-textarea
- * execCommand copy. The textarea is parented inside an open dialog when there
- * is one, so a focus-trapped modal doesn't swallow the selection.
- */
-async function writeClipboard(text: string): Promise<boolean> {
-  if (!text) return false;
-  const secure = typeof window !== 'undefined' && window.isSecureContext;
-  if (secure && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      /* fall through to the execCommand path */
-    }
-  }
-  if (typeof document === 'undefined') return false;
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
-  const host = (document.activeElement?.closest("[role='dialog']") as HTMLElement | null) ?? document.body;
-  host.appendChild(textarea);
-  textarea.select();
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch {
-    ok = false;
-  }
-  textarea.remove();
-  return ok;
-}
-
 function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: string) => void }) {
   const [copied, setCopied] = useState(false);
   const text = value != null ? String(value) : '';
@@ -297,7 +324,7 @@ function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: stri
         // Cairn's tables) previously got a button that flashed a checkmark
         // without copying anything. Still emit the event so hosts can react
         // (e.g. a toast); the copy no longer depends on them doing so.
-        const ok = await writeClipboard(text);
+        const ok = await copyToClipboard(text, e.currentTarget);
         onCopy(text);
         if (!ok) return;
         setCopied(true);
@@ -699,6 +726,17 @@ export function CSTXTable({
   const rawRows = (data.rows ?? []) as Row[];
   const isLoading = loading.rows;
   const explicitColumns = config.columns as ColumnConfig[] | undefined;
+  // A data-driven table cannot infer its columns while the first request is
+  // still in flight.  Hosts with a known shape may provide a small schema for
+  // the loading frame; when they do not, the renderer falls back to a stable
+  // set of neutral tracks instead of letting CSS invent implicit columns.
+  const configuredLoadingColumns = Array.isArray(config.loadingColumns)
+    ? config.loadingColumns as ColumnConfig[]
+    : undefined;
+  const configuredLoadingColumnCount = typeof config.loadingColumnCount === 'number'
+    && Number.isFinite(config.loadingColumnCount)
+    ? Math.min(MAX_LOADING_COLUMNS, Math.max(1, Math.floor(config.loadingColumnCount)))
+    : 5;
   const columnsExclude = config.columnsExclude as string[] | undefined;
   const initialPageSize = (config.pageSize as number) || 50;
   const enableSearch = config.enableSearch !== false;
@@ -957,6 +995,22 @@ export function CSTXTable({
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
 
+  const loadingColumns = useMemo(() => {
+    const source = configuredLoadingColumns?.length
+      ? configuredLoadingColumns
+      : explicitColumns?.length
+        ? explicitColumns
+        : [];
+    const excluded = new Set(columnsExclude ?? []);
+    return source.filter((column) => (
+      column
+      && typeof column.key === 'string'
+      && column.key.length > 0
+      && !column.hidden
+      && !excluded.has(column.key)
+    )).slice(0, MAX_LOADING_COLUMNS);
+  }, [configuredLoadingColumns, explicitColumns, columnsExclude]);
+
   // --- Table instance ---
   const table = useReactTable({
     data: filteredByType,
@@ -980,42 +1034,50 @@ export function CSTXTable({
   // --- Grid template ---
   const actionsColumnWidth = effectiveRowActions.length > 0 ? Math.max(44, effectiveRowActions.length * 28 + 8) : 0;
 
-  const baseGridTemplate = useMemo(() => {
-    const parts: string[] = [];
-    if (enableRowSelection) parts.push('72px');
-    if (diffMode) parts.push('90px');
-    if (enableExpanding) parts.push('32px');
-    for (const col of visibleColumns) {
-      if (!col.width) { parts.push('minmax(0,1fr)'); continue; }
-      // Treat the inferred width as a *preferred* size, not a fixed track: an fr weight
-      // (∝ preferred px) lets columns fill the container and grow on wide viewports, while a
-      // per-column floor lets them compress before a horizontal scrollbar appears. Fixed px
-      // tracks summed past the viewport, forcing a scrollbar even when the short cell values
-      // would have fit. No spaces inside minmax() — getAdjustedGridTemplate() splits the
-      // template on whitespace to remap per-column resize widths.
-      parts.push(`minmax(${columnFloorWidth(col.width)}px,${(estimateColumnWidth(col.width) / 100).toFixed(2)}fr)`);
-    }
-    if (actionsColumnWidth > 0) parts.push(`${actionsColumnWidth}px`);
-    return parts.join(' ');
-  }, [visibleColumns, enableRowSelection, enableExpanding, diffMode, actionsColumnWidth]);
-
-  const gridColumnIds = useMemo(() => {
-    const ids: string[] = [];
-    if (enableRowSelection) ids.push('__row_control');
-    if (diffMode) ids.push('__diff');
-    if (enableExpanding) ids.push('__expand');
-    for (const col of visibleColumns) ids.push(col.key);
-    if (actionsColumnWidth > 0) ids.push('__actions');
-    return ids;
-  }, [visibleColumns, enableRowSelection, enableExpanding, diffMode, actionsColumnWidth]);
+  const gridLayout = useMemo(
+    () => buildGridLayout(visibleColumns, {
+      enableRowSelection,
+      diffMode,
+      enableExpanding,
+      actionsColumnWidth,
+    }),
+    [visibleColumns, enableRowSelection, diffMode, enableExpanding, actionsColumnWidth],
+  );
+  const baseGridTemplate = gridLayout.tracks.join(' ');
+  const gridColumnIds = gridLayout.ids;
 
   const gridTemplateColumns = enableColumnResize
     ? getAdjustedGridTemplate(baseGridTemplate, gridColumnIds)
     : baseGridTemplate;
 
-  const tableMinWidth = visibleColumns.reduce(
-    (total, col) => total + columnFloorWidth(col.width), 32,
-  ) + (enableRowSelection ? 72 : 0) + (diffMode ? 90 : 0) + (enableExpanding ? 32 : 0) + actionsColumnWidth;
+  const tableMinWidth = gridLayout.minWidth;
+
+  // During a genuine first load there are no data rows from which to infer a
+  // schema.  Use the host-provided loading columns when available; otherwise
+  // reserve a modest number of neutral data tracks.  Fixed system tracks are
+  // included in both the template and the child count, so the skeleton never
+  // creates implicit CSS columns (the source of the old left-stacked bars).
+  const skeletonLayout = useMemo(() => {
+    const fallbackColumns = loadingColumns.length > 0
+      ? loadingColumns
+      : Array.from({ length: configuredLoadingColumnCount }, (_, index) => ({
+        key: `__loading_${index}`,
+      }));
+    return buildGridLayout(fallbackColumns, {
+      enableRowSelection,
+      diffMode,
+      enableExpanding,
+      actionsColumnWidth,
+    });
+  }, [loadingColumns, configuredLoadingColumnCount, enableRowSelection, diffMode, enableExpanding, actionsColumnWidth]);
+  const useSkeletonFallback = isLoading && visibleColumns.length === 0;
+  const skeletonGridTemplate = useSkeletonFallback
+    ? skeletonLayout.tracks.join(' ')
+    : gridTemplateColumns;
+  const skeletonColumnCount = useSkeletonFallback
+    ? skeletonLayout.ids.length
+    : (gridColumnIds.length || configuredLoadingColumnCount);
+  const skeletonMinWidth = useSkeletonFallback ? skeletonLayout.minWidth : tableMinWidth;
 
   const tableGridStyle: React.CSSProperties = {
     gridTemplateColumns,
@@ -1166,8 +1228,6 @@ export function CSTXTable({
       });
     }
   }, [exportFilename, onAction, selectedRows, table, title, visibleColumns]);
-  const skeletonColumnCount = visibleColumns.length || 5;
-
   const hasActiveFilters = typeFilter.size > 0 || !!globalFilter;
   const showFilterChips = typeFilter.size > 0 && typeFilter.size < typeValues.length;
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
@@ -1384,7 +1444,9 @@ export function CSTXTable({
               columns={skeletonColumnCount}
               rows={Math.min(pageSize, 8)}
               compact={compact}
-              gridTemplate={gridTemplateColumns}
+              gridTemplate={skeletonGridTemplate}
+              columnIds={useSkeletonFallback ? skeletonLayout.ids : gridColumnIds}
+              minWidth={skeletonMinWidth}
             />
           )
         ) : filteredByType.length === 0 ? (

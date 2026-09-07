@@ -32,6 +32,21 @@ export const cstxTableManifest: ComponentManifest = {
         'Array of { key, title, sortable?, width?, render?, renderOptions?, filterable?, align?, hidden? }. If omitted, columns are auto-inferred from data.',
     },
     {
+      key: 'loadingColumns',
+      label: 'Loading column definitions',
+      type: 'object',
+      description:
+        'Optional column definitions used only while an auto-inferred table is waiting for its first response. Keeps the skeleton on the same grid tracks as the eventual table.',
+    },
+    {
+      key: 'loadingColumnCount',
+      label: 'Loading column count',
+      type: 'number',
+      default: 5,
+      description:
+        'Fallback number of neutral data tracks when no loadingColumns or explicit columns are available.',
+    },
+    {
       key: 'columnsExclude',
       label: 'Columns to exclude',
       type: 'object',

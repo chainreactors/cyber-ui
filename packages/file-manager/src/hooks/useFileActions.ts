@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
+import { copyToClipboard } from "@cyber/theme"
 import type { FileNode, UploadProgress, DownloadProgress } from "../types"
 import {
   normalizePath, formatPathForDisplay,
@@ -129,7 +130,8 @@ export function useFileActions(state: FileManagerState) {
 
   const handleCopyName = useCallback(async (node: FileNode) => {
     try {
-      await navigator.clipboard.writeText(node.name)
+      const copied = await copyToClipboard(node.name)
+      if (!copied) throw new Error(t('copyFailed'))
       toast({
         title: t('copySuccess'),
         description: t('copyNameSuccessDesc', { name: node.name })
@@ -147,7 +149,8 @@ export function useFileActions(state: FileManagerState) {
     try {
       const path = normalizePath(node.fullPath || node.id, isWindowsSession)
       const displayPath = formatPathForDisplay(path, isWindowsSession)
-      await navigator.clipboard.writeText(displayPath)
+      const copied = await copyToClipboard(displayPath)
+      if (!copied) throw new Error(t('copyFailed'))
       toast({
         title: t('copySuccess'),
         description: t('copyPathSuccessDesc', { path: displayPath })

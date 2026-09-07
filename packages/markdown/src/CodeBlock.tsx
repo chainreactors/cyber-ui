@@ -1,8 +1,8 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties, type MouseEvent } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { cn } from '@cyber/theme'
+import { cn, copyToClipboard } from '@cyber/theme'
 
 /* -------------------------------------------------- */
 
@@ -71,10 +71,15 @@ export function CodeBlock({
   const isDark = isDarkProp ?? hostDark
   const trimmed = code.replace(/\n$/, '')
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(trimmed)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
+    try {
+      const ok = await copyToClipboard(trimmed, event.currentTarget)
+      if (!ok) return
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard access can be denied by an embedded or restricted browser.
+    }
   }
 
   const wrapClass = cn(
@@ -92,7 +97,7 @@ export function CodeBlock({
       {copyable && (
         <button
           type="button"
-          onClick={handleCopy}
+          onClick={(event) => { void handleCopy(event) }}
           className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded border border-line bg-surface text-muted opacity-0 transition-opacity hover:text-fg group-hover:opacity-100"
           aria-label="Copy code"
         >

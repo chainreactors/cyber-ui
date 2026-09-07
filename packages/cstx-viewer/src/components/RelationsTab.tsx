@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { CSTXTable } from '@cyber/cstx';
 import type { CstxEdge } from '@cyber/cstx';
 
@@ -44,12 +44,6 @@ export function RelationsTab({ edges }: RelationsTabProps) {
   }, [currentType, typeGroups, edges]);
 
   const rows = useMemo(() => filteredEdges.map(flattenEdge), [filteredEdges]);
-
-  const handleAction = useCallback((action: string, payload?: Record<string, unknown>) => {
-    if (action === 'cellClick' && payload?.value) {
-      void navigator.clipboard?.writeText(String(payload.value));
-    }
-  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -104,7 +98,6 @@ export function RelationsTab({ edges }: RelationsTabProps) {
             columnsExclude: EXCLUDE_COLUMNS,
             paginationMode: 'client',
           }}
-          onAction={handleAction}
         />
       </div>
     </div>

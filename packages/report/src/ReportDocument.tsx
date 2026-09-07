@@ -1,6 +1,6 @@
 import { Component, Fragment, useMemo, useState, type ReactNode } from 'react'
 import type { Element, ElementContent, Nodes, Root, RootContent } from 'hast'
-import { cn } from '@cyber/theme'
+import { cn, copyToClipboard } from '@cyber/theme'
 import { Badge, Callout, type BadgeProps, type CalloutTone } from '@cyber/ui'
 import type { TrafficHttpView } from '@cyber/traffic'
 import type { CstxReportPreview } from '@cyber/cstx'
@@ -234,11 +234,14 @@ function EvidencePre({ node, label }: { node: Element; label?: string }) {
           type="button"
           aria-label="Copy evidence"
           className="text-muted-foreground transition-colors hover:text-foreground"
-          onClick={() => {
-            void navigator.clipboard?.writeText(code).then(() => {
-              setCopied(true)
-              setTimeout(() => setCopied(false), 2000)
-            })
+          onClick={(event) => {
+            void copyToClipboard(code, event.currentTarget)
+              .then((ok) => {
+                if (!ok) return
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              })
+              .catch(() => undefined)
           }}
         >
           {copied ? (

@@ -97,6 +97,8 @@ export interface ContextMenuAction {
   disabled?: boolean
   onClick?: () => void
   onSelect?: () => void
+  /** Run synchronously in Radix's selection event so clipboard writes keep user activation. */
+  preserveUserActivation?: boolean
   children?: ContextMenuAction[]
 }
 
@@ -130,7 +132,11 @@ export function ContextMenuBuilder({ sections, children, className }: {
         key={action.id}
         disabled={action.disabled}
         className={cn(action.variant === 'danger' && 'text-destructive focus:text-destructive')}
-        onSelect={() => window.setTimeout(() => (action.onSelect || action.onClick)?.(), 0)}
+        onSelect={() => {
+          const handler = action.onSelect || action.onClick
+          if (action.preserveUserActivation) handler?.()
+          else window.setTimeout(() => handler?.(), 0)
+        }}
       >
         {action.icon && <span className="mr-2 flex h-4 w-4 items-center justify-center">{action.icon}</span>}
         <span className="flex-1">{action.label}</span>

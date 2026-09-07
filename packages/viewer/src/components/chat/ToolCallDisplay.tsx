@@ -11,7 +11,7 @@ import {
   Terminal,
   Wrench,
 } from 'lucide-react'
-import { cn } from '@cyber/theme'
+import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeToolCall } from '../../lib/tool-utils'
 import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
@@ -53,8 +53,8 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
   const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     try {
-      if (!navigator.clipboard?.writeText) return
-      await navigator.clipboard.writeText(value)
+      const ok = await copyToClipboard(value, event.currentTarget)
+      if (!ok) return
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1600)
     } catch {

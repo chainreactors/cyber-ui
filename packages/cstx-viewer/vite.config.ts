@@ -17,6 +17,10 @@ export default defineConfig({
         replacement: fileURLToPath(new URL('../graph/src', import.meta.url)),
       },
       {
+        find: '@cyber/theme',
+        replacement: fileURLToPath(new URL('../theme/src', import.meta.url)),
+      },
+      {
         find: '@',
         replacement: fileURLToPath(new URL('./src', import.meta.url)),
       },

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { cn } from '@cyber/theme'
+import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock } from './CodeBlock'
 import { remarkCjkAutolinkBoundary } from './remark-cjk-autolink-boundary'
 
@@ -308,20 +308,28 @@ function InlineCode({
   const text = typeof children === 'string' ? children : nodeText(children)
   const isLong = text.length >= LONG_INLINE_CODE_LENGTH
 
-  const handleClick = () => {
+  const handleClick = (source?: Element | null) => {
     if (!text) return
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    })
+    void copyToClipboard(text, source)
+      .then((ok) => {
+        if (!ok) return
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      })
+      .catch(() => undefined)
   }
 
   return (
     <code
       role="button"
       tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
+      onClick={(e) => handleClick(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleClick(e.currentTarget)
+        }
+      }}
       title={copied ? 'Copied!' : 'Click to copy'}
       data-inline-code={isLong ? 'long' : undefined}
       className={cn(

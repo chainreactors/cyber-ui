@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { CSTXTable } from '@cyber/cstx';
 import type { CstxNode } from '@cyber/cstx';
 
@@ -61,12 +61,6 @@ export function AssetsTab({ nodes }: AssetsTabProps) {
     )];
   }, [rows]);
 
-  const handleAction = useCallback((action: string, payload?: Record<string, unknown>) => {
-    if (action === 'cellClick' && payload?.value) {
-      void navigator.clipboard?.writeText(String(payload.value));
-    }
-  }, []);
-
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {typeGroups.length > 1 && (
@@ -121,7 +115,6 @@ export function AssetsTab({ nodes }: AssetsTabProps) {
             columnsExclude: excludeColumns,
             paginationMode: 'client',
           }}
-          onAction={handleAction}
         />
       </div>
     </div>

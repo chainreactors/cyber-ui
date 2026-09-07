@@ -1,4 +1,5 @@
 export { cn } from './utils'
+export { copyToClipboard } from './clipboard'
 export { ThemeProvider } from './ThemeProvider'
 export {
   getTokens,

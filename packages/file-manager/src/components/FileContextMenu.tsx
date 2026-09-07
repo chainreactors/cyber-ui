@@ -224,12 +224,14 @@ export function useFileContextMenu(params: UseFileContextMenuParams) {
           id: 'copyName',
           label: t('copyName'),
           icon: <Copy className="w-4 h-4" />,
+          preserveUserActivation: true,
           onSelect: () => handleCopyName(node)
         },
         {
           id: 'copyPath',
           label: t('copyPath'),
           icon: <Copy className="w-4 h-4" />,
+          preserveUserActivation: true,
           onSelect: () => handleCopyPath(node)
         }
       ]

@@ -31,6 +31,9 @@ importers:
 
   packages/cstx:
     dependencies:
+      '@cyber/theme':
+        specifier: workspace:*
+        version: link:../theme
       '@cyber/ui':
         specifier: workspace:*
         version: link:../ui
@@ -113,6 +116,9 @@ importers:
       '@cyber/graph':
         specifier: workspace:*
         version: link:../graph
+      '@cyber/theme':
+        specifier: workspace:*
+        version: link:../theme
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -171,6 +177,9 @@ importers:
 
   packages/file-manager:
     dependencies:
+      '@cyber/theme':
+        specifier: workspace:*
+        version: link:../theme
       '@radix-ui/react-checkbox':
         specifier: ^1.3.3
         version: 1.3.8(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)

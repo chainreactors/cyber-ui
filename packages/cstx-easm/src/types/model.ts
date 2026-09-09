@@ -1,4 +1,4 @@
-import type { Ip, Port, App, Url, Framework, Vuln } from './sco_gen'
+import type { Ip, Port, App, Url, Framework, Vuln } from './easm'
 
 export type SCOResultModel = {
   hosts: SCOHostGroup[]

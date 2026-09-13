@@ -1,6 +1,7 @@
 export * from './gen/aop/value_pb.js'
 export * from './gen/aop/content_pb.js'
 export * from './gen/aop/event_pb.js'
+export * from './gen/aop/operation/protocol_pb.js'
 export * from './gen/aop/chat_pb.js'
 export * from './gen/aop/envelope_pb.js'
 

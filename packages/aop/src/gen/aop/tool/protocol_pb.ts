@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/tool/protocol.proto.
  */
 export const file_aop_tool_protocol: GenFile = /*@__PURE__*/
-  fileDesc("Chdhb3AvdG9vbC9wcm90b2NvbC5wcm90bxIIYW9wLnRvb2wiSAoEQ2FsbBISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3R1cm5faWQYAiABKAkSGwoEY2FsbBgDIAEoCzINLmFvcC5Ub29sQ2FsbCKCAQoIUHJvZ3Jlc3MSDAoEdG9vbBgBIAEoCRIOCgZ0YXJnZXQYAyABKAkSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgR0ZXh0GAYgASgJEg8KB2NhbGxfaWQYByABKAlKBAgCEANKBAgEEAUiqwEKCEFydGlmYWN0EgwKBHRvb2wYASABKAkSDAoEa2luZBgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDAoEZGF0YRgEIAEoDBISCgptZWRpYV90eXBlGAUgASgJEi0KCXRpbWVzdGFtcBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHY2FsbF9pZBgHIAEoCRIRCglyZXN1bHRfaWQYCCABKAkiqAEKBExvb3QSEQoJcmVzdWx0X2lkGAEgASgJEgwKBHRvb2wYAiABKAkSDAoEa2luZBgDIAEoCRIOCgZ0YXJnZXQYBCABKAkSEAoIcHJpb3JpdHkYBSABKAkSDAoEdGFncxgGIAMoCRITCgtkZXNjcmlwdGlvbhgHIAEoCRIbChN2ZXJpZmljYXRpb25fc3RhdHVzGAggASgJEg8KB2NhbGxfaWQYCSABKAkirAEKD1Byb3RvY29sTWVzc2FnZRImCghwcm9ncmVzcxgKIAEoCzISLmFvcC50b29sLlByb2dyZXNzSAASHgoEY2FsbBgLIAEoCzIOLmFvcC50b29sLkNhbGxIABImCghhcnRpZmFjdBgMIAEoCzISLmFvcC50b29sLkFydGlmYWN0SAASHgoEbG9vdBgNIAEoCzIOLmFvcC50b29sLkxvb3RIAEIJCgdtZXNzYWdlQi9aLWdpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wL3Rvb2w7dG9vbGIGcHJvdG8z", [file_aop_content, file_google_protobuf_timestamp]);
+  fileDesc("Chdhb3AvdG9vbC9wcm90b2NvbC5wcm90bxIIYW9wLnRvb2wiSAoEQ2FsbBISCgpzZXNzaW9uX2lkGAEgASgJEg8KB3R1cm5faWQYAiABKAkSGwoEY2FsbBgDIAEoCzINLmFvcC5Ub29sQ2FsbCKCAQoIUHJvZ3Jlc3MSDAoEdG9vbBgBIAEoCRIOCgZ0YXJnZXQYAyABKAkSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgR0ZXh0GAYgASgJEg8KB2NhbGxfaWQYByABKAlKBAgCEANKBAgEEAUioAEKCEFydGlmYWN0EgwKBHRvb2wYASABKAkSDAoEa2luZBgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDAoEZGF0YRgEIAEoDBISCgptZWRpYV90eXBlGAUgASgJEi0KCXRpbWVzdGFtcBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJcmVzdWx0X2lkGAggASgJSgQIBxAIIp0BCgRMb290EhEKCXJlc3VsdF9pZBgBIAEoCRIMCgR0b29sGAIgASgJEgwKBGtpbmQYAyABKAkSDgoGdGFyZ2V0GAQgASgJEhAKCHByaW9yaXR5GAUgASgJEgwKBHRhZ3MYBiADKAkSEwoLZGVzY3JpcHRpb24YByABKAkSGwoTdmVyaWZpY2F0aW9uX3N0YXR1cxgIIAEoCUoECAkQCiJwCg9Qcm90b2NvbE1lc3NhZ2USJgoIcHJvZ3Jlc3MYCiABKAsyEi5hb3AudG9vbC5Qcm9ncmVzc0gAEh4KBGNhbGwYCyABKAsyDi5hb3AudG9vbC5DYWxsSABCCQoHbWVzc2FnZUoECAwQDUoECA0QDkIvWi1naXRodWIuY29tL2NoYWlucmVhY3RvcnMvYWlzY2FuL2FvcC90b29sO3Rvb2xiBnByb3RvMw", [file_aop_content, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message aop.tool.Call
@@ -118,11 +118,6 @@ export type Artifact = Message<"aop.tool.Artifact"> & {
   timestamp?: Timestamp | undefined;
 
   /**
-   * @generated from field: string call_id = 7;
-   */
-  callId: string;
-
-  /**
    * @generated from field: string result_id = 8;
    */
   resultId: string;
@@ -137,7 +132,7 @@ export const ArtifactSchema: GenMessage<Artifact> = /*@__PURE__*/
 
 /**
  * Loot marks a scanner-native artifact as valuable without replacing or
- * duplicating its evidence. result_id joins the marker back to Artifact.
+ * duplicating the observed artifact. result_id joins the marker to Artifact.
  *
  * @generated from message aop.tool.Loot
  */
@@ -181,11 +176,6 @@ export type Loot = Message<"aop.tool.Loot"> & {
    * @generated from field: string verification_status = 8;
    */
   verificationStatus: string;
-
-  /**
-   * @generated from field: string call_id = 9;
-   */
-  callId: string;
 };
 
 /**
@@ -214,18 +204,6 @@ export type ProtocolMessage = Message<"aop.tool.ProtocolMessage"> & {
      */
     value: Call;
     case: "call";
-  } | {
-    /**
-     * @generated from field: aop.tool.Artifact artifact = 12;
-     */
-    value: Artifact;
-    case: "artifact";
-  } | {
-    /**
-     * @generated from field: aop.tool.Loot loot = 13;
-     */
-    value: Loot;
-    case: "loot";
   } | { case: undefined; value?: undefined };
 };
 

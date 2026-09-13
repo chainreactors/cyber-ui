@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package aop.operation;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chainreactors/aiscan/aop/operation;operation";
+
+// Correlation reports whether the source carried a trustworthy operation
+// identity. An explicitly created root operation remains EXPLICIT even when it
+// has no SessionID or CallID. UNATTRIBUTED means the source could not resolve
+// the origin and must never be rebound to a newer call.
+enum Correlation {
+  CORRELATION_UNSPECIFIED = 0;
+  CORRELATION_EXPLICIT = 1;
+  CORRELATION_UNATTRIBUTED = 2;
+}
+
+// Ref is the single wire authority for execution correlation. SessionID,
+// TurnID and emitter remain on the enclosing aop.Event.
+message Ref {
+  string call_id = 1;
+  string operation_id = 2;
+  string parent_operation_id = 3;
+  string resource_id = 4;
+  Correlation correlation = 5;
+}
+
+// FailureKind is deliberately small. Extensions express narrower semantics as
+// their own typed messages in aop.Event.extensions instead of extending a
+// central outcome taxonomy.
+enum FailureKind {
+  FAILURE_KIND_UNSPECIFIED = 0;
+  FAILURE_KIND_ERROR = 1;
+  FAILURE_KIND_DENIED = 2;
+  FAILURE_KIND_START_FAILED = 3;
+  FAILURE_KIND_CANCELED = 4;
+  FAILURE_KIND_TIMEOUT = 5;
+  FAILURE_KIND_PANIC = 6;
+}
+
+message Failure {
+  FailureKind kind = 1;
+  string message = 2;
+}
+
+// Started and Completed are open AOP extension payloads. kind is a stable,
+// extension-defined identifier such as "tool", "command" or "process"; it is
+// not a closed enum. Event.emitted_at is the actual transition timestamp.
+message Started {
+  string kind = 1;
+  string name = 2;
+}
+
+message Completed {
+  string kind = 1;
+  string name = 2;
+  // Absent means the underlying operation never started (denial, cancellation
+  // before admission, or a start failure).
+  google.protobuf.Timestamp started_at = 3;
+  // Absent means the execution boundary returned normally. Domain success is
+  // still defined by ToolResult, CommandResult or the native process state.
+  Failure failure = 4;
+}
+
+enum DecisionAction {
+  DECISION_ACTION_UNSPECIFIED = 0;
+  DECISION_ACTION_ALLOW = 1;
+  DECISION_ACTION_DENY = 2;
+  DECISION_ACTION_CANCEL = 3;
+}
+
+// Decision is the common audit shape for a policy decision. Policy-specific
+// rationale is carried as a typed Event extension owned by that policy.
+message Decision {
+  string point = 1;
+  string policy = 2;
+  DecisionAction action = 3;
+  Failure failure = 4;
+}

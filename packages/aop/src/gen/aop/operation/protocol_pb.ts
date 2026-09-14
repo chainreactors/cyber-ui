@@ -141,7 +141,7 @@ export const CompletedSchema: GenMessage<Completed> = /*@__PURE__*/
   messageDesc(file_aop_operation_protocol, 3);
 
 /**
- * Decision is the common audit shape for a policy decision. Policy-specific
+ * Decision is the common observation shape for a policy decision. Policy-specific
  * rationale is carried as a typed Event extension owned by that policy.
  *
  * @generated from message aop.operation.Decision
@@ -286,3 +286,4 @@ export enum DecisionAction {
  */
 export const DecisionActionSchema: GenEnum<DecisionAction> = /*@__PURE__*/
   enumDesc(file_aop_operation_protocol, 2);
+

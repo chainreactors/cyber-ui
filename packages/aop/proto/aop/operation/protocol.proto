@@ -70,7 +70,7 @@ enum DecisionAction {
   DECISION_ACTION_CANCEL = 3;
 }
 
-// Decision is the common audit shape for a policy decision. Policy-specific
+// Decision is the common observation shape for a policy decision. Policy-specific
 // rationale is carried as a typed Event extension owned by that policy.
 message Decision {
   string point = 1;

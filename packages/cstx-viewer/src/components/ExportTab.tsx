@@ -1,20 +1,20 @@
 import { useCallback, useMemo } from 'react';
 import { Download, FileJson, FileSpreadsheet, FileText } from 'lucide-react';
-import { downloadText, downloadJson, encodeCsvValue } from '@cyber/cstx';
-import type { CstxGraphPayload } from '@cyber/cstx';
+import { downloadText, downloadJson, encodeCsvValue, getColumnValue, inferColumns } from '@cyber/cstx';
+import type { CSTXSnapshot } from '@cyber/cstx';
 import { useT } from '../lib/i18n';
 import type { GraphStats } from '../lib/stats';
 
 function objectToCsvRows(records: Record<string, unknown>[]): string {
   if (!records.length) return '';
-  const keys = [...new Set(records.flatMap(r => Object.keys(r)))];
-  const header = keys.map(encodeCsvValue).join(',');
-  const rows = records.map(r => keys.map(k => encodeCsvValue(r[k])).join(','));
+  const columns = inferColumns(records, { includeMeta: true });
+  const header = columns.map(column => encodeCsvValue(column.key)).join(',');
+  const rows = records.map(record => columns.map(column => encodeCsvValue(getColumnValue(record, column))).join(','));
   return [header, ...rows].join('\n');
 }
 
 interface ExportTabProps {
-  payload: CstxGraphPayload;
+  payload: CSTXSnapshot;
   stats: GraphStats;
   filename: string | null;
 }
@@ -33,18 +33,11 @@ export function ExportTab({ payload, stats, filename }: ExportTabProps) {
   }, [payload, baseName]);
 
   const exportNodesCsv = useCallback(() => {
-    const rows = payload.nodes.map(n => {
-      const model = n.model ?? {};
-      return { id: n.id, type: n.type, value: n.value, sources: (n.sources ?? []).join('; '), ...model };
-    });
-    downloadText(`${baseName}-nodes.csv`, objectToCsvRows(rows as Record<string, unknown>[]), 'text/csv;charset=utf-8');
+    downloadText(`${baseName}-nodes.csv`, objectToCsvRows(payload.nodes as unknown as Record<string, unknown>[]), 'text/csv;charset=utf-8');
   }, [payload.nodes, baseName]);
 
   const exportEdgesCsv = useCallback(() => {
-    const rows = payload.edges.map(e => ({
-      id: e.id, source_id: e.source_id, target_id: e.target_id, relation_type: e.relation_type, sources: (e.sources ?? []).join('; '),
-    }));
-    downloadText(`${baseName}-edges.csv`, objectToCsvRows(rows as Record<string, unknown>[]), 'text/csv;charset=utf-8');
+    downloadText(`${baseName}-edges.csv`, objectToCsvRows(payload.edges as unknown as Record<string, unknown>[]), 'text/csv;charset=utf-8');
   }, [payload.edges, baseName]);
 
   const exportMarkdown = useCallback(() => {

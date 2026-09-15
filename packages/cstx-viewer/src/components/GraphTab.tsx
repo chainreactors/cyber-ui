@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { generateTypeColorMap } from '@cyber/cstx';
-import type { CstxNode, CstxEdge } from '@cyber/cstx';
+import type { CSTXNode, CSTXEdge } from '@cyber/cstx';
 import { GraphContainer } from '@cyber/graph';
 
-function toGraphNodes(nodes: CstxNode[]): Record<string, unknown>[] {
+function toGraphNodes(nodes: CSTXNode[]): Record<string, unknown>[] {
   return nodes
     .map((node): Record<string, unknown> | null => {
-      const id = node.id ?? node.cstx_id;
+      const id = node.id;
       if (!id) return null;
       const name = String(node.value ?? id);
       return { ...node, id, name, type: node.type };
@@ -15,7 +15,7 @@ function toGraphNodes(nodes: CstxNode[]): Record<string, unknown>[] {
 }
 
 function toGraphEdges(
-  edges: CstxEdge[],
+  edges: CSTXEdge[],
   nodeIds: Set<string>,
 ): Record<string, unknown>[] {
   return edges
@@ -30,8 +30,8 @@ function toGraphEdges(
 }
 
 interface GraphTabProps {
-  nodes: CstxNode[];
-  edges: CstxEdge[];
+  nodes: CSTXNode[];
+  edges: CSTXEdge[];
 }
 
 export function GraphTab({ nodes, edges }: GraphTabProps) {

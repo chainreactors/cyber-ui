@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../../lib/cn';
+import { getFieldValue } from '../../../lib/fieldPath';
 
 const CHANGE_KIND_CONFIG: Record<string, { label: string; bg: string; text: string; rowBg: string }> = {
   added: { label: 'Added', bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', rowBg: 'bg-emerald-50/50 dark:bg-emerald-900/10' },
@@ -34,7 +35,7 @@ export interface DiffSummaryBarProps {
 export function DiffSummaryBar({ rows, diffField, compact }: DiffSummaryBarProps) {
   const counts: Record<string, number> = {};
   for (const row of rows) {
-    const kind = String(row[diffField] ?? '');
+    const kind = String(getFieldValue(row, diffField) ?? '');
     if (kind) counts[kind] = (counts[kind] || 0) + 1;
   }
 

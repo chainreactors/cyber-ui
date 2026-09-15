@@ -1,32 +1,18 @@
 import { useMemo, useState, useCallback } from 'react';
 import { CSTXTable } from '@cyber/cstx';
-import type { CstxEdge } from '@cyber/cstx';
+import type { CSTXEdge } from '@cyber/cstx';
 
-const EXCLUDE_COLUMNS = ['_raw', 'id', 'embedding', 'vector', 'semantic'];
-
-function flattenEdge(edge: CstxEdge): Record<string, unknown> {
-  const attrFields = edge.attrs ? { ...edge.attrs } : {};
-  delete (attrFields as Record<string, unknown>)._cstx_diff;
-  return {
-    ...attrFields,
-    id: edge.id,
-    source: edge.source_id,
-    target: edge.target_id,
-    relation_type: edge.relation_type,
-    sources: (edge.sources ?? []).join(', '),
-    _raw: edge,
-  };
-}
+const EXCLUDE_COLUMNS = ['id', 'embedding', 'vector', 'semantic'];
 
 interface RelationsTabProps {
-  edges: CstxEdge[];
+  edges: CSTXEdge[];
 }
 
 export function RelationsTab({ edges }: RelationsTabProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
 
   const typeGroups = useMemo(() => {
-    const groups: Record<string, CstxEdge[]> = {};
+    const groups: Record<string, CSTXEdge[]> = {};
     for (const edge of edges) {
       const t = edge.relation_type;
       (groups[t] ??= []).push(edge);
@@ -42,8 +28,6 @@ export function RelationsTab({ edges }: RelationsTabProps) {
     if (!currentType) return edges;
     return typeGroups.find(([t]) => t === currentType)?.[1] ?? edges;
   }, [currentType, typeGroups, edges]);
-
-  const rows = useMemo(() => filteredEdges.map(flattenEdge), [filteredEdges]);
 
   const handleAction = useCallback((action: string, payload?: Record<string, unknown>) => {
     if (action === 'cellClick' && payload?.value) {
@@ -85,7 +69,7 @@ export function RelationsTab({ edges }: RelationsTabProps) {
       <div className="flex-1 min-h-0 overflow-auto">
         <CSTXTable
           key={currentType ?? '__all'}
-          data={{ rows, total: rows.length }}
+          data={{ rows: filteredEdges, total: filteredEdges.length }}
           loading={{ rows: false }}
           errors={{ rows: null }}
           colSpan={4}

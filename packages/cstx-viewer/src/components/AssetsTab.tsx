@@ -1,38 +1,21 @@
 import { useMemo, useState, useCallback } from 'react';
-import { CSTXTable } from '@cyber/cstx';
-import type { CstxNode } from '@cyber/cstx';
+import { CSTXTable, inferColumns } from '@cyber/cstx';
+import type { CSTXNode } from '@cyber/cstx';
 
 const EXCLUDE_COLUMNS = [
   '_raw', '__type__', '__node_type__', 'cstx_id', 'model',
   'extras', 'sources', 'id', 'embedding', 'vector', 'semantic',
 ];
 
-function flattenNode(node: CstxNode): Record<string, unknown> {
-  const { model, extras, __type__: _t, __node_type__: _nt, ...rest } = node;
-  const modelFields = model && typeof model === 'object' ? { ...model } : {};
-  delete (modelFields as Record<string, unknown>).__type__;
-  delete (modelFields as Record<string, unknown>).__node_type__;
-  const extrasFields = extras && typeof extras === 'object' ? { ...extras } : {};
-  return {
-    ...modelFields,
-    ...extrasFields,
-    id: node.id,
-    type: node.type,
-    value: node.value,
-    sources: (node.sources ?? []).join(', '),
-    _raw: node,
-  };
-}
-
 interface AssetsTabProps {
-  nodes: CstxNode[];
+  nodes: CSTXNode[];
 }
 
 export function AssetsTab({ nodes }: AssetsTabProps) {
   const [activeType, setActiveType] = useState<string | null>(null);
 
   const typeGroups = useMemo(() => {
-    const groups: Record<string, CstxNode[]> = {};
+    const groups: Record<string, CSTXNode[]> = {};
     for (const node of nodes) {
       const t = node.type;
       (groups[t] ??= []).push(node);
@@ -49,17 +32,15 @@ export function AssetsTab({ nodes }: AssetsTabProps) {
     return typeGroups.find(([t]) => t === currentType)?.[1] ?? nodes;
   }, [currentType, typeGroups, nodes]);
 
-  const rows = useMemo(() => filteredNodes.map(flattenNode), [filteredNodes]);
-
   const excludeColumns = useMemo(() => {
     const allKeys = new Set<string>();
-    for (const row of rows.slice(0, 20)) {
-      for (const key of Object.keys(row)) allKeys.add(key);
+    for (const column of inferColumns(filteredNodes as unknown as Record<string, unknown>[], { includeMeta: true })) {
+      allKeys.add(column.key);
     }
     return [...EXCLUDE_COLUMNS, ...Array.from(allKeys).filter(k =>
       k.includes('embedding') || k.includes('vector') || k.includes('semantic'),
     )];
-  }, [rows]);
+  }, [filteredNodes]);
 
   const handleAction = useCallback((action: string, payload?: Record<string, unknown>) => {
     if (action === 'cellClick' && payload?.value) {
@@ -101,7 +82,7 @@ export function AssetsTab({ nodes }: AssetsTabProps) {
       <div className="flex-1 min-h-0 overflow-auto">
         <CSTXTable
           key={currentType ?? '__all'}
-          data={{ rows, total: rows.length }}
+          data={{ rows: filteredNodes, total: filteredNodes.length }}
           loading={{ rows: false }}
           errors={{ rows: null }}
           colSpan={4}

@@ -31,7 +31,10 @@ CSTX 协议对齐的核心数据结构：
 
 - 图组件直接消费 `CSTXNode` / `CSTXEdge`，使用 `source_id`、`target_id`、`relation_type` 和嵌套的 `model` / `extras`
 - 显示名称通过 `getCSTXNodeLabel()` 计算，不复制或展开节点数据
-- 不提供 Render DTO、字段别名或从 UI 数据反向构造 `CSTXGraph` 的入口
+- `getFieldValue()` 通过明确路径读取原始记录，例如 `model.title`、`extras.task_id`、`attrs.port`
+- `CSTXTable` 始终持有调用方传入的原始行；嵌套对象的一层字段会被发现为路径列，不创建扁平副本
+- 列发现、渲染、排序、搜索和 CSV 导出共享同一路径访问规则；同名字段作为 `sources`、`model.sources` 等独立字段共存
+- 不提供字段别名或从 UI 数据反向构造 `CSTXGraph` 的入口
 
 - `CstxUiProvider` / `useCstxUi` — CSTX UI 上下文
 - `ComponentRegistry` / `defaultRegistry` — 组件注册表

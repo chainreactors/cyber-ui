@@ -4,7 +4,7 @@ package aop;
 
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop";
+option go_package = "github.com/chainreactors/cyber/aop";
 
 // Envelope is the only AOP wire envelope. Business namespaces are carried by
 // Any and never extend this message with a global oneof.

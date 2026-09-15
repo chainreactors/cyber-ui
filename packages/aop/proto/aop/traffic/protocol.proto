@@ -5,7 +5,7 @@ package aop.traffic;
 import "google/protobuf/timestamp.proto";
 import "aop/operation/protocol.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop/traffic;traffic";
+option go_package = "github.com/chainreactors/cyber/aop/traffic;traffic";
 
 // The traffic namespace projects the runner's traffic mechanism — the long-lived
 // MITM hub plus its egress chain — as an AOP control surface. Routing and capture

@@ -8,4 +8,4 @@ plugins:
   - local: protoc-gen-go
     out: ../../../../..
     opt:
-      - module=github.com/chainreactors/aiscan
+      - module=github.com/chainreactors/cyber

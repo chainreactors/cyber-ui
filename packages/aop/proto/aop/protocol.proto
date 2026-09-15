@@ -7,7 +7,7 @@ import "aop/content.proto";
 import "aop/event.proto";
 import "google/protobuf/struct.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop";
+option go_package = "github.com/chainreactors/cyber/aop";
 
 message AgentRuntimeInfo {
   string hostname = 1;

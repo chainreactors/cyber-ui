@@ -5,7 +5,7 @@ package aop.tool;
 import "aop/content.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop/tool;tool";
+option go_package = "github.com/chainreactors/cyber/aop/tool;tool";
 
 message Call {
   string session_id = 1;

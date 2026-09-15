@@ -4,7 +4,7 @@ package aop.operation;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop/operation;operation";
+option go_package = "github.com/chainreactors/cyber/aop/operation;operation";
 
 // Correlation reports whether the source carried a trustworthy operation
 // identity. An explicitly created root operation remains EXPLICIT even when it

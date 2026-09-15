@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/value.proto.
  */
 export const file_aop_value: GenFile = /*@__PURE__*/
-  fileDesc("Cg9hb3AvdmFsdWUucHJvdG8SA2FvcCIwCgxFbmNvZGVkVmFsdWUSDAoEZGF0YRgBIAEoDBISCgptZWRpYV90eXBlGAIgASgJQiVaI2dpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wYgZwcm90bzM");
+  fileDesc("Cg9hb3AvdmFsdWUucHJvdG8SA2FvcCIwCgxFbmNvZGVkVmFsdWUSDAoEZGF0YRgBIAEoDBISCgptZWRpYV90eXBlGAIgASgJQiRaImdpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9jeWJlci9hb3BiBnByb3RvMw");
 
 /**
  * EncodedValue carries genuinely opaque data whose schema is not protobuf,

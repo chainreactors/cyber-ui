@@ -6,7 +6,7 @@ import "aop/content.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop";
+option go_package = "github.com/chainreactors/cyber/aop";
 
 message SessionStarted {
   string model = 1;

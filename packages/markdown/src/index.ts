@@ -1,4 +1,5 @@
 export { MarkdownContent, type CodeBlockRendererProps } from './MarkdownContent'
+export { MarkdownInline } from './MarkdownInline'
 export { MarkdownEditor } from './MarkdownEditor'
 export { CodeBlock, type CodeBlockProps } from './CodeBlock'
 export {

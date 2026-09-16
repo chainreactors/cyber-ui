@@ -16,6 +16,7 @@ export function useFileActions(state: FileManagerState) {
     isWindowsSession,
     currentPath,
     currentDirPath,
+    currentDirFiles,
     selection,
     selectedFile,
     renameTarget,
@@ -249,14 +250,14 @@ export function useFileActions(state: FileManagerState) {
     setDownloading(true)
 
     const nodesToDownload: { name: string; fullPath: string; isDirectory: boolean }[] = []
-    for (const nodeId of selection.selectedIds) {
-      const tree = treeRef.current
-      const node = tree?.get(nodeId)
-      if (node && node.data.fullPath) {
+    // Selection belongs to the directory listing, which also renders when
+    // the optional tree is hidden. Use that listing as the source of files.
+    for (const node of currentDirFiles) {
+      if (selection.selectedIds.has(node.id) && node.fullPath) {
         nodesToDownload.push({
-          name: node.data.name,
-          fullPath: node.data.fullPath,
-          isDirectory: node.data.isDirectory || false,
+          name: node.name,
+          fullPath: node.fullPath,
+          isDirectory: node.isDirectory || false,
         })
       }
     }
@@ -291,7 +292,7 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setDownloading(false)
     }
-  }, [selection.selectedIds, sid, downloadFile, treeRef, setDownloading, toast, t])
+  }, [selection.selectedIds, sid, downloadFile, currentDirFiles, setDownloading, toast, t])
 
   const handleBatchDelete = useCallback(async () => {
     if (selection.selectedIds.size === 0) return

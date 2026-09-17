@@ -228,13 +228,13 @@ export const cstxTableManifest: ComponentManifest = {
       key: 'batchActions',
       label: 'Batch actions',
       type: 'object',
-      description: 'Array of {id, label, icon?, variant?, disabled?, requiresSelection?} for buttons shown when rows are selected. Emits batchAction.',
+      description: 'Array of {id, label, icon?, variant?, disabled?, requiresSelection?} for buttons shown when rows are selected. icon is one of the supported lucide names in lib/lucideIcon.ts. Emits batchAction.',
     },
     {
       key: 'rowActions',
       label: 'Row actions',
       type: 'object',
-      description: 'Array of {id, label, icon?, variant?, disabled?} for a per-row actions menu. Emits rowAction.',
+      description: 'Array of {id, label, icon?, variant?, disabled?} for a per-row actions menu. icon is one of the supported lucide names in lib/lucideIcon.ts. Emits rowAction.',
     },
     {
       key: 'diffMode',

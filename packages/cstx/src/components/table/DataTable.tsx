@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
-import * as LucideIcons from 'lucide-react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -24,10 +23,10 @@ import {
   Check,
   ExternalLink,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import type { RuntimeComponentProps } from '../../runtime/registry';
 import { cn } from '../../lib/cn';
 import { asRecord, asStringArray } from '../../lib/coerce';
+import { resolveLucideIcon } from '../../lib/lucideIcon';
 import { downloadText, rowsToCsv } from '../../lib/downloadUtils';
 import { defaultCellRenderers, type CellRendererRegistry } from '../../lib/renderers';
 import { SearchInput } from '../../lib/SearchInput';
@@ -129,11 +128,6 @@ function estimateColumnWidth(width: string | undefined): number {
 // of short cells fits instead of forcing a scrollbar at the summed preferred widths.
 function columnFloorWidth(width: string | undefined): number {
   return Math.max(64, Math.round(estimateColumnWidth(width) * 0.5));
-}
-
-function resolveIcon(name: string | undefined): LucideIcon | null {
-  if (!name) return null;
-  return (LucideIcons as Record<string, unknown>)[name] as LucideIcon | undefined ?? null;
 }
 
 function actionButtonClass(variant: string | undefined): string {
@@ -350,7 +344,7 @@ function RowActionsCell({
         if (action.render) {
           return <React.Fragment key={action.id}>{action.render(row, rowId)}</React.Fragment>;
         }
-        const Icon = resolveIcon(action.icon);
+        const Icon = resolveLucideIcon(action.icon);
         return (
           <button
             key={action.id}
@@ -1269,7 +1263,7 @@ export function CSTXTable({
                   )}
                 >
                   {(() => {
-                    const Icon = resolveIcon(action.icon);
+                    const Icon = resolveLucideIcon(action.icon);
                     return Icon ? <Icon className="h-3 w-3" /> : null;
                   })()}
                   {action.label}

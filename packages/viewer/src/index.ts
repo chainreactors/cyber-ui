@@ -75,7 +75,7 @@ export type { MessageBubbleProps, MessageBubbleVariant } from './components/chat
 export type { AgentVoiceCardProps } from './components/chat/AgentVoiceCard'
 export type { ChatThinkingProps } from './components/chat/ChatThinking'
 export type { AssistantResponseProps } from './components/chat/AssistantResponse'
-export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
+export type { ToolCallDisplayProps, ToolCallLabels, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
 export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
 export type { ChatInputProps, CommandHint, ComposerHelpContent, ComposerHelpItem, ComposerHelpPrefix, ChatAttachment, AttachmentMode, Mentionable, MentionPopupApi, PopupNavigationCommand, PopupNavigationKey } from './components/chat/ChatInput'
 export type { ChatPanelProps, ChatPanelTimelineProps, ChatPanelInputProps, ChatPanelHeaderProps } from './components/chat/ChatPanel'

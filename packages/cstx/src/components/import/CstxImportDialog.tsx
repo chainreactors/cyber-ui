@@ -69,6 +69,7 @@ export interface CstxImportDialogLabels {
   cancel?: string
   submit?: string
   submitting?: string
+  submitFailed?: string
 }
 
 export interface CstxImportDialogProps {
@@ -128,6 +129,7 @@ const DEFAULTS: Required<CstxImportDialogLabels> = {
   cancel: 'Cancel',
   submit: 'Start import',
   submitting: 'Importing…',
+  submitFailed: 'Import failed: {{message}}',
 }
 
 const DEFAULT_ACCEPT = '.json,.jsonl,.ndjson,.yaml,.yml,.csv,.zip,.cstx,.bundle,application/json,application/zip,text/csv,text/plain'
@@ -158,6 +160,7 @@ export function CstxImportDialog({
   }
   const [files, setFiles] = useState<ImportFileEntry[]>([])
   const [importing, setImporting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open || !droppedFiles || droppedFiles.length === 0) return
@@ -175,6 +178,7 @@ export function CstxImportDialog({
   const handleFilesSelect = useCallback(
     async (selected: File[]) => {
       if (!selected.length) return
+      setSubmitError(null)
       const entries = await Promise.all(selected.map((f) => analyzeImportFile(f, artifactOptions)))
       setFiles(entries)
     },
@@ -182,6 +186,7 @@ export function CstxImportDialog({
   )
 
   const updateFile = useCallback((id: string, patch: Partial<ImportFileEntry>) => {
+    setSubmitError(null)
     setFiles((cur) => cur.map((e) => (e.id === id ? { ...e, ...patch } : e)))
   }, [])
 
@@ -231,10 +236,13 @@ export function CstxImportDialog({
   const handleSubmit = useCallback(async () => {
     if (files.length === 0 || validationError) return
     setImporting(true)
+    setSubmitError(null)
     try {
       await onSubmit(files)
       setFiles([])
       handleOpenChange(false)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : String(error))
     } finally {
       setImporting(false)
     }
@@ -400,6 +408,15 @@ export function CstxImportDialog({
               {validationError && (
                 <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
                   {validationError}
+                </div>
+              )}
+
+              {submitError && (
+                <div
+                  role="alert"
+                  className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+                >
+                  {l.submitFailed.replace('{{message}}', submitError)}
                 </div>
               )}
             </div>

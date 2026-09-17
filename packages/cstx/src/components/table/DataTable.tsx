@@ -1309,7 +1309,16 @@ export function CSTXTable({
             />
           )}
           {showExportButton && (
-            <ExportButton compact onExport={handleExport} formats={exportFormats} />
+            <ExportButton
+              compact
+              onExport={handleExport}
+              formats={exportFormats}
+              labels={{
+                xlsx: tr('exportXlsx', 'Export XLSX'),
+                csv: tr('exportCsv', 'Export CSV'),
+                report: tr('exportReport', 'Generate Report'),
+              }}
+            />
           )}
         </div>
       </div>

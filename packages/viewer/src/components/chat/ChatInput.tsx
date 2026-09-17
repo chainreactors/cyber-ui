@@ -90,6 +90,21 @@ export interface ChatInputProps {
   topSlot?: ReactNode
   className?: string
   inputClassName?: string
+  // UI-chrome strings. Every entry falls back to the current English text, so
+  // hosts that pass nothing keep the existing behaviour.
+  labels?: ChatInputLabels
+}
+
+export interface ChatInputLabels {
+  placeholder?: string
+  placeholderWithCommands?: string
+  placeholderWithAttachments?: string
+  dropFiles?: string
+  attachFiles?: string
+  sendMessage?: string
+  pauseResponse?: string
+  injectAsContext?: string
+  uploadToRemote?: string
 }
 
 function isTextFile(file: File): boolean {
@@ -208,6 +223,7 @@ export default function ChatInput({
   topSlot,
   className,
   inputClassName,
+  labels = {},
 }: ChatInputProps) {
   const [draft, setDraft] = useState('')
   const [showHints, setShowHints] = useState(false)
@@ -513,10 +529,10 @@ export default function ChatInput({
 
   const hasCommands = commands.length > 0
   const defaultPlaceholder = hasCommands
-    ? 'Type a message... (/ for commands)'
+    ? labels.placeholderWithCommands ?? 'Type a message... (/ for commands)'
     : enableAttachments
-      ? 'Type a message or drop files...'
-      : 'Type a message...'
+      ? labels.placeholderWithAttachments ?? 'Type a message or drop files...'
+      : labels.placeholder ?? 'Type a message...'
 
   return (
     <div
@@ -534,7 +550,7 @@ export default function ChatInput({
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-primary/5">
           <div className="flex items-center gap-2 rounded-lg border-2 border-dashed border-primary bg-card/90 px-4 py-2 text-sm font-medium text-primary">
             <Upload className="h-4 w-4" />
-            Drop files to attach
+            {labels.dropFiles ?? 'Drop files to attach'}
           </div>
         </div>
       )}
@@ -651,7 +667,9 @@ export default function ChatInput({
                       ? 'bg-primary/10 hover:bg-primary/20'
                       : 'bg-warning/10 hover:bg-warning/20',
                   )}
-                  title={a.mode === 'context' ? 'Injected as context — click to upload to remote' : 'Upload to remote — click to inject as context'}
+                  title={a.mode === 'context'
+                    ? labels.injectAsContext ?? 'Injected as context — click to upload to remote'
+                    : labels.uploadToRemote ?? 'Upload to remote — click to inject as context'}
                 >
                   {a.mode === 'context' ? 'CTX' : 'UP'}
                 </button>
@@ -685,7 +703,7 @@ export default function ChatInput({
                 onClick={openFilePicker}
                 disabled={disabled}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-                aria-label="Attach files"
+                aria-label={labels.attachFiles ?? 'Attach files'}
               >
                 <Paperclip className="h-4 w-4" />
               </button>
@@ -757,7 +775,9 @@ export default function ChatInput({
                 : 'bg-primary text-primary-foreground',
               !canPause && canSend && 'shadow-sm hover:bg-primary/90',
             )}
-            aria-label={canPause ? 'Pause response' : 'Send message'}
+            aria-label={canPause
+              ? labels.pauseResponse ?? 'Pause response'
+              : labels.sendMessage ?? 'Send message'}
           >
             {canPause ? <Square className="h-4 w-4 fill-current" /> : <Send className="h-4 w-4" />}
           </button>

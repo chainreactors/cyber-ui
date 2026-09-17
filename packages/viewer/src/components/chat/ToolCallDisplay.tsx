@@ -13,7 +13,8 @@ import {
 } from 'lucide-react'
 import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
-import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeToolCall } from '../../lib/tool-utils'
+import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/ui'
+import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
 import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
 
 function ToolResultContent({ result, format }: { result: string; format: ToolResultFormat }) {
@@ -111,6 +112,14 @@ export interface ToolCallDisplayProps {
   showHeaderSummary?: boolean
   /** Host theme override for the compact header's hover treatment. */
   headerClassName?: string
+  /** Enable a localized status hint on hover and keyboard focus. */
+  statusLabels?: {
+    completed: string
+    pending: string
+    error: string
+    noErrorDetails: string
+    expand: string
+  }
   /** Optional localized labels for the expanded body sections. */
   sectionLabels?: {
     thinking?: string
@@ -138,6 +147,7 @@ export default function ToolCallDisplay({
   defaultExpanded = false,
   showHeaderSummary = true,
   headerClassName,
+  statusLabels,
   sectionLabels,
   className,
   headerMeta,
@@ -172,6 +182,58 @@ export default function ToolCallDisplay({
       ? (displayResultFormat.code ?? displayResult)
       : displayResult
 
+  const statusLabel = statusLabels && (error ? statusLabels.error : pending ? statusLabels.pending : statusLabels.completed)
+  const statusDetail = statusLabels && error ? summarizeResult(displayResult ?? '') || statusLabels.noErrorDetails : ''
+  const header = (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      aria-expanded={expanded}
+      className={cn(
+        'flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-surface-2',
+        headerClassName,
+      )}
+    >
+      <Wrench
+        aria-hidden="true"
+        className={cn(
+          'h-3.5 w-3.5 shrink-0 transition-colors',
+          error ? 'text-destructive' : pending ? 'text-warning' : 'text-muted-foreground',
+        )}
+      />
+      <span className="shrink-0 rounded border border-border bg-card px-1.5 py-0.5 font-mono font-medium text-foreground">
+        {toolName || 'tool'}
+      </span>
+      {statusLabel && <span className="sr-only">{statusLabel}</span>}
+      {headerMeta}
+      {showHeaderSummary ? (
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate font-mono',
+            error ? 'text-destructive' : 'text-muted-foreground',
+          )}
+          title={errorSummary || summary || formattedArgs}
+        >
+          {rowSummary}
+        </span>
+      ) : headerMeta ? null : (
+        <span className="min-w-0 flex-1" aria-hidden="true" />
+      )}
+      {error ? (
+        <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
+      ) : pending ? (
+        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-warning" />
+      ) : (
+        <Check className="h-3 w-3 shrink-0 text-success" />
+      )}
+      {expanded ? (
+        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+      ) : (
+        <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+      )}
+    </button>
+  )
+
   return (
     <div
       className={cn(
@@ -180,50 +242,23 @@ export default function ToolCallDisplay({
         className,
       )}
     >
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className={cn(
-          'flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-surface-2',
-          headerClassName,
-        )}
-      >
-        <Wrench
-          className={cn(
-            'h-3.5 w-3.5 shrink-0 transition-colors',
-            error ? 'text-destructive' : pending ? 'text-warning' : 'text-muted-foreground',
-          )}
-        />
-        <span className="shrink-0 rounded border border-border bg-card px-1.5 py-0.5 font-mono font-medium text-foreground">
-          {toolName || 'tool'}
-        </span>
-        {headerMeta}
-        {showHeaderSummary ? (
-          <span
-            className={cn(
-              'min-w-0 flex-1 truncate font-mono',
-              error ? 'text-destructive' : 'text-muted-foreground',
-            )}
-            title={errorSummary || summary || formattedArgs}
-          >
-            {rowSummary}
-          </span>
-        ) : headerMeta ? null : (
-          <span className="min-w-0 flex-1" aria-hidden="true" />
-        )}
-        {error ? (
-          <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
-        ) : pending ? (
-          <Loader2 className="h-3 w-3 shrink-0 animate-spin text-warning" />
-        ) : (
-          <Check className="h-3 w-3 shrink-0 text-success" />
-        )}
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-        )}
-      </button>
+      {statusLabels ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{header}</TooltipTrigger>
+          <TooltipPortal>
+            <TooltipContent
+              align="start"
+              sideOffset={6}
+              collisionPadding={8}
+              className="z-[100] max-w-[min(24rem,calc(100vw-2rem))] whitespace-pre-wrap break-words text-xs leading-relaxed"
+            >
+              <div className="font-medium">{statusLabel}</div>
+              {statusDetail && <div className="mt-1">{statusDetail}</div>}
+              {!expanded && <div className="mt-1 text-muted-foreground">{statusLabels.expand}</div>}
+            </TooltipContent>
+          </TooltipPortal>
+        </Tooltip>
+      ) : header}
 
       <div
         className={cn(

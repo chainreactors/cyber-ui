@@ -2185,7 +2185,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
             </div>
 
             {/* ForceAtlas2 tuning panel — layout-debugging chrome, off unless a
-                host asks for it. It reads as part of the product otherwise. */}
+                host asks for it. It reads as part of the main UI otherwise. */}
             {showLayoutTuning && <div className="absolute bottom-2 right-2">
                 <div className="bg-white/95 dark:bg-slate-800/95 dark:border-slate-700 backdrop-blur rounded shadow-lg p-2 border border-gray-200">
                     <div className="flex items-center justify-between mb-1">

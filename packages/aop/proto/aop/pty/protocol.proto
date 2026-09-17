@@ -6,20 +6,46 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/chainreactors/cyber/aop/pty;pty";
 
+// Process carries the facts that exist only for a session backed by an
+// operating system process. It is absent for an in-process unit, so a reader
+// can tell "no exit code exists" from "exited zero" instead of showing a
+// meaningless 0.
+message Process {
+  int32 pid = 1;
+  int32 exit_code = 2;
+  string signal = 3;
+}
+
 message Session {
   string id = 1;
   string kind = 2;
   string name = 3;
   string command = 4;
+  // Deprecated: read process.pid. Still populated for existing clients, and 0
+  // for a session with no operating system process.
   int32 pid = 5;
   google.protobuf.Timestamp started_at = 6;
   google.protobuf.Timestamp last_activity_at = 7;
   google.protobuf.Timestamp ended_at = 8;
   int64 activity_seq = 9;
   int64 output_bytes = 10;
+  // Deprecated: read process.exit_code.
   int32 exit_code = 11;
   string state = 12;
+  // kill_cause carries why the session left its active states. It is set for
+  // every terminal state, not only for kills.
   string kill_cause = 13;
+
+  // shape is the mechanism behind the session: tty, pipe, func or extern. It
+  // is fixed at creation and tells a reader which optional detail to expect;
+  // kind, by contrast, is a mutable label the opener chooses.
+  string shape = 14;
+  // ready_at is when a session that declared a readiness probe began serving.
+  // It is unset for a session that was usable as soon as it started.
+  google.protobuf.Timestamp ready_at = 15;
+  // process is present if and only if an operating system process backs this
+  // session.
+  Process process = 16;
 }
 
 message Open {

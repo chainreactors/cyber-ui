@@ -1207,8 +1207,8 @@ export function CSTXTable({
               onSubmit={handleSearchSubmit}
               placeholder={
                 enableFieldSearch
-                  ? 'Search... (type:domain value~example)'
-                  : `Search${title ? ' ' + title.toLowerCase() : ''}...`
+                  ? tr('searchField', 'Search... (type:domain value~example)')
+                  : tr('search', `Search${title ? ' ' + title.toLowerCase() : ''}...`)
               }
               compact
               className="w-full"

@@ -12,7 +12,39 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/pty/protocol.proto.
  */
 export const file_aop_pty_protocol: GenFile = /*@__PURE__*/
-  fileDesc("ChZhb3AvcHR5L3Byb3RvY29sLnByb3RvEgdhb3AucHR5IsUCCgdTZXNzaW9uEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSDAoEbmFtZRgDIAEoCRIPCgdjb21tYW5kGAQgASgJEgsKA3BpZBgFIAEoBRIuCgpzdGFydGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0ChBsYXN0X2FjdGl2aXR5X2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghlbmRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMYWN0aXZpdHlfc2VxGAkgASgDEhQKDG91dHB1dF9ieXRlcxgKIAEoAxIRCglleGl0X2NvZGUYCyABKAUSDQoFc3RhdGUYDCABKAkSEgoKa2lsbF9jYXVzZRgNIAEoCSKUAQoET3BlbhIRCglzdHJlYW1faWQYASABKAkSDwoHbm9kZV9pZBgCIAEoCRIMCgRraW5kGAMgASgJEgwKBG5hbWUYBCABKAkSDwoHY29tbWFuZBgFIAEoCRIMCgRhcmdzGAYgAygJEgwKBGNvbHMYByABKAUSDAoEcm93cxgIIAEoBRIRCglzaW5nbGV0b24YCSABKAgiPgoGT3BlbmVkEhEKCXN0cmVhbV9pZBgBIAEoCRIhCgdzZXNzaW9uGAIgASgLMhAuYW9wLnB0eS5TZXNzaW9uIigKBUlucHV0EhEKCXN0cmVhbV9pZBgBIAEoCRIMCgRkYXRhGAIgASgMIjkKBk91dHB1dBIRCglzdHJlYW1faWQYASABKAkSDAoEZGF0YRgCIAEoDBIOCgZvZmZzZXQYAyABKAMiNwoGUmVzaXplEhEKCXN0cmVhbV9pZBgBIAEoCRIMCgRjb2xzGAIgASgFEgwKBHJvd3MYAyABKAUiKgoETGlzdBIRCglzdHJlYW1faWQYASABKAkSDwoHbm9kZV9pZBgCIAEoCSJBCghTZXNzaW9ucxIRCglzdHJlYW1faWQYASABKAkSIgoIc2Vzc2lvbnMYAiADKAsyEC5hb3AucHR5LlNlc3Npb24iSwoGQXR0YWNoEhEKCXN0cmVhbV9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEgwKBGNvbHMYAyABKAUSDAoEcm93cxgEIAEoBSJACghBdHRhY2hlZBIRCglzdHJlYW1faWQYASABKAkSIQoHc2Vzc2lvbhgCIAEoCzIQLmFvcC5wdHkuU2Vzc2lvbiIbCgZEZXRhY2gSEQoJc3RyZWFtX2lkGAEgASgJIh0KCERldGFjaGVkEhEKCXN0cmVhbV9pZBgBIAEoCSIZCgRLaWxsEhEKCXN0cmVhbV9pZBgBIAEoCSIaCgVDbG9zZRIRCglzdHJlYW1faWQYASABKAkiPgoGQ2xvc2VkEhEKCXN0cmVhbV9pZBgBIAEoCRIhCgdzZXNzaW9uGAIgASgLMhAuYW9wLnB0eS5TZXNzaW9uIj0KBVN0YXRlEhEKCXN0cmVhbV9pZBgBIAEoCRIhCgdzZXNzaW9uGAIgASgLMhAuYW9wLnB0eS5TZXNzaW9uIisKBUVycm9yEhEKCXN0cmVhbV9pZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIsQECg9Qcm90b2NvbE1lc3NhZ2USHQoEb3BlbhgKIAEoCzINLmFvcC5wdHkuT3BlbkgAEh8KBWlucHV0GAsgASgLMg4uYW9wLnB0eS5JbnB1dEgAEiEKBm91dHB1dBgMIAEoCzIPLmFvcC5wdHkuT3V0cHV0SAASIQoGcmVzaXplGA0gASgLMg8uYW9wLnB0eS5SZXNpemVIABIdCgRsaXN0GA4gASgLMg0uYW9wLnB0eS5MaXN0SAASJQoIc2Vzc2lvbnMYDyABKAsyES5hb3AucHR5LlNlc3Npb25zSAASIQoGYXR0YWNoGBAgASgLMg8uYW9wLnB0eS5BdHRhY2hIABIhCgZkZXRhY2gYESABKAsyDy5hb3AucHR5LkRldGFjaEgAEh8KBWNsb3NlGBIgASgLMg4uYW9wLnB0eS5DbG9zZUgAEh8KBXN0YXRlGBMgASgLMg4uYW9wLnB0eS5TdGF0ZUgAEh8KBWVycm9yGBQgASgLMg4uYW9wLnB0eS5FcnJvckgAEiEKBm9wZW5lZBgVIAEoCzIPLmFvcC5wdHkuT3BlbmVkSAASJQoIYXR0YWNoZWQYFiABKAsyES5hb3AucHR5LkF0dGFjaGVkSAASJQoIZGV0YWNoZWQYFyABKAsyES5hb3AucHR5LkRldGFjaGVkSAASHQoEa2lsbBgYIAEoCzINLmFvcC5wdHkuS2lsbEgAEiEKBmNsb3NlZBgZIAEoCzIPLmFvcC5wdHkuQ2xvc2VkSABCCQoHbWVzc2FnZUIsWipnaXRodWIuY29tL2NoYWlucmVhY3RvcnMvY3liZXIvYW9wL3B0eTtwdHliBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChZhb3AvcHR5L3Byb3RvY29sLnByb3RvEgdhb3AucHR5IjkKB1Byb2Nlc3MSCwoDcGlkGAEgASgFEhEKCWV4aXRfY29kZRgCIAEoBRIOCgZzaWduYWwYAyABKAkipQMKB1Nlc3Npb24SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIMCgRuYW1lGAMgASgJEg8KB2NvbW1hbmQYBCABKAkSCwoDcGlkGAUgASgFEi4KCnN0YXJ0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjQKEGxhc3RfYWN0aXZpdHlfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCGVuZGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxhY3Rpdml0eV9zZXEYCSABKAMSFAoMb3V0cHV0X2J5dGVzGAogASgDEhEKCWV4aXRfY29kZRgLIAEoBRINCgVzdGF0ZRgMIAEoCRISCgpraWxsX2NhdXNlGA0gASgJEg0KBXNoYXBlGA4gASgJEiwKCHJlYWR5X2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIhCgdwcm9jZXNzGBAgASgLMhAuYW9wLnB0eS5Qcm9jZXNzIpQBCgRPcGVuEhEKCXN0cmVhbV9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEgwKBGtpbmQYAyABKAkSDAoEbmFtZRgEIAEoCRIPCgdjb21tYW5kGAUgASgJEgwKBGFyZ3MYBiADKAkSDAoEY29scxgHIAEoBRIMCgRyb3dzGAggASgFEhEKCXNpbmdsZXRvbhgJIAEoCCI+CgZPcGVuZWQSEQoJc3RyZWFtX2lkGAEgASgJEiEKB3Nlc3Npb24YAiABKAsyEC5hb3AucHR5LlNlc3Npb24iKAoFSW5wdXQSEQoJc3RyZWFtX2lkGAEgASgJEgwKBGRhdGEYAiABKAwiOQoGT3V0cHV0EhEKCXN0cmVhbV9pZBgBIAEoCRIMCgRkYXRhGAIgASgMEg4KBm9mZnNldBgDIAEoAyI3CgZSZXNpemUSEQoJc3RyZWFtX2lkGAEgASgJEgwKBGNvbHMYAiABKAUSDAoEcm93cxgDIAEoBSIqCgRMaXN0EhEKCXN0cmVhbV9pZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJIkEKCFNlc3Npb25zEhEKCXN0cmVhbV9pZBgBIAEoCRIiCghzZXNzaW9ucxgCIAMoCzIQLmFvcC5wdHkuU2Vzc2lvbiJLCgZBdHRhY2gSEQoJc3RyZWFtX2lkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSDAoEY29scxgDIAEoBRIMCgRyb3dzGAQgASgFIkAKCEF0dGFjaGVkEhEKCXN0cmVhbV9pZBgBIAEoCRIhCgdzZXNzaW9uGAIgASgLMhAuYW9wLnB0eS5TZXNzaW9uIhsKBkRldGFjaBIRCglzdHJlYW1faWQYASABKAkiHQoIRGV0YWNoZWQSEQoJc3RyZWFtX2lkGAEgASgJIhkKBEtpbGwSEQoJc3RyZWFtX2lkGAEgASgJIhoKBUNsb3NlEhEKCXN0cmVhbV9pZBgBIAEoCSI+CgZDbG9zZWQSEQoJc3RyZWFtX2lkGAEgASgJEiEKB3Nlc3Npb24YAiABKAsyEC5hb3AucHR5LlNlc3Npb24iPQoFU3RhdGUSEQoJc3RyZWFtX2lkGAEgASgJEiEKB3Nlc3Npb24YAiABKAsyEC5hb3AucHR5LlNlc3Npb24iKwoFRXJyb3ISEQoJc3RyZWFtX2lkGAEgASgJEg8KB21lc3NhZ2UYAiABKAkixAQKD1Byb3RvY29sTWVzc2FnZRIdCgRvcGVuGAogASgLMg0uYW9wLnB0eS5PcGVuSAASHwoFaW5wdXQYCyABKAsyDi5hb3AucHR5LklucHV0SAASIQoGb3V0cHV0GAwgASgLMg8uYW9wLnB0eS5PdXRwdXRIABIhCgZyZXNpemUYDSABKAsyDy5hb3AucHR5LlJlc2l6ZUgAEh0KBGxpc3QYDiABKAsyDS5hb3AucHR5Lkxpc3RIABIlCghzZXNzaW9ucxgPIAEoCzIRLmFvcC5wdHkuU2Vzc2lvbnNIABIhCgZhdHRhY2gYECABKAsyDy5hb3AucHR5LkF0dGFjaEgAEiEKBmRldGFjaBgRIAEoCzIPLmFvcC5wdHkuRGV0YWNoSAASHwoFY2xvc2UYEiABKAsyDi5hb3AucHR5LkNsb3NlSAASHwoFc3RhdGUYEyABKAsyDi5hb3AucHR5LlN0YXRlSAASHwoFZXJyb3IYFCABKAsyDi5hb3AucHR5LkVycm9ySAASIQoGb3BlbmVkGBUgASgLMg8uYW9wLnB0eS5PcGVuZWRIABIlCghhdHRhY2hlZBgWIAEoCzIRLmFvcC5wdHkuQXR0YWNoZWRIABIlCghkZXRhY2hlZBgXIAEoCzIRLmFvcC5wdHkuRGV0YWNoZWRIABIdCgRraWxsGBggASgLMg0uYW9wLnB0eS5LaWxsSAASIQoGY2xvc2VkGBkgASgLMg8uYW9wLnB0eS5DbG9zZWRIAEIJCgdtZXNzYWdlQixaKmdpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9jeWJlci9hb3AvcHR5O3B0eWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+
+/**
+ * Process carries the facts that exist only for a session backed by an
+ * operating system process. It is absent for an in-process unit, so a reader
+ * can tell "no exit code exists" from "exited zero" instead of showing a
+ * meaningless 0.
+ *
+ * @generated from message aop.pty.Process
+ */
+export type Process = Message<"aop.pty.Process"> & {
+  /**
+   * @generated from field: int32 pid = 1;
+   */
+  pid: number;
+
+  /**
+   * @generated from field: int32 exit_code = 2;
+   */
+  exitCode: number;
+
+  /**
+   * @generated from field: string signal = 3;
+   */
+  signal: string;
+};
+
+/**
+ * Describes the message aop.pty.Process.
+ * Use `create(ProcessSchema)` to create a new message.
+ */
+export const ProcessSchema: GenMessage<Process> = /*@__PURE__*/
+  messageDesc(file_aop_pty_protocol, 0);
 
 /**
  * @generated from message aop.pty.Session
@@ -39,6 +71,9 @@ export type Session = Message<"aop.pty.Session"> & {
   command: string;
 
   /**
+   * Deprecated: read process.pid. Still populated for existing clients, and 0
+   * for a session with no operating system process.
+   *
    * @generated from field: int32 pid = 5;
    */
   pid: number;
@@ -69,6 +104,8 @@ export type Session = Message<"aop.pty.Session"> & {
   outputBytes: bigint;
 
   /**
+   * Deprecated: read process.exit_code.
+   *
    * @generated from field: int32 exit_code = 11;
    */
   exitCode: number;
@@ -79,9 +116,37 @@ export type Session = Message<"aop.pty.Session"> & {
   state: string;
 
   /**
+   * kill_cause carries why the session left its active states. It is set for
+   * every terminal state, not only for kills.
+   *
    * @generated from field: string kill_cause = 13;
    */
   killCause: string;
+
+  /**
+   * shape is the mechanism behind the session: tty, pipe, func or extern. It
+   * is fixed at creation and tells a reader which optional detail to expect;
+   * kind, by contrast, is a mutable label the opener chooses.
+   *
+   * @generated from field: string shape = 14;
+   */
+  shape: string;
+
+  /**
+   * ready_at is when a session that declared a readiness probe began serving.
+   * It is unset for a session that was usable as soon as it started.
+   *
+   * @generated from field: google.protobuf.Timestamp ready_at = 15;
+   */
+  readyAt?: Timestamp | undefined;
+
+  /**
+   * process is present if and only if an operating system process backs this
+   * session.
+   *
+   * @generated from field: aop.pty.Process process = 16;
+   */
+  process?: Process | undefined;
 };
 
 /**
@@ -89,7 +154,7 @@ export type Session = Message<"aop.pty.Session"> & {
  * Use `create(SessionSchema)` to create a new message.
  */
 export const SessionSchema: GenMessage<Session> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 0);
+  messageDesc(file_aop_pty_protocol, 1);
 
 /**
  * @generated from message aop.pty.Open
@@ -146,7 +211,7 @@ export type Open = Message<"aop.pty.Open"> & {
  * Use `create(OpenSchema)` to create a new message.
  */
 export const OpenSchema: GenMessage<Open> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 1);
+  messageDesc(file_aop_pty_protocol, 2);
 
 /**
  * @generated from message aop.pty.Opened
@@ -168,7 +233,7 @@ export type Opened = Message<"aop.pty.Opened"> & {
  * Use `create(OpenedSchema)` to create a new message.
  */
 export const OpenedSchema: GenMessage<Opened> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 2);
+  messageDesc(file_aop_pty_protocol, 3);
 
 /**
  * @generated from message aop.pty.Input
@@ -190,7 +255,7 @@ export type Input = Message<"aop.pty.Input"> & {
  * Use `create(InputSchema)` to create a new message.
  */
 export const InputSchema: GenMessage<Input> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 3);
+  messageDesc(file_aop_pty_protocol, 4);
 
 /**
  * @generated from message aop.pty.Output
@@ -217,7 +282,7 @@ export type Output = Message<"aop.pty.Output"> & {
  * Use `create(OutputSchema)` to create a new message.
  */
 export const OutputSchema: GenMessage<Output> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 4);
+  messageDesc(file_aop_pty_protocol, 5);
 
 /**
  * @generated from message aop.pty.Resize
@@ -244,7 +309,7 @@ export type Resize = Message<"aop.pty.Resize"> & {
  * Use `create(ResizeSchema)` to create a new message.
  */
 export const ResizeSchema: GenMessage<Resize> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 5);
+  messageDesc(file_aop_pty_protocol, 6);
 
 /**
  * @generated from message aop.pty.List
@@ -266,7 +331,7 @@ export type List = Message<"aop.pty.List"> & {
  * Use `create(ListSchema)` to create a new message.
  */
 export const ListSchema: GenMessage<List> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 6);
+  messageDesc(file_aop_pty_protocol, 7);
 
 /**
  * @generated from message aop.pty.Sessions
@@ -288,7 +353,7 @@ export type Sessions = Message<"aop.pty.Sessions"> & {
  * Use `create(SessionsSchema)` to create a new message.
  */
 export const SessionsSchema: GenMessage<Sessions> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 7);
+  messageDesc(file_aop_pty_protocol, 8);
 
 /**
  * @generated from message aop.pty.Attach
@@ -320,7 +385,7 @@ export type Attach = Message<"aop.pty.Attach"> & {
  * Use `create(AttachSchema)` to create a new message.
  */
 export const AttachSchema: GenMessage<Attach> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 8);
+  messageDesc(file_aop_pty_protocol, 9);
 
 /**
  * @generated from message aop.pty.Attached
@@ -342,7 +407,7 @@ export type Attached = Message<"aop.pty.Attached"> & {
  * Use `create(AttachedSchema)` to create a new message.
  */
 export const AttachedSchema: GenMessage<Attached> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 9);
+  messageDesc(file_aop_pty_protocol, 10);
 
 /**
  * @generated from message aop.pty.Detach
@@ -359,7 +424,7 @@ export type Detach = Message<"aop.pty.Detach"> & {
  * Use `create(DetachSchema)` to create a new message.
  */
 export const DetachSchema: GenMessage<Detach> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 10);
+  messageDesc(file_aop_pty_protocol, 11);
 
 /**
  * @generated from message aop.pty.Detached
@@ -376,7 +441,7 @@ export type Detached = Message<"aop.pty.Detached"> & {
  * Use `create(DetachedSchema)` to create a new message.
  */
 export const DetachedSchema: GenMessage<Detached> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 11);
+  messageDesc(file_aop_pty_protocol, 12);
 
 /**
  * @generated from message aop.pty.Kill
@@ -393,7 +458,7 @@ export type Kill = Message<"aop.pty.Kill"> & {
  * Use `create(KillSchema)` to create a new message.
  */
 export const KillSchema: GenMessage<Kill> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 12);
+  messageDesc(file_aop_pty_protocol, 13);
 
 /**
  * @generated from message aop.pty.Close
@@ -410,7 +475,7 @@ export type Close = Message<"aop.pty.Close"> & {
  * Use `create(CloseSchema)` to create a new message.
  */
 export const CloseSchema: GenMessage<Close> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 13);
+  messageDesc(file_aop_pty_protocol, 14);
 
 /**
  * @generated from message aop.pty.Closed
@@ -432,7 +497,7 @@ export type Closed = Message<"aop.pty.Closed"> & {
  * Use `create(ClosedSchema)` to create a new message.
  */
 export const ClosedSchema: GenMessage<Closed> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 14);
+  messageDesc(file_aop_pty_protocol, 15);
 
 /**
  * @generated from message aop.pty.State
@@ -454,7 +519,7 @@ export type State = Message<"aop.pty.State"> & {
  * Use `create(StateSchema)` to create a new message.
  */
 export const StateSchema: GenMessage<State> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 15);
+  messageDesc(file_aop_pty_protocol, 16);
 
 /**
  * @generated from message aop.pty.Error
@@ -476,7 +541,7 @@ export type Error = Message<"aop.pty.Error"> & {
  * Use `create(ErrorSchema)` to create a new message.
  */
 export const ErrorSchema: GenMessage<Error> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 16);
+  messageDesc(file_aop_pty_protocol, 17);
 
 /**
  * @generated from message aop.pty.ProtocolMessage
@@ -589,5 +654,5 @@ export type ProtocolMessage = Message<"aop.pty.ProtocolMessage"> & {
  * Use `create(ProtocolMessageSchema)` to create a new message.
  */
 export const ProtocolMessageSchema: GenMessage<ProtocolMessage> = /*@__PURE__*/
-  messageDesc(file_aop_pty_protocol, 17);
+  messageDesc(file_aop_pty_protocol, 18);
 

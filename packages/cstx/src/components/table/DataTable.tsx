@@ -594,7 +594,8 @@ function RecordCard({
   onAction,
   isActive,
   onCardClick,
-  selectRowLabel = 'Select row',
+  displayIndex,
+  selectRowLabel = 'Select row {n}',
 }: {
   row: TableRow;
   columns: ColumnConfig[];
@@ -609,6 +610,7 @@ function RecordCard({
   onAction?: (action: string, payload?: Record<string, unknown>) => void;
   isActive: boolean;
   onCardClick: () => void;
+  displayIndex: number;
   selectRowLabel?: string;
 }): React.JSX.Element {
   const data = row.original;
@@ -647,7 +649,7 @@ function RecordCard({
             checked={selected}
             onChange={row.getToggleSelectedHandler()}
             onClick={(e) => e.stopPropagation()}
-            aria-label={selectRowLabel}
+            aria-label={selectRowLabel.replace('{n}', String(displayIndex))}
             className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 accent-blue-600"
           />
         )}
@@ -1421,10 +1423,11 @@ export function CSTXTable({
           />
         ) : useCards ? (
           <div className={cn('flex flex-col', compact ? 'gap-1.5 p-2' : 'gap-2 p-3')}>
-            {table.getRowModel().rows.map((row) => (
+            {table.getRowModel().rows.map((row, index) => (
               <RecordCard
                 key={row.id}
                 row={row}
+                displayIndex={index + 1}
                 columns={visibleColumns}
                 primaryKey={primaryKey}
                 renderers={cellRenderers}
@@ -1435,7 +1438,7 @@ export function CSTXTable({
                 typeColorMap={typeColorMap}
                 rowActions={effectiveRowActions}
                 onAction={onAction}
-                selectRowLabel={tr('selectRow', 'Select row')}
+                selectRowLabel={tr('selectRow', 'Select row {n}')}
                 isActive={activeRowId === row.id}
                 onCardClick={() => {
                   if (enableRowSelection) row.toggleSelected();

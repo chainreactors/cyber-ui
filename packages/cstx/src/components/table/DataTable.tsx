@@ -267,7 +267,7 @@ async function writeClipboard(text: string): Promise<boolean> {
   return ok;
 }
 
-function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: string) => void }) {
+function CellCopyButton({ value, onCopy, copyLabel, copiedLabel }: { value: unknown; onCopy: (text: string) => void; copyLabel: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
   const text = value != null ? String(value) : '';
   if (!text) return null;
@@ -300,14 +300,14 @@ function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: stri
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      title={copied ? '已复制' : '复制'}
+      title={copied ? copiedLabel : copyLabel}
     >
       {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
 
-function CellOpenLinkButton({ href }: { href: string | null }) {
+function CellOpenLinkButton({ href, openLabel }: { href: string | null; openLabel: string }) {
   if (!href) return null;
 
   return (
@@ -318,8 +318,8 @@ function CellOpenLinkButton({ href }: { href: string | null }) {
         event.stopPropagation();
         window.open(href, '_blank', 'noopener,noreferrer');
       }}
-      title="打开链接"
-      aria-label="打开链接"
+      title={openLabel}
+      aria-label={openLabel}
     >
       <ExternalLink className="h-3 w-3" />
     </button>
@@ -1549,8 +1549,10 @@ export function CSTXTable({
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           {!isSystemCol && (
                             <>
-                              <CellOpenLinkButton href={externalHref} />
+                              <CellOpenLinkButton href={externalHref} openLabel={tr('openLink', 'Open link')} />
                               <CellCopyButton
+                                copyLabel={tr('copyCell', 'Copy')}
+                                copiedLabel={tr('copiedCell', 'Copied')}
                                 value={cell.getValue()}
                                 onCopy={(text) => {
                                   onAction?.('cellClick', {

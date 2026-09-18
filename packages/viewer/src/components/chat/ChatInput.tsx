@@ -350,7 +350,11 @@ export default function ChatInput({
       setActiveOptionIndex((index) => (index + delta + simpleOptions.length) % simpleOptions.length)
       return
     }
-    if (simplePopupKind && e.key === 'Enter' && !e.shiftKey) {
+    // Only take Enter for the popup when there is something to insert. A draft
+    // like `/context` that matches no command still opens the popup (it shows
+    // "No matching suggestions"), and swallowing Enter there leaves the operator
+    // with a dead key and no way to send the line but Escape.
+    if (simplePopupKind && simpleOptions.length > 0 && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       const option = simpleOptions[activeOptionIndex] ?? simpleOptions[0]
       if (option) {

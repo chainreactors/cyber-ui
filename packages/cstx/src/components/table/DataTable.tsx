@@ -824,7 +824,23 @@ export function CSTXTable({
   );
 
   const searchHistory = useSearchHistory(searchHistoryKey || '__unused__');
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
+  // Dialog pickers can own selection so it survives closing, paging and imports.
+  const controlledRowSelection = config.rowSelection as RowSelectionState | undefined;
+  const rowSelection = controlledRowSelection ?? internalRowSelection;
+  const setRowSelection = (update: React.SetStateAction<RowSelectionState>) => {
+    if (controlledRowSelection === undefined) {
+      setInternalRowSelection(update);
+      return;
+    }
+    const next = typeof update === 'function' ? update(rowSelection) : update;
+    const selectedIds = Object.keys(next).filter((id) => next[id]);
+    onAction?.('selection-change', {
+      count: selectedIds.length,
+      selectedIds,
+      selectedRows: rawRows.filter((row, index) => next[resolveRowId(row, rowIdKey, index)]),
+    });
+  };
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
 
@@ -1190,7 +1206,9 @@ export function CSTXTable({
   const selectedCount = selectedRows.length;
   const selectedOriginalRows = selectedRows.map((row) => row.original);
   useEffect(() => {
-    onAction?.('selection-change', { count: selectedCount, selectedRows: selectedOriginalRows });
+    if (controlledRowSelection === undefined) {
+      onAction?.('selection-change', { count: selectedCount, selectedRows: selectedOriginalRows });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowSelection]);
   const batchActions = config.batchActions as TableActionConfig[] | undefined;

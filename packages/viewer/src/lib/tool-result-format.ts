@@ -107,6 +107,36 @@ function pathResultFormat(toolArgs: string, result: string): ToolResultFormat | 
   return language ? { kind: 'code', language } : undefined
 }
 
+/** Code samples often outscore their surrounding report in highlight.js.
+ * Prefer an explicit body label, or a heading with another Markdown block.
+ * A lone heading is ambiguous with shell/Python comments; fenced code cannot
+ * contribute headings, lists or body labels to the surrounding document. */
+function hasMarkdownStructure(result: string): boolean {
+  let heading = false
+  let otherBlock = false
+  let fence: string | undefined
+  for (const line of result.split(/\r?\n/)) {
+    if (fence) {
+      const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line)?.[1]
+      if (close && close[0] === fence[0] && close.length >= fence.length) fence = undefined
+      continue
+    }
+    const open = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1]
+    if (open) {
+      fence = open
+      otherBlock = true
+      continue
+    }
+    if (/^ {0,3}Markdown body:[ \t]*$/i.test(line)) return true
+    if (/^ {0,3}#{1,6}[ \t]+\S/.test(line)) heading = true
+    if (/^ {0,3}(?:[-*+]|\d+[.)])[ \t]+\S/.test(line)
+      || /^ {0,3}\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)+\|?[ \t]*$/.test(line)) {
+      otherBlock = true
+    }
+  }
+  return heading && otherBlock
+}
+
 function autoDetectedResultFormat(result: string): ToolResultFormat | undefined {
   const trimmed = result.trim()
   if (!trimmed || trimmed.length < 12) return undefined
@@ -128,5 +158,8 @@ function autoDetectedResultFormat(result: string): ToolResultFormat | undefined 
 export function resolveToolResultFormat(toolArgs: string, result: string): ToolResultFormat {
   const jsonCode = formattedJson(result)
   if (jsonCode !== undefined) return { kind: 'code', language: 'json', code: jsonCode }
-  return pathResultFormat(toolArgs, result) ?? autoDetectedResultFormat(result) ?? { kind: 'text' }
+  const pathFormat = pathResultFormat(toolArgs, result)
+  if (pathFormat) return pathFormat
+  if (hasMarkdownStructure(result)) return { kind: 'markdown' }
+  return autoDetectedResultFormat(result) ?? { kind: 'text' }
 }

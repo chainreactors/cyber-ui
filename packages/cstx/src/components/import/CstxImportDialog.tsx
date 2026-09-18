@@ -357,9 +357,10 @@ export function CstxImportDialog({
                           value={entry.artifactType}
                           onValueChange={(v) => updateFile(entry.id, { artifactType: v })}
                           disabled={
-                            entry.frontendGuess === 'snapshot' ||
-                            entry.frontendGuess === 'bundle' ||
-                            entry.frontendGuess === 'archive'
+                            entry.artifactType.trim() !== '' &&
+                            (entry.frontendGuess === 'snapshot' ||
+                              entry.frontendGuess === 'bundle' ||
+                              entry.frontendGuess === 'archive')
                           }
                         >
                           <SelectTrigger className="h-9 text-xs">

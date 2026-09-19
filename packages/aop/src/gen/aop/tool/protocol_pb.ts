@@ -81,8 +81,8 @@ export const ProgressSchema: GenMessage<Progress> = /*@__PURE__*/
   messageDesc(file_aop_tool_protocol, 1);
 
 /**
- * Artifact carries one scanner-native structured record. Nodes remain thin:
- * only the server normalizes these records into canonical SCO documents.
+ * Artifact carries one scanner-native structured record. Consumers normalize
+ * these records through the CSTX ABI without introducing another wire shape.
  *
  * @generated from message aop.tool.Artifact
  */

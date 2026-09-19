@@ -7,6 +7,8 @@ export interface ExportButtonProps {
   compact?: boolean;
   onExport: (format: 'xlsx' | 'csv' | 'report') => void;
   formats?: string[];
+  /** Localized format labels, keyed by format. Falls back to English. */
+  labels?: Record<string, string>;
 }
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -15,7 +17,11 @@ const FORMAT_LABELS: Record<string, string> = {
   report: 'Generate Report',
 };
 
-export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'] }: ExportButtonProps) {
+function formatLabel(labels: Record<string, string> | undefined, format: string): string {
+  return labels?.[format] ?? FORMAT_LABELS[format] ?? format;
+}
+
+export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'], labels }: ExportButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -35,7 +41,7 @@ export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'] }: E
         )}
       >
         <Download className="h-3.5 w-3.5" />
-        {FORMAT_LABELS[formats[0]] ?? 'Export'}
+        {formatLabel(labels, formats[0])}
       </button>
     );
   }
@@ -66,7 +72,7 @@ export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'] }: E
                 onClick={() => { onExport(fmt as 'xlsx' | 'csv' | 'report'); setOpen(false); }}
                 className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-[var(--c-fg,#334155)] hover:bg-[var(--c-surface-2,#f8fafc)] dark:text-[var(--c-fg,#cbd5e1)] dark:hover:bg-[var(--c-surface-2,#1e293b)]"
               >
-                {FORMAT_LABELS[fmt] ?? fmt}
+                {formatLabel(labels, fmt)}
               </button>
             ))}
           </div>

@@ -13,7 +13,6 @@ import { ProtocolMessageSchema as FileSchema, type ProtocolMessage as FileMessag
 import { ProtocolMessageSchema as ExecSchema, type ProtocolMessage as ExecMessage } from './gen/aop/exec/protocol_pb.js'
 import { ProtocolMessageSchema as PtySchema, type ProtocolMessage as PtyMessage } from './gen/aop/pty/protocol_pb.js'
 import { ProtocolMessageSchema as ToolSchema, type ProtocolMessage as ToolMessage } from './gen/aop/tool/protocol_pb.js'
-import { ProtocolMessageSchema as SCOSchema, type ProtocolMessage as SCOMessage } from './gen/aop/sco/protocol_pb.js'
 
 export type AOPPayload = Message
 
@@ -27,7 +26,7 @@ type Subscription = {
   resume?: (cursor: string) => Message
 }
 
-const officialSchemas = [CoreSchema, FileSchema, ExecSchema, PtySchema, ToolSchema, SCOSchema] as const
+const officialSchemas = [CoreSchema, FileSchema, ExecSchema, PtySchema, ToolSchema] as const
 
 export class AOPClient {
   private socket?: WebSocket

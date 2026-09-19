@@ -111,6 +111,11 @@ export function inferRawFormat(filename: string): string {
 }
 
 export function requiresArtifactType(entry: ImportFileEntry): boolean {
+  // An empty producer is rejected by the importer, so a row that resolved to no
+  // artifact type needs one no matter how well the analyzer recognized the
+  // payload — a snapshot or bundle whose filename matched no artifact ends up
+  // here with nothing selected.
+  if (entry.artifactType.trim() === '') return true
   return (
     entry.frontendGuess === 'unknown' ||
     entry.frontendGuess === 'conflict' ||

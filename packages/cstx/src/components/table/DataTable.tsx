@@ -178,7 +178,7 @@ function asHttpUrl(value: unknown): string | null {
   }
 }
 
-function RowControlHeader({ table }: { table: ReturnType<typeof useReactTable<Row>> }) {
+function RowControlHeader({ table, label }: { table: ReturnType<typeof useReactTable<Row>>; label: string }) {
   const selectableRows = table.getFilteredRowModel().rows;
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const allSelected = selectableRows.length > 0 && selectedRows.length === selectableRows.length;
@@ -191,7 +191,7 @@ function RowControlHeader({ table }: { table: ReturnType<typeof useReactTable<Ro
           if (el) el.indeterminate = someSelected;
         }}
         type="checkbox"
-        aria-label="Select all filtered rows"
+        aria-label={label}
         checked={allSelected}
         onChange={(e) => {
           const checked = e.target.checked;
@@ -204,9 +204,10 @@ function RowControlHeader({ table }: { table: ReturnType<typeof useReactTable<Ro
   );
 }
 
-function RowControlCell({ row, table }: {
+function RowControlCell({ row, table, label }: {
   row: ReturnType<ReturnType<typeof useReactTable<Row>>['getRowModel']>['rows'][number];
   table: ReturnType<typeof useReactTable<Row>>;
+  label: string;
 }) {
   const orderedRows = table.getSortedRowModel().rows;
   const orderedIndex = orderedRows.findIndex((candidate) => candidate.id === row.id);
@@ -219,7 +220,7 @@ function RowControlCell({ row, table }: {
         checked={row.getIsSelected()}
         onChange={row.getToggleSelectedHandler()}
         onClick={(e) => e.stopPropagation()}
-        aria-label={`Select row ${displayIndex}`}
+        aria-label={label.replace('{n}', String(displayIndex))}
         className="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
       />
       <span className="w-8 text-right text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
@@ -266,7 +267,7 @@ async function writeClipboard(text: string): Promise<boolean> {
   return ok;
 }
 
-function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: string) => void }) {
+function CellCopyButton({ value, onCopy, copyLabel, copiedLabel }: { value: unknown; onCopy: (text: string) => void; copyLabel: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
   const text = value != null ? String(value) : '';
   if (!text) return null;
@@ -299,14 +300,14 @@ function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: stri
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      title={copied ? '已复制' : '复制'}
+      title={copied ? copiedLabel : copyLabel}
     >
       {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
 
-function CellOpenLinkButton({ href }: { href: string | null }) {
+function CellOpenLinkButton({ href, openLabel }: { href: string | null; openLabel: string }) {
   if (!href) return null;
 
   return (
@@ -317,8 +318,8 @@ function CellOpenLinkButton({ href }: { href: string | null }) {
         event.stopPropagation();
         window.open(href, '_blank', 'noopener,noreferrer');
       }}
-      title="打开链接"
-      aria-label="打开链接"
+      title={openLabel}
+      aria-label={openLabel}
     >
       <ExternalLink className="h-3 w-3" />
     </button>
@@ -442,15 +443,19 @@ function buildColumns(
     rowActions?: TableActionConfig[];
     rowIdKey?: string;
     onAction?: (action: string, payload?: Record<string, unknown>) => void;
+    selectAllLabel?: string;
+    selectRowLabel?: string;
   },
 ): ColumnDef<Row>[] {
   const cols: ColumnDef<Row>[] = [];
 
   if (options?.enableRowSelection) {
+    const selectAllLabel = options.selectAllLabel ?? 'Select all filtered rows'
+    const selectRowLabel = options.selectRowLabel ?? 'Select row {n}'
     cols.push({
       id: '__row_control',
-      header: ({ table }) => <RowControlHeader table={table} />,
-      cell: ({ row, table }) => <RowControlCell row={row} table={table} />,
+      header: ({ table }) => <RowControlHeader table={table} label={selectAllLabel} />,
+      cell: ({ row, table }) => <RowControlCell row={row} table={table} label={selectRowLabel} />,
       size: 72,
       meta: { fixed: true },
     });
@@ -589,6 +594,8 @@ function RecordCard({
   onAction,
   isActive,
   onCardClick,
+  displayIndex,
+  selectRowLabel = 'Select row {n}',
 }: {
   row: TableRow;
   columns: ColumnConfig[];
@@ -603,6 +610,8 @@ function RecordCard({
   onAction?: (action: string, payload?: Record<string, unknown>) => void;
   isActive: boolean;
   onCardClick: () => void;
+  displayIndex: number;
+  selectRowLabel?: string;
 }): React.JSX.Element {
   const data = row.original;
   const primaryCol = primaryKey ? columns.find((c) => c.key === primaryKey) : columns[0];
@@ -640,7 +649,7 @@ function RecordCard({
             checked={selected}
             onChange={row.getToggleSelectedHandler()}
             onClick={(e) => e.stopPropagation()}
-            aria-label="Select row"
+            aria-label={selectRowLabel.replace('{n}', String(displayIndex))}
             className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 accent-blue-600"
           />
         )}
@@ -946,8 +955,10 @@ export function CSTXTable({
       rowActions: effectiveRowActions,
       rowIdKey,
       onAction,
+      selectAllLabel: tr('selectAllRows', 'Select all filtered rows'),
+      selectRowLabel: tr('selectRow', 'Select row {n}'),
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, diffMode, diffField, effectiveRowActions, rowIdKey, onAction, tr],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
@@ -1207,8 +1218,8 @@ export function CSTXTable({
               onSubmit={handleSearchSubmit}
               placeholder={
                 enableFieldSearch
-                  ? 'Search... (type:domain value~example)'
-                  : `Search${title ? ' ' + title.toLowerCase() : ''}...`
+                  ? tr('searchField', 'Search... (type:domain value~example)')
+                  : tr('search', `Search${title ? ' ' + title.toLowerCase() : ''}...`)
               }
               compact
               className="w-full"
@@ -1309,7 +1320,16 @@ export function CSTXTable({
             />
           )}
           {showExportButton && (
-            <ExportButton compact onExport={handleExport} formats={exportFormats} />
+            <ExportButton
+              compact
+              onExport={handleExport}
+              formats={exportFormats}
+              labels={{
+                xlsx: tr('exportXlsx', 'Export XLSX'),
+                csv: tr('exportCsv', 'Export CSV'),
+                report: tr('exportReport', 'Generate Report'),
+              }}
+            />
           )}
         </div>
       </div>
@@ -1403,10 +1423,11 @@ export function CSTXTable({
           />
         ) : useCards ? (
           <div className={cn('flex flex-col', compact ? 'gap-1.5 p-2' : 'gap-2 p-3')}>
-            {table.getRowModel().rows.map((row) => (
+            {table.getRowModel().rows.map((row, index) => (
               <RecordCard
                 key={row.id}
                 row={row}
+                displayIndex={index + 1}
                 columns={visibleColumns}
                 primaryKey={primaryKey}
                 renderers={cellRenderers}
@@ -1417,6 +1438,7 @@ export function CSTXTable({
                 typeColorMap={typeColorMap}
                 rowActions={effectiveRowActions}
                 onAction={onAction}
+                selectRowLabel={tr('selectRow', 'Select row {n}')}
                 isActive={activeRowId === row.id}
                 onCardClick={() => {
                   if (enableRowSelection) row.toggleSelected();
@@ -1527,8 +1549,10 @@ export function CSTXTable({
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           {!isSystemCol && (
                             <>
-                              <CellOpenLinkButton href={externalHref} />
+                              <CellOpenLinkButton href={externalHref} openLabel={tr('openLink', 'Open link')} />
                               <CellCopyButton
+                                copyLabel={tr('copyCell', 'Copy')}
+                                copiedLabel={tr('copiedCell', 'Copied')}
                                 value={cell.getValue()}
                                 onCopy={(text) => {
                                   onAction?.('cellClick', {

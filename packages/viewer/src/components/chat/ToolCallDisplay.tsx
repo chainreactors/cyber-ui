@@ -92,6 +92,23 @@ function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: str
   )
 }
 
+/** Host-supplied strings, so this package stays free of i18n dependencies. */
+export interface ToolCallLabels {
+  arguments: string
+  result: string
+  failed: string
+  running: string
+  completed: string
+}
+
+const DEFAULT_LABELS: ToolCallLabels = {
+  arguments: 'Arguments',
+  result: 'Result',
+  failed: 'failed',
+  running: 'running',
+  completed: 'completed',
+}
+
 export interface ToolCallDisplayProps {
   toolName: string
   toolArgs?: string
@@ -100,6 +117,7 @@ export interface ToolCallDisplayProps {
   error?: boolean
   defaultExpanded?: boolean
   className?: string
+  labels?: Partial<ToolCallLabels>
 }
 
 export default function ToolCallDisplay({
@@ -110,11 +128,13 @@ export default function ToolCallDisplay({
   error = false,
   defaultExpanded = false,
   className,
+  labels,
 }: ToolCallDisplayProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const summary = summarizeArgs(toolArgs)
   const formattedArgs = formatArgs(toolArgs)
   const displayResult = result === undefined ? undefined : stripAnsiControl(result)
+  const l = { ...DEFAULT_LABELS, ...labels }
 
   return (
     <div
@@ -142,7 +162,7 @@ export default function ToolCallDisplay({
           className="min-w-0 flex-1 truncate font-mono text-muted-foreground"
           title={summary || formattedArgs}
         >
-          {summary || (error ? 'failed' : pending ? 'running' : 'completed')}
+          {summary || (error ? l.failed : pending ? l.running : l.completed)}
         </span>
         {error ? (
           <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
@@ -169,7 +189,7 @@ export default function ToolCallDisplay({
             {toolArgs && (
               <div className="bg-card px-3 py-2">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Arguments
+                  {l.arguments}
                 </div>
                 <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
                   {formattedArgs}
@@ -179,7 +199,7 @@ export default function ToolCallDisplay({
             {displayResult !== undefined && (
               <div className="border-t border-border px-3 py-2">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Result
+                  {l.result}
                 </div>
                 <ToolResultContent result={displayResult} toolArgs={toolArgs} />
               </div>

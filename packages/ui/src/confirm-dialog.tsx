@@ -7,6 +7,7 @@ export interface ConfirmOptions {
   description?: ReactNode
   confirmLabel?: string
   cancelLabel?: string
+  closeLabel?: string
   /** Style the confirm button as destructive (red) and keep initial focus off it. */
   destructive?: boolean
 }
@@ -21,12 +22,14 @@ export interface ConfirmLabels {
   title?: string
   confirm?: string
   cancel?: string
+  close?: string
 }
 
 const DEFAULT_LABELS: Required<ConfirmLabels> = {
   title: 'Please confirm',
   confirm: 'Confirm',
   cancel: 'Cancel',
+  close: 'Close',
 }
 
 type ConfirmFn = (opts?: ConfirmOptions) => Promise<boolean>
@@ -67,7 +70,7 @@ export function ConfirmProvider({ children, labels }: { children: ReactNode; lab
     <ConfirmContext.Provider value={confirm}>
       {children}
       <Dialog open={open} onOpenChange={(next) => { if (!next) settle(false) }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" closeLabel={opts.closeLabel || l.close}>
           <DialogHeader>
             <DialogTitle>{opts.title || l.title}</DialogTitle>
             {opts.description != null && (

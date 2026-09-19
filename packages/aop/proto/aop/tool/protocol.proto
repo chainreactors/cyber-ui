@@ -22,8 +22,8 @@ message Progress {
   string call_id = 7;
 }
 
-// Artifact carries one scanner-native structured record. Nodes remain thin:
-// only the server normalizes these records into canonical SCO documents.
+// Artifact carries one scanner-native structured record. Consumers normalize
+// these records through the CSTX ABI without introducing another wire shape.
 message Artifact {
   string tool = 1;
   string kind = 2;

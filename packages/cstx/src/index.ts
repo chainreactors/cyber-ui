@@ -12,6 +12,10 @@ export {
 } from './lib/fieldPath';
 export type { FieldPath } from './lib/fieldPath';
 
+// Browser normalization runtime backed by the CSTX WASM ABI
+export { CSTXArtifactNormalizer } from './artifactRuntime';
+export type { ArtifactInput, ArtifactResult, CanonicalSCONode } from './artifactRuntime';
+
 export type {
   JsonPrimitive,
   JsonValue,

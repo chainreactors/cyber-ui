@@ -33,13 +33,11 @@ export {
   type Session as PtySession,
 } from './gen/aop/pty/protocol_pb.js'
 export {
+  ArtifactSchema,
   ProtocolMessageSchema as ToolProtocolMessageSchema,
+  type Artifact,
   type ProtocolMessage as ToolProtocolMessage,
 } from './gen/aop/tool/protocol_pb.js'
-export {
-  ProtocolMessageSchema as SCOProtocolMessageSchema,
-  type ProtocolMessage as SCOProtocolMessage,
-} from './gen/aop/sco/protocol_pb.js'
 export {
   CaptureMode,
   FlowSchema as TrafficFlowSchema,

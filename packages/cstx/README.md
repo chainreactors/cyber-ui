@@ -29,6 +29,10 @@ CSTX 协议对齐的核心数据结构：
 
 ## 运行时
 
+- `CSTXArtifactNormalizer` - 浏览器端 CSTX ABI v0.5.0 WASM runtime，负责 artifact 的 parse、merge、link 和规范化节点输出
+- `supportedArtifacts()` - 从 WASM 扩展目录读取已启用 parser 支持的 artifact 类型
+- `hydrate()` - 将服务端已持久化的规范化节点装入 graph，使后续 artifact 延续同一 merge 语义
+
 - 图组件直接消费 `CSTXNode` / `CSTXEdge`，使用 `source_id`、`target_id`、`relation_type` 和嵌套的 `model` / `extras`
 - 显示名称通过 `getCSTXNodeLabel()` 计算，不复制或展开节点数据
 - `getFieldValue()` 通过明确路径读取原始记录，例如 `model.title`、`extras.task_id`、`attrs.port`

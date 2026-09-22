@@ -128,6 +128,11 @@ export function FileToolbar({
   const historyListId = useId()
   const [recentPaths, setRecentPaths] = useState<string[]>([])
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [refreshTurning, setRefreshTurning] = useState(refreshing)
+
+  useEffect(() => {
+    if (refreshing) setRefreshTurning(true)
+  }, [refreshing])
 
   useEffect(() => {
     if (!currentPath || typeof window === 'undefined') return
@@ -189,8 +194,15 @@ export function FileToolbar({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={() => { void handleRefresh() }} disabled={refreshing} aria-label={t('refresh')}>
-              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+            <Button size="sm" variant="ghost" onClick={() => { setRefreshTurning(true); void handleRefresh() }} disabled={refreshing || refreshTurning} aria-busy={refreshing || refreshTurning} aria-label={t('refresh')}>
+              <RefreshCw
+                className={cn("w-4 h-4", refreshTurning && "animate-spin [animation-duration:600ms]")}
+                onAnimationIteration={() => { if (!refreshing) setRefreshTurning(false) }}
+                // Reduced-motion styles use a single brief turn, which ends
+                // instead of firing an iteration. The request still owns busy.
+                onAnimationEnd={() => setRefreshTurning(false)}
+                aria-hidden="true"
+              />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6} className="bg-popover text-popover-foreground [&>svg]:hidden">{t('refresh')}</TooltipContent>

@@ -9,7 +9,7 @@ import type { ChatInputProps } from './ChatInput'
 import ChatInputComponent from './ChatInput'
 import type { MessageBubbleVariant } from './MessageBubble'
 import MessageBubble from './MessageBubble'
-import AssistantResponse from './AssistantResponse'
+import AssistantResponse, { type AssistantResponseProps } from './AssistantResponse'
 import ChatThinking from './ChatThinking'
 import ToolCallDisplay from './ToolCallDisplay'
 
@@ -72,6 +72,8 @@ function ChatPanelErrorBar({ children, className }: ChatPanelErrorBarProps) {
  * to that from outside. Anything not consumed below is spread onto the scroller.
  */
 export interface ChatPanelTimelineProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Host-localized labels for the built-in assistant response renderer. */
+  assistantLabels?: AssistantResponseProps['labels']
   className?: string
   contentClassName?: string
   /** Responsive grid columns for mark / content / side-note rails. */
@@ -94,7 +96,7 @@ export interface ChatPanelTimelineProps extends React.HTMLAttributes<HTMLDivElem
 }
 
 function ChatPanelTimeline({
-  className, contentClassName, railLayoutClassName, emptyState, renderItem, autoScroll = true,
+  assistantLabels, className, contentClassName, railLayoutClassName, emptyState, renderItem, autoScroll = true,
   renderMark, renderSideNote, stickyScroll, memoItems,
   scrollResetKey, scrollBehavior = 'smooth',
   ...scrollerProps
@@ -168,8 +170,8 @@ function ChatPanelTimeline({
   const renderOne = useCallback((item: TimelineItem) => {
     const custom = renderItem?.(item)
     if (custom !== undefined && custom !== null) return custom
-    return renderTimelineItem(item, domainContext, overrides, variant)
-  }, [renderItem, domainContext, overrides, variant])
+    return renderTimelineItem(item, domainContext, overrides, variant, assistantLabels)
+  }, [renderItem, domainContext, overrides, variant, assistantLabels])
 
   const ItemWrapper = memoItems ? MemoTimelineEntry : PassthroughEntry
 
@@ -242,6 +244,7 @@ function renderTimelineItem(
   context: Record<string, unknown>,
   overrides: BuiltinRendererOverride,
   variant: MessageBubbleVariant,
+  assistantLabels?: AssistantResponseProps['labels'],
 ): React.ReactNode {
   switch (item.kind) {
     case 'message': {
@@ -275,7 +278,7 @@ function renderTimelineItem(
           response={item.response ? <MarkdownContent content={item.response.content} /> : undefined}
           streaming={item.streaming}
           showResponseLabel={false}
-          labels={{ tools: `${item.tools.length} ${item.tools.length === 1 ? 'Tool' : 'Tools'}` }}
+          labels={{ tools: `${item.tools.length} ${item.tools.length === 1 ? 'Tool' : 'Tools'}`, ...assistantLabels }}
           // A host that replaced the tool-call renderer meant *tool calls*, not
           // "tool calls that happen to arrive on their own": the same override
           // has to reach the ones nested in a response, or half the transcript

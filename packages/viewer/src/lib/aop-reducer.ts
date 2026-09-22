@@ -9,6 +9,8 @@ import type {
 export interface ReduceAOPOptions {
   streaming?: boolean
   lifecycle?: 'all' | 'errors' | 'none'
+  /** Host-owned status events that separate assistant work into new cards. */
+  responseBoundary?: (event: Event) => boolean
 }
 
 const decoder = new TextDecoder()
@@ -83,6 +85,7 @@ export function reduceAOPToTimeline(
   const responses = new Map<string, AssistantResponseTimelineItem>()
   const responseByMessage = new Map<string, AssistantResponseTimelineItem>()
   const responseByTool = new Map<string, AssistantResponseTimelineItem>()
+  const messageParts = new Map<string, { response: AssistantResponseTimelineItem; text: string; thinking: string }>()
   const lifecycle = options.lifecycle ?? 'all'
 
   const streamKey = (event: Event) => `${event.sessionId}:${event.emitter}`
@@ -95,7 +98,7 @@ export function reduceAOPToTimeline(
     const current = responses.get(key)
     if (current) return current
     const response: AssistantResponseTimelineItem = {
-      id: responseID(event),
+      id: `${responseID(event)}:${event.id || event.seq}`,
       kind: 'assistant_response',
       timestamp: timestamp(event),
       actorName: event.emitter,
@@ -118,11 +121,36 @@ export function reduceAOPToTimeline(
     else response.tools.push(tool)
   }
 
+  const updateMessage = (key: string, response: AssistantResponseTimelineItem, text: string, thinking: string, delta = false) => {
+    const previous = messageParts.get(key)
+    messageParts.set(key, {
+      response,
+      text: delta ? (previous?.text ?? '') + text : text,
+      thinking: delta ? (previous?.thinking ?? '') + thinking : thinking,
+    })
+    const parts = [...messageParts.values()].filter(part => part.response === response)
+    response.thinking = parts.map(part => part.thinking).filter(Boolean).join('\n\n')
+    response.response = {
+      ...response.response,
+      content: parts.map(part => part.text).filter(Boolean).join('\n\n'),
+    }
+  }
+
   events.forEach((event, index) => {
     if (!event.sessionId || !event.payload.case) return
     const unique = eventKey(event, index)
     if (seen.has(unique)) return
     seen.add(unique)
+
+    if (options.responseBoundary?.(event)) {
+      // Compaction can be session-scoped; evaluation can be turn-scoped.
+      for (const [key, response] of responses) {
+        if (event.turnId ? key === scope(event) : key.startsWith(`${streamKey(event)}:`)) {
+          response.streaming = false
+          responses.delete(key)
+        }
+      }
+    }
 
     switch (event.payload.case) {
       case 'sessionStarted':
@@ -170,11 +198,9 @@ export function reduceAOPToTimeline(
         const response = responseByMessage.get(key) ?? ensureResponse(event)
         responseByMessage.set(key, response)
         response.streaming = true
-        if (delta.value.case === 'reasoning') response.thinking = `${response.thinking ?? ''}${delta.value.value}`
-        else if (delta.value.case === 'text') response.response = {
-          ...response.response,
-          content: `${response.response?.content ?? ''}${delta.value.value}`,
-        }
+        updateMessage(key, response,
+          delta.value.case === 'text' ? delta.value.value : '',
+          delta.value.case === 'reasoning' ? delta.value.value : '', true)
         break
       }
 
@@ -190,15 +216,7 @@ export function reduceAOPToTimeline(
           // A complete message replaces its own deltas, but a later assistant
           // message in the same turn is another step and must not erase the
           // earlier one.
-          if (reasoning) response.thinking = existing
-            ? reasoning
-            : joinMessageText(response.thinking, reasoning)
-          if (text) response.response = {
-            ...response.response,
-            content: existing
-              ? text
-              : joinMessageText(response.response?.content, text),
-          }
+          updateMessage(key, response, text, reasoning)
           response.streaming = false
           break
         }
@@ -265,10 +283,8 @@ export function reduceAOPToTimeline(
     }
   })
 
-  if (!options.streaming) for (const response of responses.values()) response.streaming = false
+  if (!options.streaming) for (const item of items) {
+    if (item.kind === 'assistant_response') item.streaming = false
+  }
   return items
-}
-
-function joinMessageText(current: string | undefined, next: string): string {
-  return current ? `${current}\n\n${next}` : next
 }

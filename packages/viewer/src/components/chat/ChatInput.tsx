@@ -65,7 +65,7 @@ export interface PopupNavigationCommand {
 }
 
 export interface ChatInputProps {
-  onSend: (content: string, attachments?: ChatAttachment[]) => void
+  onSend: (content: string, attachments?: ChatAttachment[]) => void | boolean | Promise<void | boolean>
   onPause?: () => void
   busy?: boolean
   disabled?: boolean
@@ -241,15 +241,14 @@ export default function ChatInput({
   // Guards the injectText effect: only fire when the nonce actually advances,
   // so a StrictMode double-invoke or an unrelated re-render can't re-append.
   const lastInjectRef = useRef(0)
-  // Coalesce a byte-identical resend fired within a frame of the previous one.
-  // The CJK-IME confirm Enter can invoke handleSend twice off a single keypress
-  // (see handleKeyDown); both calls close over the same not-yet-cleared draft and
-  // would post the message — and start an agent run — twice. This backstops the
-  // isComposing/keyCode 229 guard, which some engines don't report on that keydown.
-  const lastSendRef = useRef({ sig: '', at: 0 })
+  const sendingRef = useRef(false)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const revisionRef = useRef({ text: draft, version: 0 })
+  if (revisionRef.current.text !== draft) revisionRef.current = { text: draft, version: revisionRef.current.version + 1 }
 
   const hasContent = draft.trim().length > 0 || attachments.length > 0
-  const canSend = hasContent && !disabled
+  const canSend = hasContent && !disabled && !sending
   const canPause = !!busy && !disabled && !!onPause
   const matchingMentions = mention && mentionables.length > 0
     ? mentionables.filter((m) => m.target.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 8)
@@ -313,20 +312,26 @@ export default function ChatInput({
     setAttachments((prev) => prev.map((a, i) => i === index ? { ...a, mode: a.mode === 'context' ? 'upload' as const : 'context' as const } : a))
   }, [])
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = draft.trim()
-    if ((!text && attachments.length === 0) || disabled) return
-    const sig = JSON.stringify([text, attachments.length])
-    const now = Date.now()
-    if (sig === lastSendRef.current.sig && now - lastSendRef.current.at < 500) return
-    lastSendRef.current = { sig, at: now }
-    onSend(text, attachments.length > 0 ? attachments : undefined)
-    setDraft('')
-    setAttachments([])
-    setShowHints(false)
-    setShowToolHints(false)
-    setShowComposerHelp(false)
-    setMention(null)
+    if ((!text && attachments.length === 0) || disabled || sendingRef.current) return
+    sendingRef.current = true
+    setSending(true)
+    setSendError('')
+    const revision = revisionRef.current.version
+    const submitted = attachments
+    try {
+      const accepted = await onSend(text, attachments.length > 0 ? attachments : undefined)
+      if (accepted === false) return
+      if (revisionRef.current.version === revision) setDraft('')
+      setAttachments((current) => current.filter((item) => !submitted.includes(item)))
+      setShowHints(false)
+      setShowToolHints(false)
+      setShowComposerHelp(false)
+      setMention(null)
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : String(error))
+    } finally { sendingRef.current = false; setSending(false) }
   }, [draft, attachments, disabled, onSend])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -549,6 +554,7 @@ export default function ChatInput({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {sendError && <p role="alert" className="px-3 py-2 text-xs text-destructive">{sendError}</p>}
       {/* drag overlay */}
       {dragOver && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-primary/5">

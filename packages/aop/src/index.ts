@@ -34,6 +34,8 @@ export {
 } from './gen/aop/pty/protocol_pb.js'
 export {
   ArtifactSchema,
+  LootSchema,
+  type Loot,
   ProtocolMessageSchema as ToolProtocolMessageSchema,
   type Artifact,
   type ProtocolMessage as ToolProtocolMessage,

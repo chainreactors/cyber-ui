@@ -8,6 +8,10 @@ import { ThinkingDots } from './ChatThinking'
 import { AgentVoiceCard } from './AgentVoiceCard'
 
 export interface AssistantResponseProps {
+  /** Ordered inner steps, rendered inside the existing turn shell. */
+  children?: ReactNode
+  /** Render only a step's sections when its turn already owns the shell. */
+  embedded?: boolean
   actorName?: string | null
   timestamp?: string
   thinking?: ReactNode
@@ -31,6 +35,8 @@ export interface AssistantResponseProps {
 }
 
 export default function AssistantResponse({
+  children,
+  embedded = false,
   actorName,
   className,
   defaultThinkingExpanded = false,
@@ -58,7 +64,7 @@ export default function AssistantResponse({
   // the transcript's sticky scroll keeps it in view as it streams and once the
   // turn settles. (Tools above it stay collapsed, so they never push the report
   // off-screen.)
-  const cardInner = (
+  const cardInner = children ?? (
     <>
       {hasThinking && (
         <Collapsible
@@ -109,6 +115,8 @@ export default function AssistantResponse({
       )}
     </>
   )
+
+  if (embedded) return <div data-testid="assistant-response-segment">{cardInner}</div>
 
   if (variant === 'voice-card') {
     return (

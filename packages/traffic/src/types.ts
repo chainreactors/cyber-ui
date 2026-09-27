@@ -95,7 +95,7 @@ export interface MitmFlowLike {
   error?: { msg: string }
 }
 
-export interface EvidenceExchangeLike {
+export interface HttpExchangeLike {
   name?: string
   request?: {
     method?: string

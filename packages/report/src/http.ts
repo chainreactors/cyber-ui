@@ -1,5 +1,5 @@
 import type { TrafficHttpView } from '@cyber/traffic'
-import { evidenceExchangeToHttpView } from '@cyber/traffic'
+import { exchangeToHttpView } from '@cyber/traffic'
 
 /**
  * A report's HTTP evidence arrives as verbatim wire text, while the traffic
@@ -59,7 +59,7 @@ export function parseHttpExchange(
   const target = requestMatch[2]
   const url = host && !/^https?:\/\//i.test(target) ? `http://${host}${target}` : target
 
-  return evidenceExchangeToHttpView(
+  return exchangeToHttpView(
     {
       request: {
         method: requestMatch[1],

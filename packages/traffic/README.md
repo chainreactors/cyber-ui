@@ -14,7 +14,7 @@ HTTP 流量查看组件。提供 Burp 风格的请求/响应分栏视图、多�
 
 - `recordToHttpView(record)` — 扫描结果流量记录 → 视图模型
 - `flowToHttpView(flow)` — mitmproxy 实时 flow → 视图模型
-- `evidenceExchangeToHttpView(exchange)` — 证据交换记录 → 视图模型
+- `exchangeToHttpView(exchange)` — HTTP 交换记录 → 视图模型
 
 ## 工具函数
 
@@ -27,7 +27,7 @@ HTTP 流量查看组件。提供 Burp 风格的请求/响应分栏视图、多�
 ## 类型
 
 - `TrafficHttpView` — 统一 HTTP 流量视图模型
-- `TrafficRecordLike` / `MitmFlowLike` / `EvidenceExchangeLike` — 数据源接口
+- `TrafficRecordLike` / `MitmFlowLike` / `HttpExchangeLike` — 数据源接口
 - `TrafficHighlightSource` — 匹配高亮数据源
 - `HighlightRange` — 高亮区间
 

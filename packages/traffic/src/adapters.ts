@@ -1,4 +1,4 @@
-import type { EvidenceExchangeLike, MitmFlowLike, TrafficHttpView, TrafficRecordLike } from './types'
+import type { HttpExchangeLike, MitmFlowLike, TrafficHttpView, TrafficRecordLike } from './types'
 
 function resolveRequestTarget(url: string, fallbackPath: string): string {
   try {
@@ -86,7 +86,7 @@ function headerRecordToPairs(headers?: Record<string, string>): [string, string]
   return Object.entries(headers ?? {})
 }
 
-export function evidenceExchangeToHttpView(exchange: EvidenceExchangeLike, index = 0, url?: string): TrafficHttpView {
+export function exchangeToHttpView(exchange: HttpExchangeLike, index = 0, url?: string): TrafficHttpView {
   const requestTarget = exchange.request?.target || '/'
   const method = exchange.request?.method || 'GET'
   const status = exchange.response?.statusCode ?? 0

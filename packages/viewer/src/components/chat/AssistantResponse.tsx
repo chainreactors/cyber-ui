@@ -15,6 +15,8 @@ export interface AssistantResponseProps {
   onThinkingToggle?: (expanded: boolean) => void
   tools?: ReactNode
   response?: ReactNode
+  /** Optional host-owned annotation below the completed response. */
+  footer?: ReactNode
   streaming?: boolean
   defaultThinkingExpanded?: boolean
   className?: string
@@ -38,6 +40,7 @@ export default function AssistantResponse({
   labels,
   onThinkingToggle,
   response,
+  footer,
   showResponseLabel = true,
   streaming,
   thinking,
@@ -106,6 +109,11 @@ export default function AssistantResponse({
             <ThinkingDots className="py-1" />
           )}
         </Section>
+      )}
+      {hasContent(footer) && (
+        <div data-testid="assistant-response-footer" className="break-words px-3 pb-2 pt-1 text-xs leading-relaxed text-muted-foreground">
+          {footer}
+        </div>
       )}
     </>
   )

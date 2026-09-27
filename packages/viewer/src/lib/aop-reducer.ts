@@ -100,6 +100,8 @@ export function reduceAOPToTimeline(
     const response: AssistantResponseTimelineItem = {
       id: `${responseID(event)}:${event.id || event.seq}`,
       kind: 'assistant_response',
+      sessionId: event.sessionId,
+      turnId: event.turnId,
       timestamp: timestamp(event),
       actorName: event.emitter,
       tools: [],

@@ -29,6 +29,7 @@ type Subscription = {
 const officialSchemas = [CoreSchema, FileSchema, ExecSchema, PtySchema, ToolSchema] as const
 
 export class AOPClient {
+  private readonly connectionListeners = new Set<(connected: boolean) => void>()
   private socket?: WebSocket
   private connecting?: Promise<void>
   private closed = false
@@ -41,6 +42,13 @@ export class AOPClient {
 
   constructor(private readonly url = defaultAOPURL()) {
     for (const schema of officialSchemas) this.register(schema)
+  }
+
+  get connected(): boolean { return this.socket?.readyState === WebSocket.OPEN }
+
+  onConnectionChange(listener: (connected: boolean) => void): () => void {
+    this.connectionListeners.add(listener)
+    return () => { this.connectionListeners.delete(listener) }
   }
 
   register<Desc extends DescMessage>(schema: Desc): this {
@@ -60,6 +68,7 @@ export class AOPClient {
         this.socket = socket
         this.connecting = undefined
         this.reconnectDelay = 250
+        for (const listener of this.connectionListeners) listener(true)
         this.flush()
         for (const id of this.restoreSubscriptions) {
           const subscription = this.subscriptions.get(id)
@@ -85,10 +94,20 @@ export class AOPClient {
     return id
   }
 
-  request<Desc extends DescMessage>(schema: Desc, value: MessageShape<Desc>, options?: { id?: string }): Promise<AOPPayload> {
+  request<Desc extends DescMessage>(schema: Desc, value: MessageShape<Desc>, options?: { id?: string; timeoutMs?: number; requireConnected?: boolean }): Promise<AOPPayload> {
+    if (options?.requireConnected && !this.connected) return Promise.reject(new Error('AOP WebSocket is disconnected'))
     const id = options?.id || newID()
     return new Promise<AOPPayload>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject })
+      const timer = options?.timeoutMs ? setTimeout(() => {
+        this.pending.delete(id)
+        const index = this.outbound.findIndex(envelope => envelope.id === id)
+        if (index >= 0) this.outbound.splice(index, 1)
+        reject(new Error('AOP request timed out'))
+      }, options.timeoutMs) : undefined
+      this.pending.set(id, {
+        resolve: value => { clearTimeout(timer); resolve(value) },
+        reject: error => { clearTimeout(timer); reject(error) },
+      })
       this.write(this.envelope(id, schema, value))
     })
   }
@@ -124,6 +143,7 @@ export class AOPClient {
     this.connecting = undefined
     this.socket?.close()
     this.socket = undefined
+    for (const listener of this.connectionListeners) listener(false)
     const error = new Error('AOP client closed')
     for (const pending of this.pending.values()) pending.reject(error)
     this.pending.clear()
@@ -171,7 +191,10 @@ export class AOPClient {
 
   private disconnected(socket: WebSocket): void {
     const wasConnected = this.socket === socket
-    if (wasConnected) this.socket = undefined
+    if (wasConnected) {
+      this.socket = undefined
+      for (const listener of this.connectionListeners) listener(false)
+    }
     this.connecting = undefined
     if (wasConnected) {
       const queued = new Set(this.outbound.map((envelope) => envelope.id))

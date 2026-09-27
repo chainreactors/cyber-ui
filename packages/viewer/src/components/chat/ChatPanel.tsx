@@ -127,6 +127,8 @@ function ChatPanelTimeline({
 
   useEffect(() => () => {
     if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current)
+    // Strict Mode replays effects with the same refs after canceling this frame.
+    scrollFrameRef.current = null
   }, [])
 
   useLayoutEffect(() => {
@@ -144,11 +146,33 @@ function ChatPanelTimeline({
     if (!stickyScroll) return
     const el = scrollRef.current
     if (!el) return
+    let previousTop = el.scrollTop
+    let previousHeight = el.scrollHeight
+    let previousViewport = el.clientHeight
     const onScroll = () => {
-      stuckRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 40
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40
+      const resized = el.scrollHeight !== previousHeight || el.clientHeight !== previousViewport
+      // Collapsing an inline step can clamp scrollTop before the next step grows.
+      // Layout-driven scrolling must not opt out of following the conversation.
+      if (atBottom) stuckRef.current = true
+      else if (!resized && el.scrollTop < previousTop) stuckRef.current = false
+      previousTop = el.scrollTop
+      previousHeight = el.scrollHeight
+      previousViewport = el.clientHeight
+    }
+    const onExpand = (event: MouseEvent) => {
+      const trigger = event.target instanceof Element ? event.target.closest('summary, [aria-expanded="false"]') : null
+      if (!trigger) return
+      // Opening an older tool/review is a deliberate request to read it in place.
+      if (trigger.getAttribute('aria-expanded') === 'false'
+        || (trigger.tagName === 'SUMMARY' && !trigger.parentElement?.hasAttribute('open'))) stuckRef.current = false
     }
     el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
+    el.addEventListener('click', onExpand, true)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('click', onExpand, true)
+    }
   }, [stickyScroll])
 
   useEffect(() => {

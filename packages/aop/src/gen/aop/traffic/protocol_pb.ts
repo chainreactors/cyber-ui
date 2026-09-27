@@ -6,13 +6,15 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Ref } from "../operation/protocol_pb.js";
+import { file_aop_operation_protocol } from "../operation/protocol_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file aop/traffic/protocol.proto.
  */
 export const file_aop_traffic_protocol: GenFile = /*@__PURE__*/
-  fileDesc("Chphb3AvdHJhZmZpYy9wcm90b2NvbC5wcm90bxILYW9wLnRyYWZmaWMilQEKDVJvdXRpbmdDb25maWcSJgoEbW9kZRgBIAEoDjIYLmFvcC50cmFmZmljLlJvdXRpbmdNb2RlEgsKA3VybBgCIAEoCRIQCghzZWxlY3RvchgDIAEoCRIMCgR0eXBlGAQgASgJEgwKBG5hbWUYBSABKAkSDwoHY291bnRyeRgGIAEoCRIQCghzdHJhdGVneRgHIAEoCSJGCgpGbG93RmlsdGVyEgwKBGhvc3QYASABKAkSDgoGc3RhdHVzGAIgASgJEgwKBHR5cGUYAyABKAkSDAoEbGFzdBgEIAEoDSKHAQoNQ2FwdHVyZUNvbmZpZxImCgRtb2RlGAEgASgOMhguYW9wLnRyYWZmaWMuQ2FwdHVyZU1vZGUSFQoNZGVjcnlwdF9odHRwcxgCIAEoCBInCgZmaWx0ZXIYAyABKAsyFy5hb3AudHJhZmZpYy5GbG93RmlsdGVyEg4KBnN0cmVhbRgEIAEoCCJlCglDb25maWd1cmUSKwoHcm91dGluZxgBIAEoCzIaLmFvcC50cmFmZmljLlJvdXRpbmdDb25maWcSKwoHY2FwdHVyZRgCIAEoCzIaLmFvcC50cmFmZmljLkNhcHR1cmVDb25maWciTgoFUXVlcnkSDQoFc3RhdGUYASABKAgSDQoFZmxvd3MYAiABKAgSJwoGZmlsdGVyGAMgASgLMhcuYW9wLnRyYWZmaWMuRmxvd0ZpbHRlciJFCgxSb3V0aW5nU3RhdGUSEwoLYWN0aXZlX25vZGUYASABKAkSEgoKZWdyZXNzX3VybBgCIAEoCRIMCgRhdXRvGAMgASgIIkkKDENhcHR1cmVTdGF0ZRImCgRtb2RlGAEgASgOMhguYW9wLnRyYWZmaWMuQ2FwdHVyZU1vZGUSEQoJY2FwdHVyaW5nGAIgASgIIm4KBVN0YXRlEioKB3JvdXRpbmcYASABKAsyGS5hb3AudHJhZmZpYy5Sb3V0aW5nU3RhdGUSKgoHY2FwdHVyZRgCIAEoCzIZLmFvcC50cmFmZmljLkNhcHR1cmVTdGF0ZRINCgVlcnJvchgDIAEoCSIlCgZIZWFkZXISDAoEbmFtZRgBIAEoCRINCgV2YWx1ZRgCIAEoCSJwCgtIdHRwUmVxdWVzdBIOCgZtZXRob2QYASABKAkSCwoDdXJsGAIgASgJEhAKCHByb3RvY29sGAMgASgJEiQKB2hlYWRlcnMYBCADKAsyEy5hb3AudHJhZmZpYy5IZWFkZXISDAoEYm9keRgFIAEoDCJuCgxIdHRwUmVzcG9uc2USEwoLc3RhdHVzX2NvZGUYASABKAUSFQoNcmVhc29uX3BocmFzZRgCIAEoCRIkCgdoZWFkZXJzGAMgAygLMhMuYW9wLnRyYWZmaWMuSGVhZGVyEgwKBGJvZHkYBCABKAwi0QEKBEZsb3cSCgoCaWQYASABKAkSDwoHdG9vbF9pZBgCIAEoCRINCgVlcnJvchgMIAEoCRIQCghjb21wbGV0ZRgNIAEoCBItCgl0aW1lc3RhbXAYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKB3JlcXVlc3QYDyABKAsyGC5hb3AudHJhZmZpYy5IdHRwUmVxdWVzdBIrCghyZXNwb25zZRgQIAEoCzIZLmFvcC50cmFmZmljLkh0dHBSZXNwb25zZUoECAMQDCK2AQoPUHJvdG9jb2xNZXNzYWdlEisKCWNvbmZpZ3VyZRgKIAEoCzIWLmFvcC50cmFmZmljLkNvbmZpZ3VyZUgAEiMKBXF1ZXJ5GAsgASgLMhIuYW9wLnRyYWZmaWMuUXVlcnlIABIjCgVzdGF0ZRgMIAEoCzISLmFvcC50cmFmZmljLlN0YXRlSAASIQoEZmxvdxgNIAEoCzIRLmFvcC50cmFmZmljLkZsb3dIAEIJCgdtZXNzYWdlKlwKC0NhcHR1cmVNb2RlEhwKGENBUFRVUkVfTU9ERV9VTlNQRUNJRklFRBAAEhYKEkNBUFRVUkVfTU9ERV9SRUxBWRABEhcKE0NBUFRVUkVfTU9ERV9SRUNPUkQQAirAAQoLUm91dGluZ01vZGUSHAoYUk9VVElOR19NT0RFX1VOU1BFQ0lGSUVEEAASFwoTUk9VVElOR19NT0RFX0RJUkVDVBABEhYKElJPVVRJTkdfTU9ERV9QUk9YWRACEhoKFlJPVVRJTkdfTU9ERV9TVUJTQ1JJQkUQAxIVChFST1VUSU5HX01PREVfQVVUTxAEEhcKE1JPVVRJTkdfTU9ERV9TV0lUQ0gQBRIWChJST1VUSU5HX01PREVfQ0xFQVIQBkI1WjNnaXRodWIuY29tL2NoYWlucmVhY3RvcnMvYWlzY2FuL2FvcC90cmFmZmljO3RyYWZmaWNiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Chphb3AvdHJhZmZpYy9wcm90b2NvbC5wcm90bxILYW9wLnRyYWZmaWMilQEKDVJvdXRpbmdDb25maWcSJgoEbW9kZRgBIAEoDjIYLmFvcC50cmFmZmljLlJvdXRpbmdNb2RlEgsKA3VybBgCIAEoCRIQCghzZWxlY3RvchgDIAEoCRIMCgR0eXBlGAQgASgJEgwKBG5hbWUYBSABKAkSDwoHY291bnRyeRgGIAEoCRIQCghzdHJhdGVneRgHIAEoCSJGCgpGbG93RmlsdGVyEgwKBGhvc3QYASABKAkSDgoGc3RhdHVzGAIgASgJEgwKBHR5cGUYAyABKAkSDAoEbGFzdBgEIAEoDSJ9Cg1DYXB0dXJlQ29uZmlnEiYKBG1vZGUYASABKA4yGC5hb3AudHJhZmZpYy5DYXB0dXJlTW9kZRIVCg1kZWNyeXB0X2h0dHBzGAIgASgIEicKBmZpbHRlchgDIAEoCzIXLmFvcC50cmFmZmljLkZsb3dGaWx0ZXJKBAgEEAUiZQoJQ29uZmlndXJlEisKB3JvdXRpbmcYASABKAsyGi5hb3AudHJhZmZpYy5Sb3V0aW5nQ29uZmlnEisKB2NhcHR1cmUYAiABKAsyGi5hb3AudHJhZmZpYy5DYXB0dXJlQ29uZmlnIk4KBVF1ZXJ5Eg0KBXN0YXRlGAEgASgIEg0KBWZsb3dzGAIgASgIEicKBmZpbHRlchgDIAEoCzIXLmFvcC50cmFmZmljLkZsb3dGaWx0ZXIiRQoMUm91dGluZ1N0YXRlEhMKC2FjdGl2ZV9ub2RlGAEgASgJEhIKCmVncmVzc191cmwYAiABKAkSDAoEYXV0bxgDIAEoCCJJCgxDYXB0dXJlU3RhdGUSJgoEbW9kZRgBIAEoDjIYLmFvcC50cmFmZmljLkNhcHR1cmVNb2RlEhEKCWNhcHR1cmluZxgCIAEoCCJuCgVTdGF0ZRIqCgdyb3V0aW5nGAEgASgLMhkuYW9wLnRyYWZmaWMuUm91dGluZ1N0YXRlEioKB2NhcHR1cmUYAiABKAsyGS5hb3AudHJhZmZpYy5DYXB0dXJlU3RhdGUSDQoFZXJyb3IYAyABKAkiJQoGSGVhZGVyEgwKBG5hbWUYASABKAkSDQoFdmFsdWUYAiABKAkicAoLSHR0cFJlcXVlc3QSDgoGbWV0aG9kGAEgASgJEgsKA3VybBgCIAEoCRIQCghwcm90b2NvbBgDIAEoCRIkCgdoZWFkZXJzGAQgAygLMhMuYW9wLnRyYWZmaWMuSGVhZGVyEgwKBGJvZHkYBSABKAwibgoMSHR0cFJlc3BvbnNlEhMKC3N0YXR1c19jb2RlGAEgASgFEhUKDXJlYXNvbl9waHJhc2UYAiABKAkSJAoHaGVhZGVycxgDIAMoCzITLmFvcC50cmFmZmljLkhlYWRlchIMCgRib2R5GAQgASgMIsABCgRGbG93EgoKAmlkGAEgASgJEg0KBWVycm9yGAwgASgJEhAKCGNvbXBsZXRlGA0gASgIEi0KCXRpbWVzdGFtcBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKQoHcmVxdWVzdBgPIAEoCzIYLmFvcC50cmFmZmljLkh0dHBSZXF1ZXN0EisKCHJlc3BvbnNlGBAgASgLMhkuYW9wLnRyYWZmaWMuSHR0cFJlc3BvbnNlSgQIAhAMIlQKCkZsb3dSZWNvcmQSJQoJb3BlcmF0aW9uGAEgASgLMhIuYW9wLm9wZXJhdGlvbi5SZWYSHwoEZmxvdxgCIAEoCzIRLmFvcC50cmFmZmljLkZsb3ciwwEKD1Byb3RvY29sTWVzc2FnZRIrCgljb25maWd1cmUYCiABKAsyFi5hb3AudHJhZmZpYy5Db25maWd1cmVIABIjCgVxdWVyeRgLIAEoCzISLmFvcC50cmFmZmljLlF1ZXJ5SAASIwoFc3RhdGUYDCABKAsyEi5hb3AudHJhZmZpYy5TdGF0ZUgAEi4KC2Zsb3dfcmVjb3JkGA0gASgLMhcuYW9wLnRyYWZmaWMuRmxvd1JlY29yZEgAQgkKB21lc3NhZ2UqXAoLQ2FwdHVyZU1vZGUSHAoYQ0FQVFVSRV9NT0RFX1VOU1BFQ0lGSUVEEAASFgoSQ0FQVFVSRV9NT0RFX1JFTEFZEAESFwoTQ0FQVFVSRV9NT0RFX1JFQ09SRBACKsABCgtSb3V0aW5nTW9kZRIcChhST1VUSU5HX01PREVfVU5TUEVDSUZJRUQQABIXChNST1VUSU5HX01PREVfRElSRUNUEAESFgoSUk9VVElOR19NT0RFX1BST1hZEAISGgoWUk9VVElOR19NT0RFX1NVQlNDUklCRRADEhUKEVJPVVRJTkdfTU9ERV9BVVRPEAQSFwoTUk9VVElOR19NT0RFX1NXSVRDSBAFEhYKElJPVVRJTkdfTU9ERV9DTEVBUhAGQjVaM2dpdGh1Yi5jb20vY2hhaW5yZWFjdG9ycy9haXNjYW4vYW9wL3RyYWZmaWM7dHJhZmZpY2IGcHJvdG8z", [file_google_protobuf_timestamp, file_aop_operation_protocol]);
 
 /**
  * RoutingConfig steers the egress chain (State in tools/proxy). Fields beyond
@@ -143,13 +145,6 @@ export type CaptureConfig = Message<"aop.traffic.CaptureConfig"> & {
    * @generated from field: aop.traffic.FlowFilter filter = 3;
    */
   filter?: FlowFilter | undefined;
-
-  /**
-   * push Flow messages as they are captured
-   *
-   * @generated from field: bool stream = 4;
-   */
-  stream: boolean;
 };
 
 /**
@@ -396,9 +391,9 @@ export const HttpResponseSchema: GenMessage<HttpResponse> = /*@__PURE__*/
 
 /**
  * Flow is one captured request/response exchange. Its nested shape mirrors the
- * consumer's http.exchange form so a consumer can map it directly; tool_id is
- * the AOP tool-call id whose egress produced this flow. Fields 3-11 were the
- * pre-nesting flat shape.
+ * consumer's http.exchange form so a consumer can map it directly. Correlation
+ * is carried once by aop.operation.Ref on the containing AOP Event. Fields 2-11
+ * were the former embedded correlation and pre-nesting flat shape.
  *
  * @generated from message aop.traffic.Flow
  */
@@ -407,11 +402,6 @@ export type Flow = Message<"aop.traffic.Flow"> & {
    * @generated from field: string id = 1;
    */
   id: string;
-
-  /**
-   * @generated from field: string tool_id = 2;
-   */
-  toolId: string;
 
   /**
    * @generated from field: string error = 12;
@@ -449,6 +439,31 @@ export const FlowSchema: GenMessage<Flow> = /*@__PURE__*/
   messageDesc(file_aop_traffic_protocol, 11);
 
 /**
+ * FlowRecord is the resource-query representation. Live observations use the
+ * same Flow as Event.extension and carry this Ref in Event.extensions.
+ *
+ * @generated from message aop.traffic.FlowRecord
+ */
+export type FlowRecord = Message<"aop.traffic.FlowRecord"> & {
+  /**
+   * @generated from field: aop.operation.Ref operation = 1;
+   */
+  operation?: Ref | undefined;
+
+  /**
+   * @generated from field: aop.traffic.Flow flow = 2;
+   */
+  flow?: Flow | undefined;
+};
+
+/**
+ * Describes the message aop.traffic.FlowRecord.
+ * Use `create(FlowRecordSchema)` to create a new message.
+ */
+export const FlowRecordSchema: GenMessage<FlowRecord> = /*@__PURE__*/
+  messageDesc(file_aop_traffic_protocol, 12);
+
+/**
  * @generated from message aop.traffic.ProtocolMessage
  */
 export type ProtocolMessage = Message<"aop.traffic.ProtocolMessage"> & {
@@ -475,10 +490,10 @@ export type ProtocolMessage = Message<"aop.traffic.ProtocolMessage"> & {
     case: "state";
   } | {
     /**
-     * @generated from field: aop.traffic.Flow flow = 13;
+     * @generated from field: aop.traffic.FlowRecord flow_record = 13;
      */
-    value: Flow;
-    case: "flow";
+    value: FlowRecord;
+    case: "flowRecord";
   } | { case: undefined; value?: undefined };
 };
 
@@ -487,7 +502,7 @@ export type ProtocolMessage = Message<"aop.traffic.ProtocolMessage"> & {
  * Use `create(ProtocolMessageSchema)` to create a new message.
  */
 export const ProtocolMessageSchema: GenMessage<ProtocolMessage> = /*@__PURE__*/
-  messageDesc(file_aop_traffic_protocol, 12);
+  messageDesc(file_aop_traffic_protocol, 13);
 
 /**
  * CaptureMode selects what the hub does with traffic it routes. RELAY forwards

@@ -31,12 +31,12 @@ message Artifact {
   bytes data = 4;
   string media_type = 5;
   google.protobuf.Timestamp timestamp = 6;
-  string call_id = 7;
+  reserved 7;
   string result_id = 8;
 }
 
 // Loot marks a scanner-native artifact as valuable without replacing or
-// duplicating its evidence. result_id joins the marker back to Artifact.
+// duplicating the observed artifact. result_id joins the marker to Artifact.
 message Loot {
   string result_id = 1;
   string tool = 2;
@@ -46,14 +46,15 @@ message Loot {
   repeated string tags = 6;
   string description = 7;
   string verification_status = 8;
-  string call_id = 9;
+  reserved 9;
 }
 
 message ProtocolMessage {
+  // Artifact and Loot are durable observations and therefore travel only as
+  // aop.Event typed extensions. Direct tool messages are ephemeral transport.
+  reserved 12, 13;
   oneof message {
     Progress progress = 10;
     Call call = 11;
-    Artifact artifact = 12;
-    Loot loot = 13;
   }
 }

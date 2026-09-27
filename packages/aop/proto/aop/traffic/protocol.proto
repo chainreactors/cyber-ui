@@ -3,14 +3,16 @@ syntax = "proto3";
 package aop.traffic;
 
 import "google/protobuf/timestamp.proto";
+import "aop/operation/protocol.proto";
 
 option go_package = "github.com/chainreactors/aiscan/aop/traffic;traffic";
 
 // The traffic namespace projects the runner's traffic mechanism — the long-lived
 // MITM hub plus its egress chain — as an AOP control surface. Routing and capture
 // become control-plane operations carried over AOP rather than a static boot
-// config or an agent tool, and captured flows stream back correlated by the AOP
-// tool-call id that produced the egress.
+// config or an agent tool. Live completed flows are typed aop.Event.extension
+// facts published by observe(http); FlowRecord below exists only for an explicit
+// Query and is not a second live stream.
 
 // CaptureMode selects what the hub does with traffic it routes. RELAY forwards
 // undecrypted and records nothing; RECORD intercepts (MITM) and stores flows.
@@ -55,10 +57,10 @@ message FlowFilter {
 // CaptureConfig sets the hub's capture behaviour. It flips the runtime record
 // flag; the listener address never changes so in-flight children are unaffected.
 message CaptureConfig {
+  reserved 4;
   CaptureMode mode = 1;
   bool decrypt_https = 2; // intercept CONNECT to MITM-decrypt HTTPS
   FlowFilter filter = 3;  // record only matching flows
-  bool stream = 4;        // push Flow messages as they are captured
 }
 
 // Configure declares desired routing and/or capture state. An absent sub-message
@@ -118,13 +120,12 @@ message HttpResponse {
 }
 
 // Flow is one captured request/response exchange. Its nested shape mirrors the
-// consumer's http.exchange form so a consumer can map it directly; tool_id is
-// the AOP tool-call id whose egress produced this flow. Fields 3-11 were the
-// pre-nesting flat shape.
+// consumer's http.exchange form so a consumer can map it directly. Correlation
+// is carried once by aop.operation.Ref on the containing AOP Event. Fields 2-11
+// were the former embedded correlation and pre-nesting flat shape.
 message Flow {
-  reserved 3 to 11;
+	reserved 2 to 11;
   string id = 1;
-  string tool_id = 2;
   string error = 12;
   bool complete = 13;
   google.protobuf.Timestamp timestamp = 14;
@@ -132,11 +133,18 @@ message Flow {
   HttpResponse response = 16; // absent when no response was received
 }
 
+// FlowRecord is the resource-query representation. Live observations use the
+// same Flow as Event.extension and carry this Ref in Event.extensions.
+message FlowRecord {
+  aop.operation.Ref operation = 1;
+  Flow flow = 2;
+}
+
 message ProtocolMessage {
   oneof message {
     Configure configure = 10;
     Query query = 11;
     State state = 12;
-    Flow flow = 13;
+    FlowRecord flow_record = 13;
   }
 }

@@ -20,7 +20,14 @@ export const cstxTableManifest: ComponentManifest = {
       label: 'Total row count',
       shape: 'scalar',
       required: false,
-      description: 'Total number of rows on the server. Required for server-side pagination.',
+      description: 'Exact total number of rows on the server, when available. Unknown totals use has_next instead.',
+    },
+    {
+      key: 'has_next',
+      label: 'Another page is available',
+      shape: 'scalar',
+      required: false,
+      description: 'Enables forward navigation for server pagination when total is unknown.',
     },
   ],
   propSlots: [

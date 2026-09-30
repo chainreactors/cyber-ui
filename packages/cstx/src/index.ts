@@ -166,6 +166,8 @@ export type { ColumnConfig } from './components/table/columns';
 export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './components/table/columns';
 
 // Table sub-components
+export { PaginationBar } from './components/table/sub/PaginationBar';
+export type { PaginationBarProps, PaginationLabels } from './components/table/sub/PaginationBar';
 export { FlagCell, BatchFlagMenu } from './components/table/sub/FlagCell';
 export type { FlagCellProps, BatchFlagMenuProps, BatchFlagMode } from './components/table/sub/FlagCell';
 

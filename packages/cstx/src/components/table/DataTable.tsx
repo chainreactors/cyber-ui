@@ -760,6 +760,7 @@ export function CSTXTable({
   const explicitMetaKeys = asStringArray(config.metaKeys);
   const paginationMode = (config.paginationMode as string) || 'client';
   const serverPagination = paginationMode === 'server';
+  const serverTotalKnown = typeof data.total === 'number' && Number.isFinite(data.total);
   const serverTotal = serverPagination ? ((data.total as number) || 0) : 0;
   const searchHistoryKey = (config.searchHistoryKey as string) || '';
   const cellRenderers = (config._rendererRegistry as CellRendererRegistry | undefined) ?? defaultCellRenderers;
@@ -1647,10 +1648,11 @@ export function CSTXTable({
       </div>
 
       {/* ── Pagination (bottom bar) ── */}
-      {enablePagination && filteredByType.length > 0 && (
+      {enablePagination && (filteredByType.length > 0 || (serverPagination && serverPage > 0)) && (
         <PaginationBar
           mode={serverPagination ? 'server' : 'client'}
           compact={compact}
+          loading={isLoading}
           pageSize={pageSize}
           pageSizeOptions={pageSizeOptions}
           onPageSizeChange={handlePageSizeChange}
@@ -1663,13 +1665,27 @@ export function CSTXTable({
           onNextPage={() => table.nextPage()}
           onGoToPage={(page) => table.setPageIndex(page)}
           serverTotal={serverTotal}
+          serverTotalKnown={serverTotalKnown}
+          serverHasNext={data.has_next === true}
+          serverRows={rawRows.length}
           serverPage={serverPage}
           serverPageCount={serverPageCount}
           onServerPageChange={handleServerPageChange}
           labels={{
             rangeOf: tr('rangeOf', '{start}-{end} of {total}'),
+            range: tr('range', '{start}-{end}'),
             perPage: tr('perPage', '{n} / page'),
             emptyRows: tr('emptyRows', '0 rows'),
+            firstPage: tr('firstPage', 'First page'),
+            previousPage: tr('previousPage', 'Previous page'),
+            nextPage: tr('nextPage', 'Next page'),
+            lastPage: tr('lastPage', 'Last page'),
+            navigation: tr('pagination', 'Pagination'),
+            pageNumber: tr('pageNumber', 'Page {n}'),
+            pageOf: tr('pageOf', '{page} / {pages}'),
+            pageSize: tr('pageSize', 'Rows per page'),
+            jumpTo: tr('jumpTo', 'Go to page'),
+            jump: tr('jump', 'Go'),
           }}
         />
       )}

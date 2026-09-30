@@ -25,6 +25,8 @@ export interface ToolCallEntry {
 
 export interface AssistantResponseTimelineItem extends TimelineItemBase {
   kind: 'assistant_response'
+  sessionId?: string
+  turnId?: string
   thinking?: string
   tools: ToolCallEntry[]
   response?: { content: string; metadata?: Record<string, unknown> }

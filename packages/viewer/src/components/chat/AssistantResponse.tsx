@@ -19,6 +19,8 @@ export interface AssistantResponseProps {
   onThinkingToggle?: (expanded: boolean) => void
   tools?: ReactNode
   response?: ReactNode
+  /** Optional host-owned annotation below the completed response. */
+  footer?: ReactNode
   streaming?: boolean
   defaultThinkingExpanded?: boolean
   className?: string
@@ -44,6 +46,7 @@ export default function AssistantResponse({
   labels,
   onThinkingToggle,
   response,
+  footer,
   showResponseLabel = true,
   streaming,
   thinking,
@@ -64,7 +67,7 @@ export default function AssistantResponse({
   // the transcript's sticky scroll keeps it in view as it streams and once the
   // turn settles. (Tools above it stay collapsed, so they never push the report
   // off-screen.)
-  const cardInner = children ?? (
+  const sections = children ?? (
     <>
       {hasThinking && (
         <Collapsible
@@ -115,6 +118,12 @@ export default function AssistantResponse({
       )}
     </>
   )
+
+  const cardInner = <>{sections}{hasContent(footer) && (
+    <div data-testid="assistant-response-footer" className="break-words px-3 pb-2 pt-1 text-xs leading-relaxed text-muted-foreground">
+      {footer}
+    </div>
+  )}</>
 
   if (embedded) return <div data-testid="assistant-response-segment">{cardInner}</div>
 

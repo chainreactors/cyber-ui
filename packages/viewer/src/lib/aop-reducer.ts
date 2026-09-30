@@ -8,9 +8,17 @@ import type {
 
 export interface ReduceAOPOptions {
   streaming?: boolean
+  /** Controls can share the event projection without allocating render cards. */
+  timeline?: boolean
   lifecycle?: 'all' | 'errors' | 'none'
   /** Host-owned status events that separate assistant work into new cards. */
   responseBoundary?: (event: Event) => boolean
+}
+
+export interface AOPRunState {
+  activeTurnID: string
+  isThinking: boolean
+  ended: ReadonlySet<string>
 }
 
 const decoder = new TextDecoder()
@@ -76,17 +84,22 @@ function usageMetadata(usage: TokenUsage): Record<string, unknown> {
   }
 }
 
-export function reduceAOPToTimeline(
-  events: readonly Event[],
+// Retain the reducer's existing indexes between append-only event batches.
+// A replaced history resets them; callers own the returned render snapshot.
+export function createAOPTimelineReducer(
   options: ReduceAOPOptions = {},
-): TimelineItem[] {
+) {
   const items: TimelineItem[] = []
   const seen = new Set<string>()
+  const runs = new Map<string, { activeTurnID: string; isThinking: boolean; ended: Set<string> }>()
   const responses = new Map<string, AssistantResponseTimelineItem>()
   const responseByMessage = new Map<string, AssistantResponseTimelineItem>()
   const responseByTool = new Map<string, AssistantResponseTimelineItem>()
-  const messageParts = new Map<string, { response: AssistantResponseTimelineItem; text: string; thinking: string }>()
+  const messageParts = new Map<AssistantResponseTimelineItem, Map<string, { text: string; thinking: string }>>()
+  const tools = new Map<AssistantResponseTimelineItem, Map<string, ToolCallEntry>>()
   const lifecycle = options.lifecycle ?? 'all'
+  let processed = 0
+  let lastEvent: Event | undefined
 
   const streamKey = (event: Event) => `${event.sessionId}:${event.emitter}`
   const scope = (event: Event) => `${streamKey(event)}:${event.turnId || 'session'}`
@@ -100,10 +113,12 @@ export function reduceAOPToTimeline(
     const response: AssistantResponseTimelineItem = {
       id: `${responseID(event)}:${event.id || event.seq}`,
       kind: 'assistant_response',
+      sessionId: event.sessionId,
+      turnId: event.turnId,
       timestamp: timestamp(event),
       actorName: event.emitter,
       tools: [],
-      streaming: true,
+      streaming: !runs.get(event.sessionId)?.ended.has(event.turnId),
     }
     items.push(response)
     responses.set(key, response)
@@ -111,36 +126,65 @@ export function reduceAOPToTimeline(
   }
 
   const finish = (event: Event) => {
-    const response = responses.get(scope(event))
-    if (response) response.streaming = false
+    let last: AssistantResponseTimelineItem | undefined
+    for (const response of responses.values()) {
+      if (response.sessionId !== event.sessionId || (event.turnId && response.turnId !== event.turnId)) continue
+      response.streaming = false
+      last = response
+    }
+    return last
   }
 
   const appendTool = (response: AssistantResponseTimelineItem, tool: ToolCallEntry) => {
-    const current = response.tools.find((entry) => entry.id === tool.id)
+    let entries = tools.get(response)
+    if (!entries) tools.set(response, entries = new Map())
+    const current = entries.get(tool.id)
     if (current) Object.assign(current, tool)
-    else response.tools.push(tool)
+    else { response.tools.push(tool); entries.set(tool.id, tool) }
   }
 
   const updateMessage = (key: string, response: AssistantResponseTimelineItem, text: string, thinking: string, delta = false) => {
-    const previous = messageParts.get(key)
-    messageParts.set(key, {
-      response,
+    let parts = messageParts.get(response)
+    if (!parts) messageParts.set(response, parts = new Map())
+    const previous = parts.get(key)
+    parts.set(key, {
       text: delta ? (previous?.text ?? '') + text : text,
       thinking: delta ? (previous?.thinking ?? '') + thinking : thinking,
     })
-    const parts = [...messageParts.values()].filter(part => part.response === response)
-    response.thinking = parts.map(part => part.thinking).filter(Boolean).join('\n\n')
+    const values = [...parts.values()]
+    response.thinking = values.map(part => part.thinking).filter(Boolean).join('\n\n')
     response.response = {
       ...response.response,
-      content: parts.map(part => part.text).filter(Boolean).join('\n\n'),
+      content: values.map(part => part.text).filter(Boolean).join('\n\n'),
     }
   }
 
-  events.forEach((event, index) => {
+  const append = (event: Event, index: number) => {
     if (!event.sessionId || !event.payload.case) return
     const unique = eventKey(event, index)
     if (seen.has(unique)) return
     seen.add(unique)
+
+    let run = runs.get(event.sessionId)
+    if (!run) runs.set(event.sessionId, run = { activeTurnID: '', isThinking: false, ended: new Set() })
+    if (event.turnId && event.payload.case === 'turnEnded') {
+      run.ended.add(event.turnId)
+      if (!run.activeTurnID || run.activeTurnID === event.turnId) {
+        run.activeTurnID = ''
+        run.isThinking = false
+      }
+    } else if (event.turnId && !run.ended.has(event.turnId)) {
+      switch (event.payload.case) {
+        case 'turnStarted': run.activeTurnID = event.turnId; run.isThinking = true; break
+        case 'messageDelta': run.activeTurnID = event.turnId; run.isThinking = event.payload.value.value.case === 'reasoning'; break
+        case 'toolCall': run.activeTurnID = event.turnId; run.isThinking = false; break
+        case 'message':
+          if (event.payload.value.role === 'assistant') { run.activeTurnID = event.turnId; run.isThinking = false }
+          break
+      }
+    }
+
+    if (options.timeline === false) return
 
     if (options.responseBoundary?.(event)) {
       // Compaction can be session-scoped; evaluation can be turn-scoped.
@@ -177,14 +221,13 @@ export function reduceAOPToTimeline(
         break
 
       case 'turnEnded': {
-        finish(event)
+        const response = finish(event)
         const ended = event.payload.value
         const failure = ended.error?.message
         if (failure && lifecycle !== 'none') items.push({
           id: `${unique}:error`, kind: 'divider', timestamp: timestamp(event), actorName: event.emitter,
           label: failure, variant: 'warning',
         })
-        const response = responses.get(scope(event))
         if (response && ended.usage) response.response = {
           content: response.response?.content ?? '',
           metadata: { ...response.response?.metadata, ...usageMetadata(ended.usage) },
@@ -197,7 +240,7 @@ export function reduceAOPToTimeline(
         const key = `${scope(event)}:message:${delta.messageId}`
         const response = responseByMessage.get(key) ?? ensureResponse(event)
         responseByMessage.set(key, response)
-        response.streaming = true
+        response.streaming = !run.ended.has(event.turnId)
         updateMessage(key, response,
           delta.value.case === 'text' ? delta.value.value : '',
           delta.value.case === 'reasoning' ? delta.value.value : '', true)
@@ -245,7 +288,7 @@ export function reduceAOPToTimeline(
         const result = event.payload.value
         const key = `${scope(event)}:tool:${result.callId}`
         const response = responseByTool.get(key) ?? ensureResponse(event)
-        const current = response.tools.find((entry) => entry.id === result.callId)
+        const current = tools.get(response)?.get(result.callId)
         appendTool(response, {
           id: result.callId, toolName: result.name || current?.toolName || '', toolArgs: current?.toolArgs || '',
           result: stringify(contentText(result.output), MAX_TOOL_RESULT_CHARS),
@@ -281,10 +324,36 @@ export function reduceAOPToTimeline(
         break
       }
     }
-  })
-
-  if (!options.streaming) for (const item of items) {
-    if (item.kind === 'assistant_response') item.streaming = false
   }
-  return items
+
+  const reduce = (events: readonly Event[], streaming = options.streaming ?? false): TimelineItem[] => {
+    if (events.length < processed || (processed && events[processed - 1] !== lastEvent)) {
+      items.length = 0
+      seen.clear()
+      runs.clear()
+      responses.clear()
+      responseByMessage.clear()
+      responseByTool.clear()
+      messageParts.clear()
+      tools.clear()
+      processed = 0
+    }
+    for (let index = processed; index < events.length; index++) append(events[index], index)
+    processed = events.length
+    lastEvent = events[processed - 1]
+    if (options.timeline === false) return []
+    return items.map(item => item.kind === 'assistant_response'
+      ? { ...item, streaming: streaming && item.streaming, tools: item.tools.map(tool => ({ ...tool })) }
+      : { ...item })
+  }
+  return Object.assign(reduce, {
+    runState: (sessionID: string): AOPRunState => runs.get(sessionID) ?? { activeTurnID: '', isThinking: false, ended: new Set() },
+  })
+}
+
+export function reduceAOPToTimeline(
+  events: readonly Event[],
+  options: ReduceAOPOptions = {},
+): TimelineItem[] {
+  return createAOPTimelineReducer(options)(events)
 }

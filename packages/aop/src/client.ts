@@ -34,6 +34,7 @@ export class AOPClient {
   private connecting?: Promise<void>
   private closed = false
   private reconnectDelay = 250
+  private reconnectTimer?: ReturnType<typeof setTimeout>
   private readonly outbound: Envelope[] = []
   private readonly pending = new Map<string, Pending>()
   private readonly subscriptions = new Map<string, Subscription>()
@@ -60,12 +61,19 @@ export class AOPClient {
   async connect(): Promise<void> {
     if (this.socket?.readyState === WebSocket.OPEN) return
     if (this.connecting) return this.connecting
+    clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = undefined
     this.closed = false
     this.connecting = new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(this.url)
+      this.socket = socket
       socket.binaryType = 'arraybuffer'
       socket.onopen = () => {
-        this.socket = socket
+        if (this.closed || this.socket !== socket) {
+          socket.close()
+          reject(new Error('AOP client closed'))
+          return
+        }
         this.connecting = undefined
         this.reconnectDelay = 250
         for (const listener of this.connectionListeners) listener(true)
@@ -83,7 +91,10 @@ export class AOPClient {
       socket.onerror = () => {
         if (socket.readyState !== WebSocket.OPEN) reject(new Error('AOP WebSocket connection failed'))
       }
-      socket.onclose = () => this.disconnected(socket)
+      socket.onclose = () => {
+        reject(new Error('AOP WebSocket disconnected'))
+        this.disconnected(socket)
+      }
     })
     return this.connecting
   }
@@ -97,13 +108,15 @@ export class AOPClient {
   request<Desc extends DescMessage>(schema: Desc, value: MessageShape<Desc>, options?: { id?: string; timeoutMs?: number; requireConnected?: boolean }): Promise<AOPPayload> {
     if (options?.requireConnected && !this.connected) return Promise.reject(new Error('AOP WebSocket is disconnected'))
     const id = options?.id || newID()
+    if (this.pending.has(id) || this.subscriptions.has(id)) return Promise.reject(new Error(`AOP request ${id} is already pending`))
     return new Promise<AOPPayload>((resolve, reject) => {
-      const timer = options?.timeoutMs ? setTimeout(() => {
+      const timeoutMs = options?.timeoutMs ?? 30_000
+      const timer = timeoutMs === 0 ? undefined : setTimeout(() => {
         this.pending.delete(id)
         const index = this.outbound.findIndex(envelope => envelope.id === id)
         if (index >= 0) this.outbound.splice(index, 1)
         reject(new Error('AOP request timed out'))
-      }, options.timeoutMs) : undefined
+      }, timeoutMs)
       this.pending.set(id, {
         resolve: value => { clearTimeout(timer); resolve(value) },
         reject: error => { clearTimeout(timer); reject(error) },
@@ -119,20 +132,33 @@ export class AOPClient {
     options?: { id?: string; durable?: boolean; resume?: (cursor: string) => MessageShape<Desc> },
   ): () => void {
     const id = options?.id || newID()
+    if (this.pending.has(id)) throw new Error(`AOP request ${id} is already pending`)
     // Replacing a subscription while disconnected queues its fresh request; it
     // must not also be restored from the previous connection.
     this.restoreSubscriptions.delete(id)
-    this.subscriptions.set(id, {
+    for (let index = this.outbound.length - 1; index >= 0; index--) {
+      if (this.outbound[index].id === id) this.outbound.splice(index, 1)
+    }
+    const subscription: Subscription = {
       schema,
       value: value as Message,
       receive,
       durable: options?.durable === true,
       cursor: '',
       resume: options?.resume as ((cursor: string) => Message) | undefined,
-    })
+    }
+    this.subscriptions.set(id, subscription)
     this.write(this.envelope(id, schema, value))
     return () => {
+      if (this.subscriptions.get(id) !== subscription) return
       this.subscriptions.delete(id)
+      this.restoreSubscriptions.delete(id)
+      const index = this.outbound.findIndex(envelope => envelope.id === id)
+      if (index >= 0) {
+        this.outbound.splice(index, 1)
+        return
+      }
+      if (!this.connected) return
       const cancel = create(CoreSchema, { message: { case: 'cancelOperation', value: { targetId: id } } })
       this.send(CoreSchema, cancel)
     }
@@ -140,9 +166,12 @@ export class AOPClient {
 
   close(): void {
     this.closed = true
+    clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = undefined
     this.connecting = undefined
-    this.socket?.close()
+    const socket = this.socket
     this.socket = undefined
+    socket?.close()
     for (const listener of this.connectionListeners) listener(false)
     const error = new Error('AOP client closed')
     for (const pending of this.pending.values()) pending.reject(error)
@@ -173,8 +202,15 @@ export class AOPClient {
 
   private receive(raw: unknown): void {
     if (!(raw instanceof ArrayBuffer)) return
-    const envelope = fromBinary(EnvelopeSchema, new Uint8Array(raw))
-    const payload = this.decodePayload(envelope)
+    let envelope: Envelope
+    let payload: AOPPayload | undefined
+    try {
+      envelope = fromBinary(EnvelopeSchema, new Uint8Array(raw))
+      payload = this.decodePayload(envelope)
+    } catch {
+      // Ignore malformed frames without taking down healthy subscriptions.
+      return
+    }
     if (!payload) return
     const subscription = this.subscriptions.get(envelope.replyTo)
     if (subscription) {
@@ -190,37 +226,36 @@ export class AOPClient {
   }
 
   private disconnected(socket: WebSocket): void {
-    const wasConnected = this.socket === socket
-    if (wasConnected) {
-      this.socket = undefined
-      for (const listener of this.connectionListeners) listener(false)
-    }
+    if (this.socket !== socket) return
+    this.socket = undefined
+    for (const listener of this.connectionListeners) listener(false)
     this.connecting = undefined
-    if (wasConnected) {
-      const queued = new Set(this.outbound.map((envelope) => envelope.id))
-      const dropped = new Set<string>()
-      const error = new Error('AOP WebSocket disconnected')
-      for (const [id, pending] of this.pending) {
-        pending.reject(error)
-        dropped.add(id)
+    const queued = new Set(this.outbound.map((envelope) => envelope.id))
+    const dropped = new Set<string>()
+    const error = new Error('AOP WebSocket disconnected')
+    for (const [id, pending] of this.pending) {
+      pending.reject(error)
+      dropped.add(id)
+    }
+    this.pending.clear()
+    for (const [id, subscription] of this.subscriptions) {
+      if (subscription.durable) {
+        if (!queued.has(id)) this.restoreSubscriptions.add(id)
+        continue
       }
-      this.pending.clear()
-      for (const [id, subscription] of this.subscriptions) {
-        if (subscription.durable) {
-          if (!queued.has(id)) this.restoreSubscriptions.add(id)
-          continue
-        }
-        this.subscriptions.delete(id)
-        dropped.add(id)
-      }
-      for (let index = this.outbound.length - 1; index >= 0; index--) {
-        if (dropped.has(this.outbound[index].id)) this.outbound.splice(index, 1)
-      }
+      this.subscriptions.delete(id)
+      dropped.add(id)
+    }
+    for (let index = this.outbound.length - 1; index >= 0; index--) {
+      if (dropped.has(this.outbound[index].id)) this.outbound.splice(index, 1)
     }
     if (this.closed) return
     const delay = this.reconnectDelay
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, 5000)
-    globalThis.setTimeout(() => void this.connect().catch(() => {}), delay)
+    this.reconnectTimer = globalThis.setTimeout(() => {
+      this.reconnectTimer = undefined
+      if (!this.closed) void this.connect().catch(() => {})
+    }, delay)
   }
 
   private decodePayload(envelope: Envelope): AOPPayload | undefined {
@@ -236,6 +271,18 @@ function defaultAOPURL(): string {
   return `${protocol}//${window.location.host}/api/aop/application/ws`
 }
 
-function newID(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+export function newID(): string {
+  const value = globalThis.crypto
+  if (value && typeof value.randomUUID === 'function') {
+    try { return value.randomUUID() } catch {}
+  }
+  if (value && typeof value.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16)
+    value.getRandomValues(bytes)
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, (item) => item.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }

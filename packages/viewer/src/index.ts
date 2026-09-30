@@ -21,7 +21,7 @@ export {
   formatArgs,
   summarizeArgs,
 } from './lib/tool-utils'
-export { reduceAOPToTimeline } from './lib/aop-reducer'
+export { createAOPTimelineReducer, reduceAOPToTimeline } from './lib/aop-reducer'
 
 // Layer 0.5 — Timeline renderer registry
 export {
@@ -89,7 +89,7 @@ export type {
 
 // Types — protocol & data
 export type { APGEvent, WireEvent } from './types/protocol'
-export type { ReduceAOPOptions } from './lib/aop-reducer'
+export type { ReduceAOPOptions, AOPRunState } from './lib/aop-reducer'
 export type { AOPChatPanelProps } from './components/chat/AOPChatPanel'
 export type { Event as AOPEvent, Content as AOPContent } from '@cyber/aop'
 export { EventSchema as AOPEventSchema, eventFromJson } from '@cyber/aop'

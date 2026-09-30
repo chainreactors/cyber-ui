@@ -13,7 +13,7 @@ import {
   type Event,
 } from '@cyber/aop'
 import { describe, expect, it } from 'vitest'
-import { reduceAOPToTimeline } from './aop-reducer'
+import { createAOPTimelineReducer, reduceAOPToTimeline } from './aop-reducer'
 
 function event(seq: number, payload: Event['payload']): Event {
   return create(EventSchema, {
@@ -31,6 +31,28 @@ function text(value: string) {
 }
 
 describe('reduceAOPToTimeline', () => {
+  it('processes only the appended suffix and preserves previous render snapshots', () => {
+    let visited = 0
+    const reduce = createAOPTimelineReducer({ responseBoundary: () => { visited++; return false } })
+    const events = [
+      event(1, { case: 'messageDelta', value: create(MessageDeltaSchema, { messageId: 'm1', value: { case: 'text', value: 'draft' } }) }),
+      event(2, { case: 'toolCall', value: create(ToolCallSchema, { id: 'call', name: 'read' }) }),
+      event(3, { case: 'toolResult', value: create(ToolResultSchema, { callId: 'call', output: [text('done')] }) }),
+      event(4, { case: 'message', value: create(MessageSchema, { id: 'm1', role: 'assistant', content: [text('final')] }) }),
+    ]
+    const first = reduce(events.slice(0, 2), true)
+    const complete = reduce(events, false)
+    expect(visited).toBe(4)
+    expect(first[0]).toMatchObject({ response: { content: 'draft' }, streaming: true, tools: [{ pending: true }] })
+    expect(complete).toEqual(reduceAOPToTimeline(events))
+    expect(reduce(events, true)).toEqual(reduceAOPToTimeline(events, { streaming: true }))
+    expect(visited).toBe(4)
+    // A session/history replacement cannot retain another session's items.
+    const replaced = [event(9, { case: 'message', value: create(MessageSchema, { id: 'new', role: 'user', content: [text('new session')] }) })]
+    expect(reduce(replaced)).toEqual(reduceAOPToTimeline(replaced))
+    expect(visited).toBe(5)
+  })
+
   it('rolls back a failed attempt using an authoritative empty message', () => {
     const delta = (seq: number, part: 'text' | 'reasoning', value: string) =>
       event(seq, { case: 'messageDelta', value: create(MessageDeltaSchema, { messageId: 'retry', value: { case: part, value } }) })

@@ -21,7 +21,7 @@ export {
   formatArgs,
   summarizeArgs,
 } from './lib/tool-utils'
-export { reduceAOPToTimeline } from './lib/aop-reducer'
+export { createAOPTimelineReducer, reduceAOPToTimeline } from './lib/aop-reducer'
 
 // Layer 0.5 — Timeline renderer registry
 export {

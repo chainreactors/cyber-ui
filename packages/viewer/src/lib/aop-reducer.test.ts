@@ -130,6 +130,36 @@ describe('reduceAOPToTimeline', () => {
     })
   })
 
+  it('retains original typed outputs through replay and isolates reused call IDs', () => {
+    const image = new Uint8Array([1, 2, 3])
+    const first = event(1, { case: 'toolResult', value: create(ToolResultSchema, {
+      callId: 'same', name: 'record', output: [text('{"state":"completed"}'),
+        create(ContentSchema, { value: { case: 'media', value: { kind: 'image', resource: {
+          mediaType: 'image/png', source: { case: 'data', value: image },
+        } } } }),
+      ],
+    }) })
+    const second = event(2, { case: 'toolResult', value: create(ToolResultSchema, {
+      callId: 'same', name: 'record', output: [create(ContentSchema, { value: { case: 'media', value: {
+        kind: 'video', resource: { mediaType: 'video/mp4', source: { case: 'uri', value: 'capture.mp4' } },
+      } } })],
+    }) })
+    second.turnId = 'turn-2'
+    const third = event(3, { case: 'toolResult', value: create(ToolResultSchema, { callId: 'same', name: 'record', output: [text('[]')] }) })
+    third.sessionId = 'session-2'
+    const events = [first, second, third, first]
+    const reduce = createAOPTimelineReducer()
+    const prior = reduce(events.slice(0, 1))
+    const complete = reduce(events)
+    expect(complete).toHaveLength(3)
+    expect(complete).toEqual(reduceAOPToTimeline(events))
+    if (complete[0].kind !== 'assistant_response' || complete[1].kind !== 'assistant_response' || prior[0].kind !== 'assistant_response') throw new Error('missing responses')
+    expect(complete[0].tools[0].toolResult).toBe(first.payload.value)
+    expect(complete[1].tools[0].toolResult).toBe(second.payload.value)
+    expect(complete[0].tools[0].resultEventId).toBe(first.id)
+    expect(prior[0].tools[0].toolResult).toBe(first.payload.value)
+  })
+
   it('places the user message before assistant work even when turn.start arrives first', () => {
     const events = [
       event(1, { case: 'turnStarted', value: create(TurnStartedSchema) }),

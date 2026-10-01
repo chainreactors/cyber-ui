@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import type { Event, ToolResult } from '@cyber/aop'
 
 export interface TimelineItemBase {
   id: string
@@ -19,6 +20,11 @@ export interface ToolCallEntry {
   toolName: string
   toolArgs: string
   result?: string
+  /** Preserve the original AOP result, including media bytes and URI resources. */
+  toolResult?: ToolResult
+  resultEventId?: string
+  /** Original observations explicitly correlated with this tool invocation. */
+  observations?: Event[]
   pending: boolean
   error?: boolean
 }
@@ -48,6 +54,7 @@ export interface ExtensionTimelineItem extends TimelineItemBase {
   kind: 'extension'
   extensionType: string
   data: Record<string, unknown>
+  event?: Event
 }
 
 export type TimelineItem =

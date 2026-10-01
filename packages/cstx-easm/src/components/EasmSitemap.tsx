@@ -5,7 +5,7 @@ import type { Url } from '../types'
 import { type PathNode, buildPathTree, collectFolderIDs, pathFileName } from '../lib/pathTree'
 import { statusCodeTone, badgeToneClass } from '../lib/tones'
 
-export function EasmSitemap({ urls }: { urls: Url[] }) {
+export function EasmSitemap({ urls, labels }: { urls: Url[]; labels?: Record<string, string> }) {
   const tree = useMemo(() => buildPathTree(urls), [urls])
   const folderIDs = useMemo(() => collectFolderIDs(tree), [tree])
   const [openIDs, setOpenIDs] = useState<Set<string>>(() => new Set(folderIDs))
@@ -19,10 +19,10 @@ export function EasmSitemap({ urls }: { urls: Url[] }) {
     <div className="overflow-hidden rounded-md border border-border/60 bg-muted/10">
       {folderIDs.length > 0 && (
         <div className="flex items-center justify-end gap-1 border-b border-border/60 px-2 py-1">
-          <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground" onClick={() => setOpenIDs(new Set(folderIDs))}>
+          <button type="button" aria-label={labels?.expandAll ?? 'Expand all'} title={labels?.expandAll ?? 'Expand all'} className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground" onClick={() => setOpenIDs(new Set(folderIDs))}>
             <FolderOpen className="h-3.5 w-3.5" />
           </button>
-          <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground" onClick={() => setOpenIDs(new Set())}>
+          <button type="button" aria-label={labels?.collapseAll ?? 'Collapse all'} title={labels?.collapseAll ?? 'Collapse all'} className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground" onClick={() => setOpenIDs(new Set())}>
             <Folder className="h-3.5 w-3.5" />
           </button>
         </div>

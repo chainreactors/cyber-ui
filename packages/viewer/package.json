@@ -20,7 +20,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cyber/traffic": "workspace:*",
+    "@cyber/cstx-easm": "workspace:*",
     "@cyber/aop": "workspace:*",
+    "@cyber/file-manager": "workspace:*",
     "@cyber/theme": "workspace:*",
     "@cyber/ui": "workspace:*",
     "@cyber/markdown": "workspace:*",

@@ -20,6 +20,7 @@ export { type BadgeTone, badgeToneClass, statusCodeTone, severityTone } from './
 
 // Path tree utilities
 export { type PathNode, buildPathTree, collectFolderIDs, pathFileName } from './lib/pathTree'
+export { assetAnchor } from './lib/anchors'
 
 // Components
 export { EasmBadge } from './components/EasmBadge'
@@ -30,3 +31,4 @@ export { EasmSitemap } from './components/EasmSitemap'
 export { EasmVulnCard, EasmVulnList } from './components/EasmVulnCard'
 export { EasmHostCard, EasmHostList } from './components/EasmHostCard'
 export { EasmResultView, EasmResultFromNodes } from './components/EasmResultView'
+export { CSTXArtifactDisplay } from './components/CSTXArtifactDisplay'

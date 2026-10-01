@@ -46,6 +46,7 @@ export interface HttpViewPanelsProps {
   emptyText?: string
   requestTitle?: string
   responseTitle?: string
+  labels?: Partial<Record<'loadFailed' | 'requestError' | 'noResponse' | 'emptyBody', string>>
 }
 
 export interface HighlightRange {

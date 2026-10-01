@@ -3,8 +3,9 @@ import { cn } from '@cyber/theme'
 import type { Vuln } from '../types'
 import { EasmBadge } from './EasmBadge'
 import { severityTone } from '../lib/tones'
+import { HttpEvidenceView } from '@cyber/traffic'
 
-export function EasmVulnCard({ vuln, detailsLabel = 'Details' }: { vuln: Vuln; detailsLabel?: string }) {
+export function EasmVulnCard({ vuln, detailsLabel = 'Details', labels }: { vuln: Vuln; detailsLabel?: string; labels?: Record<string, string> }) {
   const hasDetail = Boolean(vuln.request || vuln.response)
   const tone = severityTone(vuln.severity)
   const isWeakpass = Boolean(vuln.username)
@@ -39,31 +40,18 @@ export function EasmVulnCard({ vuln, detailsLabel = 'Details' }: { vuln: Vuln; d
           <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
             {detailsLabel}
           </summary>
-          <div className="mt-2 max-h-96 overflow-auto rounded-md border border-border bg-background/50 p-3 text-muted-foreground">
-            {vuln.request && (
-              <div>
-                <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground/70">Request</div>
-                <pre className="whitespace-pre-wrap font-mono text-[11px]">{vuln.request}</pre>
-              </div>
-            )}
-            {vuln.response && (
-              <div className={vuln.request ? 'mt-3' : ''}>
-                <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground/70">Response</div>
-                <pre className="whitespace-pre-wrap font-mono text-[11px]">{vuln.response}</pre>
-              </div>
-            )}
-          </div>
+          <HttpEvidenceView request={vuln.request} response={vuln.response} requestTitle={labels?.request} responseTitle={labels?.response} />
         </details>
       )}
     </div>
   )
 }
 
-export function EasmVulnList({ vulns, detailsLabel }: { vulns: Vuln[]; detailsLabel?: string }) {
+export function EasmVulnList({ vulns, detailsLabel, labels }: { vulns: Vuln[]; detailsLabel?: string; labels?: Record<string, string> }) {
   return (
     <div className="space-y-2">
       {vulns.map((vuln, idx) => (
-        <EasmVulnCard key={`${vuln.cstx_id}:${idx}`} vuln={vuln} detailsLabel={detailsLabel} />
+        <EasmVulnCard key={`${vuln.cstx_id}:${idx}`} vuln={vuln} detailsLabel={detailsLabel} labels={labels} />
       ))}
     </div>
   )

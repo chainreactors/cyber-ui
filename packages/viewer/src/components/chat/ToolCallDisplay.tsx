@@ -118,6 +118,8 @@ export interface ToolCallDisplayProps {
   defaultExpanded?: boolean
   className?: string
   labels?: Partial<ToolCallLabels>
+  headerExtra?: ReactNode
+  children?: ReactNode
 }
 
 export default function ToolCallDisplay({
@@ -129,6 +131,8 @@ export default function ToolCallDisplay({
   defaultExpanded = false,
   className,
   labels,
+  headerExtra,
+  children,
 }: ToolCallDisplayProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const summary = summarizeArgs(toolArgs)
@@ -146,6 +150,7 @@ export default function ToolCallDisplay({
     >
       <button
         type="button"
+        aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50"
       >
@@ -164,6 +169,7 @@ export default function ToolCallDisplay({
         >
           {summary || (error ? l.failed : pending ? l.running : l.completed)}
         </span>
+        {headerExtra}
         {error ? (
           <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
         ) : pending ? (
@@ -186,6 +192,17 @@ export default function ToolCallDisplay({
       >
         <div className="overflow-hidden">
           <div className="border-t border-border">
+            {children}
+            {children ? <>
+              {toolArgs && <details className="border-t border-border px-3 py-2">
+                <summary className="cursor-pointer text-xs text-muted-foreground">{l.arguments}</summary>
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-xs">{formattedArgs}</pre>
+              </details>}
+              {displayResult !== undefined && <details className="border-t border-border px-3 py-2">
+                <summary className="cursor-pointer text-xs text-muted-foreground">{l.result}</summary>
+                <div className="mt-2"><ToolResultContent result={displayResult} toolArgs={toolArgs} /></div>
+              </details>}
+            </> : <>
             {toolArgs && (
               <div className="bg-card px-3 py-2">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -204,6 +221,7 @@ export default function ToolCallDisplay({
                 <ToolResultContent result={displayResult} toolArgs={toolArgs} />
               </div>
             )}
+            </>}
           </div>
         </div>
       </div>

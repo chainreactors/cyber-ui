@@ -11,7 +11,11 @@ import type { MessageBubbleVariant } from './MessageBubble'
 import MessageBubble from './MessageBubble'
 import AssistantResponse from './AssistantResponse'
 import ChatThinking from './ChatThinking'
-import ToolCallDisplay from './ToolCallDisplay'
+import { ToolResultDisplay, type ToolResultDisplayProps } from './ToolResultDisplay'
+import { ObservationDisplay } from '../observability/ObservationDisplay'
+import { observation } from '../../lib/observations'
+
+type ToolPresentationProps = Pick<ToolResultDisplayProps, 'resolveMedia' | 'labels' | 'mediaLabels' | 'recordLabels' | 'observationLabels'>
 
 // ── Context ──
 
@@ -20,6 +24,7 @@ interface ChatPanelContextValue {
   domainContext: Record<string, unknown>
   overrides: BuiltinRendererOverride
   variant: MessageBubbleVariant
+  toolProps?: ToolPresentationProps
 }
 
 const ChatPanelContext = createContext<ChatPanelContextValue>({
@@ -33,15 +38,16 @@ export interface ChatPanelProps {
   domainContext?: Record<string, unknown>
   overrides?: BuiltinRendererOverride
   variant?: MessageBubbleVariant
+  toolProps?: ToolPresentationProps
   className?: string
   children: React.ReactNode
 }
 
 export function ChatPanel({
-  timeline, domainContext = {}, overrides = {}, variant = 'bubble', className, children,
+  timeline, domainContext = {}, overrides = {}, variant = 'bubble', toolProps, className, children,
 }: ChatPanelProps) {
   return (
-    <ChatPanelContext.Provider value={{ timeline, domainContext, overrides, variant }}>
+    <ChatPanelContext.Provider value={{ timeline, domainContext, overrides, variant, toolProps }}>
       <div className={cn('flex min-h-0 flex-1 flex-col', className)}>{children}</div>
     </ChatPanelContext.Provider>
   )
@@ -99,7 +105,7 @@ function ChatPanelTimeline({
   scrollResetKey, scrollBehavior = 'smooth',
   ...scrollerProps
 }: ChatPanelTimelineProps) {
-  const { timeline, domainContext, overrides, variant } = useContext(ChatPanelContext)
+  const { timeline, domainContext, overrides, variant, toolProps } = useContext(ChatPanelContext)
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -192,8 +198,8 @@ function ChatPanelTimeline({
   const renderOne = useCallback((item: TimelineItem) => {
     const custom = renderItem?.(item)
     if (custom !== undefined && custom !== null) return custom
-    return renderTimelineItem(item, domainContext, overrides, variant)
-  }, [renderItem, domainContext, overrides, variant])
+    return renderTimelineItem(item, domainContext, overrides, variant, toolProps)
+  }, [renderItem, domainContext, overrides, variant, toolProps])
 
   const ItemWrapper = memoItems ? MemoTimelineEntry : PassthroughEntry
 
@@ -266,6 +272,7 @@ function renderTimelineItem(
   context: Record<string, unknown>,
   overrides: BuiltinRendererOverride,
   variant: MessageBubbleVariant,
+  toolProps?: ToolPresentationProps,
 ): React.ReactNode {
   switch (item.kind) {
     case 'message': {
@@ -308,7 +315,7 @@ function renderTimelineItem(
             const Override = overrides.toolCall
             return Override
               ? <Override key={tc.id} item={{ kind: 'tool_call', id: tc.id, timestamp: item.timestamp, toolCall: tc }} context={context} />
-              : <ToolCallDisplay key={tc.id} toolName={tc.toolName} toolArgs={tc.toolArgs} result={tc.result} pending={tc.pending} error={tc.error} />
+              : <ToolResultDisplay key={tc.id} {...tc} {...toolProps} />
           }) : undefined}
         />
       )
@@ -318,7 +325,7 @@ function renderTimelineItem(
         const Override = overrides.toolCall
         return <Override item={item} context={context} />
       }
-      return <ToolCallDisplay toolName={item.toolCall.toolName} toolArgs={item.toolCall.toolArgs} result={item.toolCall.result} pending={item.toolCall.pending} error={item.toolCall.error} />
+      return <ToolResultDisplay {...item.toolCall} {...toolProps} />
     }
     case 'divider':
       return (
@@ -327,6 +334,7 @@ function renderTimelineItem(
         </div>
       )
     case 'extension':
+      if (item.event && observation(item.event)) return <ObservationDisplay event={item.event} labels={toolProps?.observationLabels} />
       return renderExtensionItem(item, context)
     default:
       return null

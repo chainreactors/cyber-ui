@@ -17,6 +17,10 @@ export {
 } from './gen/aop/protocol_pb.js'
 
 export {
+  AccessSchema as FileAccessSchema,
+  AccessOp as FileAccessOp,
+  AccessSource as FileAccessSource,
+  type Access as FileAccess,
   ProtocolMessageSchema as FileProtocolMessageSchema,
   ResultSchema as FileResultSchema,
   type ProtocolMessage as FileProtocolMessage,

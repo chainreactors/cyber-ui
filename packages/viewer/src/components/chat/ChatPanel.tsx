@@ -110,6 +110,9 @@ function ChatPanelTimeline({
   const contentRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const stuckRef = useRef(true)
+  const upwardIntentRef = useRef(false)
+  const stickyScrollRef = useRef(stickyScroll)
+  stickyScrollRef.current = stickyScroll
   const scrollFrameRef = useRef<number | null>(null)
   const scrollBehaviorRef = useRef<ScrollBehavior>('smooth')
 
@@ -121,7 +124,8 @@ function ChatPanelTimeline({
     scrollFrameRef.current = requestAnimationFrame(() => {
       scrollFrameRef.current = null
       const scroller = scrollRef.current
-      if (scroller) {
+      // A user can scroll away after this frame was scheduled by a token update.
+      if (scroller && (!stickyScrollRef.current || stuckRef.current)) {
         const requested = scrollBehaviorRef.current
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
         if (requested === 'instant' || reduceMotion) scroller.scrollTop = scroller.scrollHeight
@@ -139,6 +143,7 @@ function ChatPanelTimeline({
 
   useLayoutEffect(() => {
     stuckRef.current = true
+    upwardIntentRef.current = false
     scrollToBottom('instant')
   }, [scrollResetKey, scrollToBottom])
 
@@ -155,28 +160,67 @@ function ChatPanelTimeline({
     let previousTop = el.scrollTop
     let previousHeight = el.scrollHeight
     let previousViewport = el.clientHeight
+    const pauseFollowing = () => {
+      stuckRef.current = false
+      upwardIntentRef.current = true
+      if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current)
+      scrollFrameRef.current = null
+    }
     const onScroll = () => {
       const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40
       const resized = el.scrollHeight !== previousHeight || el.clientHeight !== previousViewport
       // Collapsing an inline step can clamp scrollTop before the next step grows.
       // Layout-driven scrolling must not opt out of following the conversation.
-      if (atBottom) stuckRef.current = true
-      else if (!resized && el.scrollTop < previousTop) stuckRef.current = false
+      if (!resized && el.scrollTop > previousTop) upwardIntentRef.current = false
+      if (upwardIntentRef.current || (!resized && el.scrollTop < previousTop)) pauseFollowing()
+      else if (atBottom) stuckRef.current = true
       previousTop = el.scrollTop
       previousHeight = el.scrollHeight
       previousViewport = el.clientHeight
+    }
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY < 0) pauseFollowing()
+      else if (event.deltaY > 0) upwardIntentRef.current = false
+    }
+    let touchY: number | undefined
+    const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0]?.clientY }
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return
+      const nextY = event.touches[0].clientY
+      if (touchY !== undefined && nextY > touchY) pauseFollowing()
+      else if (touchY !== undefined && nextY < touchY) upwardIntentRef.current = false
+      touchY = nextY
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return
+      if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) pauseFollowing()
+      else if (['ArrowDown', 'PageDown', 'End', ' '].includes(event.key)) upwardIntentRef.current = false
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const clientLeft = el.getBoundingClientRect().left + el.clientLeft
+      if (event.target === el && (event.clientX < clientLeft || event.clientX >= clientLeft + el.clientWidth)) pauseFollowing()
     }
     const onExpand = (event: MouseEvent) => {
       const trigger = event.target instanceof Element ? event.target.closest('summary, [aria-expanded="false"]') : null
       if (!trigger) return
       // Opening an older tool/review is a deliberate request to read it in place.
       if (trigger.getAttribute('aria-expanded') === 'false'
-        || (trigger.tagName === 'SUMMARY' && !trigger.parentElement?.hasAttribute('open'))) stuckRef.current = false
+        || (trigger.tagName === 'SUMMARY' && !trigger.parentElement?.hasAttribute('open'))) pauseFollowing()
     }
     el.addEventListener('scroll', onScroll, { passive: true })
+    el.addEventListener('wheel', onWheel, { passive: true })
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: true })
+    el.addEventListener('keydown', onKeyDown)
+    el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('click', onExpand, true)
     return () => {
       el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('keydown', onKeyDown)
+      el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('click', onExpand, true)
     }
   }, [stickyScroll])
@@ -204,7 +248,7 @@ function ChatPanelTimeline({
   const ItemWrapper = memoItems ? MemoTimelineEntry : PassthroughEntry
 
   return (
-    <div {...scrollerProps} ref={scrollRef} className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-3', className)}>
+    <div tabIndex={0} {...scrollerProps} ref={scrollRef} className={cn('min-h-0 flex-1 overflow-y-auto px-4 py-3', className)}>
       {timeline.length === 0 && (
         emptyState ?? (
           <div className="flex h-full flex-col items-center justify-center text-muted-foreground">

@@ -62,10 +62,19 @@ export function ObservabilityPanel({ events, labels, toolProps, assets, assetCou
   const [detailOpen, setDetailOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [newCount, setNewCount] = useState(0)
+  const [wide, setWide] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const previousSourceLength = useRef(0)
   const initializedSource = useRef(false)
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 720))
+    observer.observe(panel)
+    return () => observer.disconnect()
+  }, [])
   const source = view === 'events' ? records : activities
   const reduce = useMemo(() => createAOPTimelineReducer({ lifecycle: 'none' }), [])
   const tools = useMemo(() => {
@@ -156,15 +165,15 @@ export function ObservabilityPanel({ events, labels, toolProps, assets, assetCou
       requestAnimationFrame(() => listRef.current?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus())
     }
   }
-  return <Tabs value={page} onValueChange={setPage} className={cn('flex h-full min-h-0 flex-col', className)} data-testid="observability-panel">
+  return <Tabs ref={panelRef} value={page} onValueChange={setPage} className={cn('flex h-full min-h-0 flex-col', className)} data-testid="observability-panel">
     {assets && <div className="shrink-0 border-b border-border px-4">
       <TabsList className="h-11 gap-4 rounded-none bg-transparent p-0">
-        <TabsTrigger value="session" className="h-full gap-2 rounded-none border-b-2 border-transparent px-0 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"><Activity className="h-3.5 w-3.5" />{l.session}<span className="font-mono text-[10px] text-muted-foreground">{activities.length}</span></TabsTrigger>
-        <TabsTrigger value="assets" className="h-full gap-2 rounded-none border-b-2 border-transparent px-0 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"><Box className="h-3.5 w-3.5" />{l.assets}<span className="font-mono text-[10px] text-muted-foreground">{assetCount}</span></TabsTrigger>
+        <TabsTrigger value="session" className="h-full gap-2 rounded-none border-b-2 border-transparent px-0 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"><Activity className="h-3.5 w-3.5" />{l.session}<span className="font-mono text-xs text-muted-foreground">{activities.length}</span></TabsTrigger>
+        <TabsTrigger value="assets" className="h-full gap-2 rounded-none border-b-2 border-transparent px-0 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"><Box className="h-3.5 w-3.5" />{l.assets}<span className="font-mono text-xs text-muted-foreground">{assetCount}</span></TabsTrigger>
       </TabsList>
     </div>}
     <TabsContent value="session" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
-      <div className={cn('shrink-0 border-b border-border bg-muted/10', detailOpen && 'hidden lg:block')}>
+      <div className={cn('shrink-0 border-b border-border bg-muted/10', detailOpen && !wide && 'hidden')}>
         <div className="flex flex-wrap items-center gap-2 px-4 pb-2 pt-3">
           <div className="relative min-w-[8rem] flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -175,24 +184,24 @@ export function ObservabilityPanel({ events, labels, toolProps, assets, assetCou
           </div>
           <div className="flex rounded-md bg-muted p-0.5" role="group" aria-label={l.events}>
             {(['activity', 'events'] as const).map(mode => <button key={mode} type="button" aria-pressed={view === mode} data-observation-view={mode} onClick={() => setView(mode)}
-              className={cn('rounded px-2 py-1 text-[11px] transition-colors', view === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{mode === 'activity' ? l.activity : l.events}</button>)}
+              className={cn('rounded px-2 py-1 text-xs transition-colors', view === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{mode === 'activity' ? l.activity : l.events}</button>)}
           </div>
         </div>
         <div className="flex items-center gap-2 px-4 pb-2">
           <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto" role="group" aria-label={l.all}>
             {(['all', ...categories] as const).filter(kind => kind === 'all' || counts.has(kind) || category === kind).map(kind =>
               <button key={kind} type="button" aria-pressed={category === kind} onClick={() => setCategory(kind)} data-observation-kind={kind}
-                className={cn('shrink-0 rounded-md px-2 py-1 text-[11px] transition-colors', category === kind ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted')}>
-                {kind === 'all' ? l.all : l.categories[kind]} <span className="ml-1 font-mono text-[10px] opacity-70">{kind === 'all' ? source.length : counts.get(kind) || 0}</span>
+                className={cn('shrink-0 rounded-md px-2 py-1 text-xs transition-colors', category === kind ? 'bg-primary/10 font-medium text-primary' : 'text-muted-foreground hover:bg-muted')}>
+                {kind === 'all' ? l.all : l.categories[kind]} <span className="ml-1 font-mono text-xs opacity-70">{kind === 'all' ? source.length : counts.get(kind) || 0}</span>
               </button>,
             )}
           </div>
-          <span className="shrink-0 font-mono text-[10px] text-muted-foreground" data-testid="observation-count">{visible.length} / {source.length}</span>
+          <span className="shrink-0 font-mono text-xs text-muted-foreground" data-testid="observation-count">{visible.length} / {source.length}</span>
         </div>
       </div>
-      <div className="min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(14rem,30%)_minmax(0,1fr)]">
-        <div className={cn('relative h-full min-h-0 overflow-hidden border-border bg-muted/10 lg:border-r', detailOpen && 'hidden lg:block')}>
-          {newCount > 0 && <button type="button" onClick={() => { listRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); setNewCount(0) }} className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-full border border-primary/30 bg-background px-3 py-1 text-[11px] font-medium text-primary shadow-sm transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={l.jumpToLatest}>
+      <div className={cn('min-h-0 flex-1', wide && 'grid grid-cols-[minmax(14rem,30%)_minmax(0,1fr)]')}>
+        <div className={cn('relative h-full min-h-0 overflow-hidden border-border bg-muted/10', wide && 'border-r', detailOpen && !wide && 'hidden')}>
+          {newCount > 0 && <button type="button" onClick={() => { listRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); setNewCount(0) }} className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-full border border-primary/30 bg-background px-3 py-1 text-xs font-medium text-primary shadow-sm transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={l.jumpToLatest}>
             {l.newItems.replace('{{count}}', String(newCount))}
           </button>}
         <ul ref={listRef} onScroll={() => { if (listRef.current && listRef.current.scrollTop <= 24) setNewCount(0) }} className="h-full min-h-0 overflow-auto overscroll-contain" data-testid="observation-list">
@@ -205,9 +214,9 @@ export function ObservabilityPanel({ events, labels, toolProps, assets, assetCou
               <button type="button" aria-pressed={event === active} onKeyDown={event => handleRowKeyDown(event, index)} onClick={() => { setSelected(event); setDetailOpen(true) }} className={cn('group flex w-full min-w-0 gap-2.5 border-b border-border/40 border-l-2 border-l-transparent px-3 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary', event === active && 'border-l-primary bg-primary/5')}>
                 <span className={cn('mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background text-muted-foreground', failed && 'border-destructive/20 text-destructive')}><Icon className="h-3.5 w-3.5" /></span>
                 <span className="min-w-0 flex-1 space-y-1">
-                  <span className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground"><span>{l.categories[kind]}</span><span>{time(event)}</span></span>
+                  <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>{l.categories[kind]}</span><span>{time(event)}</span></span>
                   <span className="block truncate text-xs font-medium" title={observationTitle(event)}>{observationTitle(event)}</span>
-                  {entry?.toolArgs && <span className="block truncate font-mono text-[10px] text-muted-foreground" title={summarizeArgs(entry.toolArgs)}>{summarizeArgs(entry.toolArgs)}</span>}
+                  {entry?.toolArgs && <span className="block truncate font-mono text-xs text-muted-foreground" title={summarizeArgs(entry.toolArgs)}>{summarizeArgs(entry.toolArgs)}</span>}
                 </span>
                 {failed ? <CircleX className="mt-1 h-3 w-3 shrink-0 text-destructive" aria-label={l.failed || 'Failed'} /> : pending ? <Loader2 className="mt-1 h-3 w-3 shrink-0 animate-spin text-warning" /> : entry ? <Check className="mt-1 h-3 w-3 shrink-0 text-success" /> : null}
               </button>
@@ -219,14 +228,14 @@ export function ObservabilityPanel({ events, labels, toolProps, assets, assetCou
           </li>}
         </ul>
         </div>
-        <div className={cn('h-full min-h-0 min-w-0 overflow-auto bg-background', !detailOpen && 'hidden lg:block')} data-testid="observation-detail">
-          <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-background px-3 py-2"><Button variant="ghost" size="icon-xs" className="lg:hidden" onClick={() => setDetailOpen(false)} aria-label={l.back}><ArrowLeft className="h-3.5 w-3.5" /></Button><span className="min-w-0 flex-1 truncate text-xs">{active ? observationTitle(active) : l.empty}</span>{active?.id && <Button variant="ghost" size="icon-xs" onClick={copyEventID} aria-label={copied ? l.copied : l.copy} title={copied ? l.copied : l.copy}><Copy className="h-3.5 w-3.5" /></Button>}</div>
+        <div className={cn('h-full min-h-0 min-w-0 overflow-auto bg-background', !detailOpen && !wide && 'hidden')} data-testid="observation-detail">
+          <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-background px-3 py-2"><Button variant="ghost" size="icon-xs" className={wide ? 'hidden' : undefined} onClick={() => setDetailOpen(false)} aria-label={l.back}><ArrowLeft className="h-3.5 w-3.5" /></Button><span className="min-w-0 flex-1 truncate text-xs">{active ? observationTitle(active) : l.empty}</span>{active?.id && <Button variant="ghost" size="icon-xs" onClick={copyEventID} aria-label={copied ? l.copied : l.copy} title={copied ? l.copied : l.copy}><Copy className="h-3.5 w-3.5" /></Button>}</div>
           {active ? <div key={JSON.stringify([active.sessionId, active.emitter, active.id])} className="space-y-3 p-3 sm:p-4">
-            <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground"><span className="truncate" title={active.emitter}>{active.emitter}</span><time>{time(active)}</time></div>
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><span className="truncate" title={active.emitter}>{active.emitter}</span><time>{time(active)}</time></div>
             {eventTool(active) ? <ToolResultDisplay {...eventTool(active)!}
               {...(view === 'events' && active.payload.case === 'toolCall' ? { pending: true, error: undefined, toolResult: undefined, result: undefined, resultEventId: undefined, observations: undefined } : {})}
               {...toolProps} observationLabels={l} defaultExpanded /> : <ObservationDisplay event={active} labels={l} defaultExpanded />}
-            <div className="sr-only" aria-live="polite">{copied ? l.copied : ''}</div><details className="rounded-md border border-border/60 px-3 py-2 text-[11px] text-muted-foreground"><summary className="cursor-pointer">{l.metadata}</summary><dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 font-mono">
+            <div className="sr-only" aria-live="polite">{copied ? l.copied : ''}</div><details className="rounded-md border border-border/60 px-3 py-2 text-xs text-muted-foreground"><summary className="cursor-pointer">{l.metadata}</summary><dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 font-mono">
               {[['event', active.id], ['session', active.sessionId], ['turn', active.turnId], ['call', active.payload.case === 'toolCall' ? active.payload.value.id : active.payload.case === 'toolResult' ? active.payload.value.callId : observationRef(active)?.callId], ['operation', observationRef(active)?.operationId], ['seq', String(active.seq)]].filter(([, value]) => value).map(([key, value]) => <div key={key} className="contents"><dt>{key}</dt><dd className="break-all">{value}</dd></div>)}
             </dl></details>
           </div> : <div className="flex h-full items-center justify-center p-6"><EmptyState compact icon={Activity} title={l.empty} /></div>}

@@ -50,7 +50,7 @@ import { EmptyGuide } from './sub/EmptyGuide';
 import { ResizeHandle } from './sub/ResizeHandle';
 import { DiffBadge, DiffSummaryBar, getDiffRowClass } from './sub/DiffBadge';
 import { ExportButton } from './sub/ExportButton';
-import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, FLAG_DESCRIPTION_MAP } from './sub/FlagCell';
+import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, flagDescription } from './sub/FlagCell';
 import { Flag as FlagIcon } from 'lucide-react';
 import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
 import { useColumnResize } from './hooks/useColumnResize';
@@ -59,6 +59,9 @@ import { useUrlSlot } from './hooks/useUrlState';
 import type {CSTXNode} from '../../types/transport.gen';
 
 type Row = Record<string, unknown>;
+function tableMessage(i18n: Record<string, unknown> | undefined, key: string, fallback: string): string {
+  return typeof i18n?.[key] === 'string' ? i18n[key] as string : fallback;
+}
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 // Edge shadows for the frozen index / actions columns. These are a scroll
@@ -246,7 +249,7 @@ function asHttpUrl(value: unknown): string | null {
   }
 }
 
-function RowControlHeader({ table }: { table: ReturnType<typeof useReactTable<Row>> }) {
+function RowControlHeader({ table, i18n }: { table: ReturnType<typeof useReactTable<Row>>; i18n?: Record<string, unknown> }) {
   const selectableRows = table.getFilteredRowModel().rows;
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const allSelected = selectableRows.length > 0 && selectedRows.length === selectableRows.length;
@@ -259,7 +262,7 @@ function RowControlHeader({ table }: { table: ReturnType<typeof useReactTable<Ro
           if (el) el.indeterminate = someSelected;
         }}
         type="checkbox"
-        aria-label="Select all filtered rows"
+        aria-label={tableMessage(i18n, 'selectAll', 'Select all filtered rows')}
         checked={allSelected}
         onChange={(e) => {
           const checked = e.target.checked;
@@ -272,9 +275,10 @@ function RowControlHeader({ table }: { table: ReturnType<typeof useReactTable<Ro
   );
 }
 
-function RowControlCell({ row, table }: {
+function RowControlCell({ row, table, i18n }: {
   row: ReturnType<ReturnType<typeof useReactTable<Row>>['getRowModel']>['rows'][number];
   table: ReturnType<typeof useReactTable<Row>>;
+  i18n?: Record<string, unknown>;
 }) {
   const orderedRows = table.getSortedRowModel().rows;
   const orderedIndex = orderedRows.findIndex((candidate) => candidate.id === row.id);
@@ -287,7 +291,7 @@ function RowControlCell({ row, table }: {
         checked={row.getIsSelected()}
         onChange={row.getToggleSelectedHandler()}
         onClick={(e) => e.stopPropagation()}
-        aria-label={`Select row ${displayIndex}`}
+        aria-label={tableMessage(i18n, 'selectRow', 'Select row {n}').replace('{n}', String(displayIndex))}
         className="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
       />
       <span className="w-8 text-right text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
@@ -297,7 +301,7 @@ function RowControlCell({ row, table }: {
   );
 }
 
-function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: string) => void }) {
+function CellCopyButton({ value, onCopy, i18n }: { value: unknown; onCopy: (text: string) => void; i18n?: Record<string, unknown> }) {
   const [copied, setCopied] = useState(false);
   const text = value != null ? String(value) : '';
   if (!text) return null;
@@ -330,14 +334,14 @@ function CellCopyButton({ value, onCopy }: { value: unknown; onCopy: (text: stri
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      title={copied ? '已复制' : '复制'}
+      title={copied ? tableMessage(i18n, 'copied', '已复制') : tableMessage(i18n, 'copy', '复制')}
     >
       {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
 
-function CellOpenLinkButton({ href }: { href: string | null }) {
+function CellOpenLinkButton({ href, i18n }: { href: string | null; i18n?: Record<string, unknown> }) {
   if (!href) return null;
 
   return (
@@ -348,8 +352,8 @@ function CellOpenLinkButton({ href }: { href: string | null }) {
         event.stopPropagation();
         window.open(href, '_blank', 'noopener,noreferrer');
       }}
-      title="打开链接"
-      aria-label="打开链接"
+      title={tableMessage(i18n, 'openLink', '打开链接')}
+      aria-label={tableMessage(i18n, 'openLink', '打开链接')}
     >
       <ExternalLink className="h-3 w-3" />
     </button>
@@ -399,7 +403,7 @@ function RowActionsCell({
   );
 }
 
-function RowFlagBadges({ row }: { row: Row }) {
+function RowFlagBadges({ row, i18n }: { row: Row; i18n?: Record<string, unknown> }) {
   const active = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row as unknown as CSTXNode, opt.value));
   if (active.length === 0) return null;
   return (
@@ -407,7 +411,7 @@ function RowFlagBadges({ row }: { row: Row }) {
       {active.map(f => {
         const Icon = FLAG_ICON_MAP[f.key] ?? FlagIcon;
         return (
-          <span key={f.key} title={FLAG_DESCRIPTION_MAP[f.key] ?? f.label}>
+          <span key={f.key} title={flagDescription(f, i18n)}>
             <Icon className="h-3 w-3" style={{ color: FLAG_COLOR_MAP[f.key] }} />
           </span>
         );
@@ -467,6 +471,7 @@ function buildColumns(
     enableRowSelection?: boolean;
     stickyFirstColumn?: boolean;
     enableCstxFlags?: boolean;
+    i18n?: Record<string, unknown>;
     diffMode?: boolean;
     diffField?: string;
 
@@ -480,8 +485,8 @@ function buildColumns(
   if (options?.enableRowSelection) {
     cols.push({
       id: '__row_control',
-      header: ({ table }) => <RowControlHeader table={table} />,
-      cell: ({ row, table }) => <RowControlCell row={row} table={table} />,
+      header: ({ table }) => <RowControlHeader table={table} i18n={options?.i18n} />,
+      cell: ({ row, table }) => <RowControlCell row={row} table={table} i18n={options?.i18n} />,
       size: 72,
       meta: { fixed: true },
     });
@@ -564,7 +569,7 @@ function buildColumns(
         if (!showFlagBadges) return content;
         return (
           <span className="flex min-w-0 max-w-full items-center gap-0">
-            <RowFlagBadges row={tableRow.original} />
+            <RowFlagBadges row={tableRow.original} i18n={options?.i18n} />
             <span className="min-w-0 flex-1 overflow-hidden">{content}</span>
           </span>
         );
@@ -616,6 +621,8 @@ function RecordCard({
   enableCstxFlags,
   typeKey,
   typeColorMap,
+  typeLabels,
+  i18n,
   rowActions,
   onAction,
   isActive,
@@ -630,6 +637,8 @@ function RecordCard({
   enableCstxFlags: boolean;
   typeKey: string | undefined;
   typeColorMap: Record<string, string> | undefined;
+  typeLabels: Record<string, string>;
+  i18n: Record<string, unknown>;
   rowActions: TableActionConfig[];
   onAction?: (action: string, payload?: Record<string, unknown>) => void;
   isActive: boolean;
@@ -671,20 +680,20 @@ function RecordCard({
             checked={selected}
             onChange={row.getToggleSelectedHandler()}
             onClick={(e) => e.stopPropagation()}
-            aria-label="Select row"
+            aria-label={tableMessage(i18n, 'selectRow', 'Select row {n}').replace('{n}', String(row.index + 1))}
             className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 accent-blue-600"
           />
         )}
         {typeText && (
           <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--c-muted,#475569)] dark:bg-[var(--c-surface-2,#1e293b)] dark:text-[var(--c-muted,#94a3b8)]">
             {typeColor && <span className="h-1.5 w-1.5 rounded-full" style={{ background: typeColor }} />}
-            {typeText}
+            {tableMessage(typeLabels, typeText, typeText)}
           </span>
         )}
         <div className="min-w-0 flex-1 font-medium text-[var(--c-fg,#0f172a)] dark:text-[var(--c-fg,#e2e8f0)]">
           {primaryCol ? renderCellContent(primaryCol, data[primaryCol.key], data, renderers, false) : null}
         </div>
-        {enableCstxFlags && <RowFlagBadges row={data} />}
+        {enableCstxFlags && <RowFlagBadges row={data} i18n={i18n} />}
         {rowActions.length > 0 && (
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
             <RowActionsCell actions={rowActions} row={data} rowId={row.id} onAction={onAction} />
@@ -788,9 +797,13 @@ export function CSTXTable({
   // string maps supplied by the host app; every string falls back to English when absent, so
   // callers that pass nothing keep the current behaviour.
   const columnLabels = useMemo(() => asRecord(config.columnLabels), [config.columnLabels]);
+  // Label maps affect display only; filtering, sorting, and exports keep raw types.
+  const typeLabels = useMemo(() => Object.fromEntries(
+    Object.entries(asRecord(config.typeLabels)).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  ), [config.typeLabels]);
   const i18n = useMemo(() => asRecord(config.i18n), [config.i18n]);
   const tr = useCallback(
-    (key: string, fallback: string) => (typeof i18n[key] === 'string' ? (i18n[key] as string) : fallback),
+    (key: string, fallback: string) => tableMessage(i18n, key, fallback),
     [i18n],
   );
 
@@ -798,10 +811,11 @@ export function CSTXTable({
     if (!enableCstxFlags) return rowActions;
     const flagAction: TableActionConfig = {
       id: '__cstxFlag',
-      label: 'Flag',
+      label: tr('flags', 'Flag'),
       render: (row, rowId) => (
         <FlagCell
           row={row}
+          i18n={i18n}
           onToggle={(flag, active) =>
             onAction?.('cstxFlagToggle', { rowId, row, flag: flag.key, flagValue: flag.value, active })
           }
@@ -809,7 +823,7 @@ export function CSTXTable({
       ),
     };
     return [flagAction, ...rowActions];
-  }, [enableCstxFlags, rowActions, onAction]);
+  }, [enableCstxFlags, rowActions, onAction, i18n, tr]);
 
   const urlStateKey = (config.urlStateKey as string) || null;
   const urlPrefix = urlStateKey ? `${urlStateKey}_` : null;
@@ -880,9 +894,12 @@ export function CSTXTable({
     const scoped = applyExclusions(afterExclude, commonBadges.map((b) => b.key));
     return scoped.map((c) => {
       const label = columnLabels[c.key];
-      return typeof label === 'string' && label ? { ...c, title: label } : c;
+      const titled = typeof label === 'string' && label ? { ...c, title: label } : c;
+      return c.key === typeFilterKey && Object.keys(typeLabels).length > 0
+        ? { ...titled, renderOptions: { ...c.renderOptions, labelMap: typeLabels } }
+        : titled;
     });
-  }, [explicitColumns, rows, columnsExclude, columnSelectorEnabled, commonBadges, columnLabels]);
+  }, [explicitColumns, rows, columnsExclude, columnSelectorEnabled, commonBadges, columnLabels, typeFilterKey, typeLabels]);
 
   const metaKeySet = useMemo(() => {
     const keys = new Set(allColumns.filter((c) => isMetaKey(c.key)).map((c) => c.key));
@@ -1001,13 +1018,14 @@ export function CSTXTable({
       enableRowSelection,
       stickyFirstColumn,
       enableCstxFlags,
+      i18n,
       diffMode,
       diffField,
       rowActions: effectiveRowActions,
       rowIdKey,
       onAction,
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
@@ -1268,10 +1286,10 @@ export function CSTXTable({
         {commonBadges.map((badge) => (
           <span
             key={badge.key}
-            title={`${badge.label}: ${badge.value}`}
+            title={`${badge.label}: ${badge.key === typeFilterKey ? tableMessage(typeLabels, badge.value, badge.value) : badge.value}`}
             className="shrink-0 rounded bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--c-muted,#475569)] dark:bg-[var(--c-surface-2,#1e293b)] dark:text-[var(--c-muted,#94a3b8)]"
           >
-            {badge.value}
+            {badge.key === typeFilterKey ? tableMessage(typeLabels, badge.value, badge.value) : badge.value}
           </span>
         ))}
         {showRowCount && (
@@ -1318,6 +1336,7 @@ export function CSTXTable({
               </span>
               {enableCstxFlags && (
                 <BatchFlagMenu
+                  i18n={i18n}
                   onApply={(flag, mode) => {
                     onAction?.('batchFlagToggle', {
                       flag: flag.key,
@@ -1393,7 +1412,10 @@ export function CSTXTable({
             />
           )}
           {showExportButton && (
-            <ExportButton compact onExport={handleExport} formats={exportFormats} />
+            <ExportButton compact onExport={handleExport} formats={exportFormats}
+              label={tr('export', 'Export')}
+              formatLabels={Object.fromEntries(exportFormats.flatMap(format => typeof i18n[`export.${format}`] === 'string' ? [[format, i18n[`export.${format}`] as string]] : []))}
+            />
           )}
         </div>
       </div>
@@ -1408,6 +1430,8 @@ export function CSTXTable({
           compact
           colorMap={typeColorMap}
           counts={typeCounts}
+          labels={typeLabels}
+          clearLabel={tr('clear', 'Clear')}
         />
       )}
 
@@ -1426,7 +1450,7 @@ export function CSTXTable({
                 onClick={() => handleTypeToggle(v)}
                 className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
               >
-                {v}
+                {tableMessage(typeLabels, v, v)}
                 <span className="text-blue-400 dark:text-blue-500">&times;</span>
               </button>
             ))}
@@ -1501,6 +1525,8 @@ export function CSTXTable({
                 enableCstxFlags={enableCstxFlags}
                 typeKey={typeFilterKey}
                 typeColorMap={typeColorMap}
+                typeLabels={typeLabels}
+                i18n={i18n}
                 rowActions={effectiveRowActions}
                 onAction={onAction}
                 isActive={activeRowId === row.id}
@@ -1611,8 +1637,9 @@ export function CSTXTable({
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           {!isSystemCol && (
                             <>
-                              <CellOpenLinkButton href={externalHref} />
+                              <CellOpenLinkButton href={externalHref} i18n={i18n} />
                               <CellCopyButton
+                                i18n={i18n}
                                 value={cell.getValue()}
                                 onCopy={(text) => {
                                   onAction?.('cellClick', {

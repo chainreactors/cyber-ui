@@ -64,6 +64,7 @@ export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
     const str = String(v);
     const colorMap = (opts?.colorMap ?? {}) as Record<string, string>;
     const color = colorMap[str];
+    const labelMap = (opts?.labelMap ?? {}) as Record<string, string>;
     return (
       <span
         className={cn(
@@ -71,7 +72,7 @@ export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
           color ?? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
         )}
       >
-        {str}
+        {typeof labelMap[str] === 'string' ? labelMap[str] : str}
       </span>
     );
   });

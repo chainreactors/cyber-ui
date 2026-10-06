@@ -15,7 +15,6 @@ import {
 import {
   CSTX_FLAG_OPTIONS,
   hasCstxFlag,
-  getCstxFlagActionLabel,
   getCstxFlagAddLabel,
   getCstxFlagRemoveLabel,
   type CstxFlagOption,
@@ -23,6 +22,23 @@ import {
 import type {CSTXNode} from '../../../types/transport.gen';
 
 type Row = Record<string, unknown>;
+
+function flagMessage(i18n: Record<string, unknown> | undefined, key: string, fallback: string): string {
+  return typeof i18n?.[key] === 'string' ? i18n[key] as string : fallback;
+}
+
+function flagLabel(option: CstxFlagOption, i18n?: Record<string, unknown>): string {
+  return flagMessage(i18n, `flag.${option.key}`, option.label);
+}
+
+export function flagDescription(option: CstxFlagOption, i18n?: Record<string, unknown>): string {
+  return flagMessage(i18n, `flagDescription.${option.key}`, FLAG_DESCRIPTION_MAP[option.key] ?? option.label);
+}
+
+function flagAction(option: CstxFlagOption, active: boolean, i18n?: Record<string, unknown>): string {
+  return flagMessage(i18n, `${active ? 'removeFlag' : 'addFlag'}.${option.key}`,
+    active ? getCstxFlagRemoveLabel(option) : getCstxFlagAddLabel(option));
+}
 
 export const FLAG_ICON_MAP: Record<string, LucideIcon> = {
   HONEYPOT: Bug,
@@ -54,9 +70,11 @@ export const FLAG_DESCRIPTION_MAP: Record<string, string> = {
 export interface FlagCellProps {
   row: Row;
   onToggle: (flag: CstxFlagOption, active: boolean) => void;
+  /** Optional host-provided labels, descriptions, and action text. */
+  i18n?: Record<string, unknown>;
 }
 
-export function FlagCell({ row, onToggle }: FlagCellProps) {
+export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
   const node = row as unknown as CSTXNode;
   const activeFlags = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(node, opt.value));
   const hasFlags = activeFlags.length > 0;
@@ -73,13 +91,13 @@ export function FlagCell({ row, onToggle }: FlagCellProps) {
             borderColor: hasFlags ? 'var(--c-accent, #5f9df7)' : 'var(--c-line, rgba(150,178,224,0.15))',
             color: hasFlags ? 'var(--c-accent-fg, #97bffb)' : 'var(--c-faint, #8293b2)',
           }}
-          title={hasFlags ? activeFlags.map(f => f.label).join(', ') : 'Set flag'}
+          title={hasFlags ? activeFlags.map(f => flagLabel(f, i18n)).join(', ') : flagMessage(i18n, 'setFlag', 'Set flag')}
         >
           {hasFlags
             ? activeFlags.slice(0, 2).map(f => {
                 const Icon = FLAG_ICON_MAP[f.key] ?? Flag;
                 return (
-                  <span key={f.key} title={FLAG_DESCRIPTION_MAP[f.key] ?? f.label}>
+                  <span key={f.key} title={flagDescription(f, i18n)}>
                     <Icon className="h-3 w-3" style={{ color: FLAG_COLOR_MAP[f.key] }} />
                   </span>
                 );
@@ -98,7 +116,7 @@ export function FlagCell({ row, onToggle }: FlagCellProps) {
         }}
       >
         <DropdownMenuLabel className="text-xs" style={{ color: 'var(--c-faint)' }}>
-          标记
+          {flagMessage(i18n, 'flags', '标记')}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {CSTX_FLAG_OPTIONS.map(option => {
@@ -112,10 +130,10 @@ export function FlagCell({ row, onToggle }: FlagCellProps) {
                 onToggle(option, active);
               }}
               className="gap-2 cursor-pointer"
-              title={FLAG_DESCRIPTION_MAP[option.key]}
+              title={flagDescription(option, i18n)}
             >
               <Icon className="h-3.5 w-3.5" style={{ color: FLAG_COLOR_MAP[option.key] }} />
-              <span className="flex-1">{getCstxFlagActionLabel(node, option)}</span>
+              <span className="flex-1">{flagAction(option, active, i18n)}</span>
               {active && <span className="h-1.5 w-1.5 rounded-full" style={{ background: FLAG_COLOR_MAP[option.key] }} />}
             </DropdownMenuItem>
           );
@@ -130,6 +148,7 @@ export type BatchFlagMode = 'add' | 'remove';
 export interface BatchFlagMenuProps {
   onApply: (flag: CstxFlagOption, mode: BatchFlagMode) => void;
   disabled?: boolean;
+  i18n?: Record<string, unknown>;
 }
 
 /**
@@ -138,10 +157,10 @@ export interface BatchFlagMenuProps {
  * offered as two explicit groups — otherwise the only reachable batch action is
  * "add", leaving no way to clear a flag from many rows at once.
  */
-export function BatchFlagMenu({ onApply, disabled }: BatchFlagMenuProps) {
+export function BatchFlagMenu({ onApply, disabled, i18n }: BatchFlagMenuProps) {
   const groups: { mode: BatchFlagMode; label: string; makeLabel: (o: CstxFlagOption) => string }[] = [
-    { mode: 'add', label: '添加标记', makeLabel: getCstxFlagAddLabel },
-    { mode: 'remove', label: '移除标记', makeLabel: getCstxFlagRemoveLabel },
+    { mode: 'add', label: flagMessage(i18n, 'addFlags', '添加标记'), makeLabel: o => flagAction(o, false, i18n) },
+    { mode: 'remove', label: flagMessage(i18n, 'removeFlags', '移除标记'), makeLabel: o => flagAction(o, true, i18n) },
   ];
   return (
     <DropdownMenu>
@@ -156,10 +175,10 @@ export function BatchFlagMenu({ onApply, disabled }: BatchFlagMenuProps) {
             borderColor: 'var(--c-line, rgba(150,178,224,0.15))',
             color: 'var(--c-faint, #8293b2)',
           }}
-          title="批量标记 / 取消标记"
+          title={flagMessage(i18n, 'batchFlags', '批量标记 / 取消标记')}
         >
           <Flag className="h-3 w-3" />
-          <span>标记</span>
+          <span>{flagMessage(i18n, 'flags', '标记')}</span>
           <ChevronDown className="h-2.5 w-2.5 opacity-40" />
         </button>
       </DropdownMenuTrigger>
@@ -187,7 +206,7 @@ export function BatchFlagMenu({ onApply, disabled }: BatchFlagMenuProps) {
                     onApply(option, group.mode);
                   }}
                   className="gap-2 cursor-pointer"
-                  title={FLAG_DESCRIPTION_MAP[option.key]}
+                  title={flagDescription(option, i18n)}
                 >
                   <Icon className="h-3.5 w-3.5" style={{ color: FLAG_COLOR_MAP[option.key] }} />
                   <span className="flex-1">{group.makeLabel(option)}</span>

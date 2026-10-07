@@ -22,19 +22,35 @@ export function TerminalView({ onReady, className }: { onReady: (terminal: XTerm
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
-    const terminal = new XTerm({ cursorBlink: true, convertEol: true, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontSize: 12, lineHeight: 1.35, theme: { background: '#060a0d', foreground: '#d7e1ea', cursor: '#38e38b' } })
+    const terminal = new XTerm({ cursorBlink: true, convertEol: false, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontSize: 12, lineHeight: 1.35, theme: { background: '#060a0d', foreground: '#d7e1ea', cursor: '#38e38b' } })
     const fit = new FitAddon()
     terminal.loadAddon(fit)
     terminal.open(mount)
     const resize = () => { try { fit.fit() } catch {} }
-    requestAnimationFrame(resize)
-    const observer = new ResizeObserver(resize)
+    // Measure before the caller attaches a PTY, so its first frame uses the
+    // browser's dimensions rather than xterm's default 80x24.
+    resize()
+    let resizeFrame = 0
+    let ready = false
+    const scheduleResize = () => {
+      cancelAnimationFrame(resizeFrame)
+      resizeFrame = requestAnimationFrame(() => {
+        // The first fit initializes xterm's viewport and scrollbar. Fit again
+        // after layout settles before exposing the dimensions to the caller.
+        resize()
+        if (!ready) {
+          ready = true
+          onReadyRef.current(terminal, fit)
+          terminal.focus()
+        }
+      })
+    }
+    scheduleResize()
+    const observer = new ResizeObserver(scheduleResize)
     observer.observe(mount)
-    onReadyRef.current(terminal, fit)
-    terminal.focus()
-    return () => { observer.disconnect(); terminal.dispose() }
+    return () => { observer.disconnect(); cancelAnimationFrame(resizeFrame); terminal.dispose() }
   }, [])
-  return <div className={cn('min-h-0 flex-1 bg-[#060a0d] p-2', className)}><div ref={mountRef} className="h-full min-h-[18rem] w-full" /></div>
+  return <div className={cn('min-h-0 min-w-0 flex-1 bg-[#060a0d] p-2', className)}><div ref={mountRef} className="h-full min-h-[18rem] w-full" /></div>
 }
 
 export function TerminalHeader({ actions, status, title }: {
@@ -73,7 +89,9 @@ export function DetailRow({ label, mono, value }: { label: string; mono?: boolea
 export function encodeTerminalData(value: string): Uint8Array { return new TextEncoder().encode(value) }
 export function encodePTYFrame(frame: PTYFrame): Uint8Array { return toBinary(PtyProtocolMessageSchema, frame) }
 export function decodePTYFrame(frame: Uint8Array): PTYFrame { return fromBinary(PtyProtocolMessageSchema, frame) }
-export function writeTerminalData(terminal: XTerm, frame: PTYFrame) { if (frame.message.case === 'output') terminal.write(new TextDecoder().decode(frame.message.value.data)) }
+// xterm maintains its UTF-8 decoder across writes. Decoding each transport
+// frame separately corrupts characters split across PTY output chunks.
+export function writeTerminalData(terminal: XTerm, frame: PTYFrame) { if (frame.message.case === 'output') terminal.write(frame.message.value.data) }
 export function sessionsFromFrame(frame: PTYFrame): PTYSession[] { return frame.message.case === 'sessions' ? frame.message.value.sessions.filter((session) => !!session.id) : [] }
 export function sessionFromFrame(frame: PTYFrame): PTYSession | null {
   switch (frame.message.case) {

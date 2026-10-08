@@ -15,9 +15,13 @@
   "files": ["dist"],
   "scripts": {
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@cyber/ui": "workspace:*",
+    "@cyber/aop": "workspace:*",
+    "@bufbuild/protobuf": "^2.9.0",
     "@cyber/theme": "workspace:*",
     "lucide-react": "^0.400.0",
     "react-resizable-panels": "^2.1.7"
@@ -31,6 +35,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
-    "vite-plugin-dts": "^4.0.0"
+    "vite-plugin-dts": "^4.0.0",
+    "vitest": "^4.0.18"
   }
 }

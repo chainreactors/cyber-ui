@@ -3,12 +3,18 @@ import { ChevronRight, Network } from 'lucide-react'
 import type { SCOHostGroup } from '../types'
 import { EasmBadge } from './EasmBadge'
 import { EasmPortRow } from './EasmPortRow'
+import { assetAnchor } from '../lib/anchors'
+import { AssetAnchorLink } from './AssetAnchorLink'
 
-export function EasmHostCard({ host }: { host: SCOHostGroup }) {
+type HostCardProps = { host: SCOHostGroup; anchorPrefix?: string; labels?: Record<string, string>; linkLabel?: (name: string) => string }
+
+export function EasmHostCard({ host, anchorPrefix = '', labels, linkLabel }: HostCardProps) {
   const [open, setOpen] = useState(true)
+  const anchor = assetAnchor(anchorPrefix, 'host', host.ip.cstx_id)
 
   return (
     <details
+      id={anchor}
       className="group scroll-mt-24 py-3 first:pt-0 last:pb-0"
       open={open}
       onToggle={(e) => setOpen(e.currentTarget.open)}
@@ -19,6 +25,7 @@ export function EasmHostCard({ host }: { host: SCOHostGroup }) {
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="break-all font-mono text-sm font-semibold text-foreground">{host.ip.ip}</span>
+            <AssetAnchorLink id={anchor} label={linkLabel?.(host.ip.ip) || `Link to ${host.ip.ip}`} />
             {host.ip.country && <EasmBadge tone="muted">{host.ip.country}</EasmBadge>}
             {host.ip.cdn_name && <EasmBadge tone="yellow">{host.ip.cdn_name}</EasmBadge>}
           </div>
@@ -27,7 +34,7 @@ export function EasmHostCard({ host }: { host: SCOHostGroup }) {
       <div className="ml-6 mt-3 border-l border-border/70 pl-3">
         <div className="divide-y divide-border/60">
           {host.ports.map((node) => (
-            <EasmPortRow key={node.port.cstx_id} node={node} />
+            <EasmPortRow key={node.port.cstx_id} node={node} anchorPrefix={anchorPrefix} labels={labels} />
           ))}
         </div>
       </div>
@@ -35,11 +42,11 @@ export function EasmHostCard({ host }: { host: SCOHostGroup }) {
   )
 }
 
-export function EasmHostList({ hosts }: { hosts: SCOHostGroup[] }) {
+export function EasmHostList({ hosts, ...props }: { hosts: SCOHostGroup[] } & Omit<HostCardProps, 'host'>) {
   return (
     <div className="divide-y divide-border/70">
       {hosts.map((host) => (
-        <EasmHostCard key={host.ip.cstx_id} host={host} />
+        <EasmHostCard key={host.ip.cstx_id} host={host} {...props} />
       ))}
     </div>
   )

@@ -118,6 +118,31 @@ export interface ToolCallDisplayProps {
   defaultExpanded?: boolean
   className?: string
   labels?: Partial<ToolCallLabels>
+  headerExtra?: ReactNode
+  children?: ReactNode
+  /** Reuse the same body inside a host-owned card, without another disclosure. */
+  bodyOnly?: boolean
+  /** Separate execution anchors can show each payload once. Arguments remain available for result formatting. */
+  content?: 'all' | 'arguments' | 'result'
+}
+
+export function ToolCallBody({ toolArgs = '', result, labels, children, bodyOnly = false, content = 'all' }: Pick<ToolCallDisplayProps, 'toolArgs' | 'result' | 'labels' | 'children' | 'bodyOnly' | 'content'>) {
+  const l = { ...DEFAULT_LABELS, ...labels }
+  const formattedArgs = formatArgs(toolArgs)
+  const displayResult = result === undefined ? undefined : stripAnsiControl(result)
+  const argumentsBody = <pre className="max-h-40 overflow-auto overscroll-contain whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">{formattedArgs}</pre>
+  const resultBody = displayResult !== undefined && <ToolResultContent result={displayResult} toolArgs={toolArgs} />
+  const secondary = !!children && !bodyOnly
+  function section(kind: 'arguments' | 'result', label: string, body: ReactNode) {
+    return secondary
+      ? <details className="border-t border-border px-3 py-2" data-testid={`tool-${kind}`}><summary className="cursor-pointer text-xs text-muted-foreground">{label}</summary><div className="mt-2">{body}</div></details>
+      : <div className="px-3 py-2" data-testid={`tool-${kind}`}><div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>{body}</div>
+  }
+  return <div className="min-w-0" data-testid="tool-content">
+    {children}
+    {content !== 'result' && toolArgs && section('arguments', l.arguments, argumentsBody)}
+    {content !== 'arguments' && displayResult !== undefined && section('result', l.result, resultBody)}
+  </div>
 }
 
 export default function ToolCallDisplay({
@@ -129,12 +154,17 @@ export default function ToolCallDisplay({
   defaultExpanded = false,
   className,
   labels,
+  headerExtra,
+  children,
+  bodyOnly = false,
+  content = 'all',
 }: ToolCallDisplayProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const summary = summarizeArgs(toolArgs)
   const formattedArgs = formatArgs(toolArgs)
-  const displayResult = result === undefined ? undefined : stripAnsiControl(result)
   const l = { ...DEFAULT_LABELS, ...labels }
+  const body = <ToolCallBody toolArgs={toolArgs} result={result} labels={labels} bodyOnly={bodyOnly} content={content}>{children}</ToolCallBody>
+  if (bodyOnly) return <div className={cn('min-w-0', className)}>{body}</div>
 
   return (
     <div
@@ -146,6 +176,7 @@ export default function ToolCallDisplay({
     >
       <button
         type="button"
+        aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50"
       >
@@ -164,6 +195,7 @@ export default function ToolCallDisplay({
         >
           {summary || (error ? l.failed : pending ? l.running : l.completed)}
         </span>
+        {headerExtra}
         {error ? (
           <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
         ) : pending ? (
@@ -186,24 +218,7 @@ export default function ToolCallDisplay({
       >
         <div className="overflow-hidden">
           <div className="border-t border-border">
-            {toolArgs && (
-              <div className="bg-card px-3 py-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {l.arguments}
-                </div>
-                <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
-                  {formattedArgs}
-                </pre>
-              </div>
-            )}
-            {displayResult !== undefined && (
-              <div className="border-t border-border px-3 py-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {l.result}
-                </div>
-                <ToolResultContent result={displayResult} toolArgs={toolArgs} />
-              </div>
-            )}
+            {body}
           </div>
         </div>
       </div>

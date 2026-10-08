@@ -10,7 +10,10 @@ const CELLS = [
   { key: 'vulns', icon: AlertCircle, label: 'Vulns' },
 ] as const
 
-export function EasmMetrics({ metrics, labels }: { metrics: SCOMetrics; labels?: Record<string, string> }) {
+export function EasmMetrics({ metrics, labels, compact = false }: { metrics: SCOMetrics; labels?: Record<string, string>; compact?: boolean }) {
+  if (compact) return <div className="flex flex-wrap gap-2">{CELLS.filter(({ key }) => metrics[key] > 0).map(({ key, icon: Icon, label }) =>
+    <span key={key} className="flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground"><Icon className="h-3 w-3" /><span className="font-mono font-semibold text-foreground">{metrics[key]}</span>{labels?.[key] ?? label}</span>,
+  )}</div>
   return (
     <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
       {CELLS.map(({ key, icon: Icon, label }) => (

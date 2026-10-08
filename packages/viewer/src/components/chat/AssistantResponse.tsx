@@ -18,6 +18,8 @@ export interface AssistantResponseProps {
   thinkingExpanded?: boolean
   onThinkingToggle?: (expanded: boolean) => void
   tools?: ReactNode
+  toolsExpanded?: boolean
+  onToolsToggle?: (expanded: boolean) => void
   response?: ReactNode
   /** Optional host-owned annotation below the completed response. */
   footer?: ReactNode
@@ -54,6 +56,8 @@ export default function AssistantResponse({
   timestamp,
   timeLabel,
   tools,
+  toolsExpanded,
+  onToolsToggle,
   variant = 'bubble',
 }: AssistantResponseProps) {
   const time = timeLabel ?? (timestamp ? new Date(timestamp).toLocaleTimeString() : '')
@@ -78,7 +82,8 @@ export default function AssistantResponse({
           className={cn(!showResponse && !hasTools ? '' : 'border-b border-border')}
           bodyClassName="text-sm leading-relaxed text-muted-foreground"
         >
-          {thinking}
+          <div role="region" aria-label={labels?.thinking || 'Thinking'} tabIndex={0}
+            className="max-h-64 overflow-auto overscroll-contain focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">{thinking}</div>
         </Collapsible>
       )}
       {hasTools && (
@@ -93,6 +98,8 @@ export default function AssistantResponse({
           <Collapsible
             title={labels?.tools || 'Tools'}
             defaultExpanded={false}
+            expanded={toolsExpanded}
+            onToggle={onToolsToggle}
             className={cn(showResponse && 'border-b border-border')}
             bodyClassName="space-y-2"
           >
@@ -143,7 +150,7 @@ export default function AssistantResponse({
         <Bot className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0 flex-1 space-y-1">
-        <div className={cn('flex items-center gap-2 text-[10px] text-muted-foreground', headerClassName)}>
+        <div className={cn('flex items-center gap-2 text-xs text-muted-foreground', headerClassName)}>
           <span className="font-medium">{labels?.assistant ?? actorName ?? 'Assistant'}</span>
           {time && <span className="font-mono">{time}</span>}
         </div>
@@ -158,7 +165,7 @@ export default function AssistantResponse({
 function Section({ children, last, testId, title }: { children: ReactNode; last?: boolean; testId: string; title?: ReactNode }) {
   return (
     <section data-testid={testId} className={cn('px-3 py-2', !last && 'border-b border-border')}>
-      {title && <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{title}</div>}
+      {title && <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</div>}
       {children}
     </section>
   )

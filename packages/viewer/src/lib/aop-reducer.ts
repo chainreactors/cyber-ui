@@ -1,9 +1,11 @@
-import type { Content, EncodedValue, Event, TokenUsage } from '@cyber/aop'
+import { Correlation, type Content, type EncodedValue, type Event, type TokenUsage } from '@cyber/aop'
+import { observation, observationRef } from './observations'
 import type {
   AssistantResponseTimelineItem,
   MessageTimelineItem,
   TimelineItem,
   ToolCallEntry,
+  ExtensionTimelineItem,
 } from '../types/timeline'
 
 export interface ReduceAOPOptions {
@@ -97,13 +99,14 @@ export function createAOPTimelineReducer(
   const responseByTool = new Map<string, AssistantResponseTimelineItem>()
   const messageParts = new Map<AssistantResponseTimelineItem, Map<string, { text: string; thinking: string }>>()
   const tools = new Map<AssistantResponseTimelineItem, Map<string, ToolCallEntry>>()
+  const waitingObservations = new Map<string, ExtensionTimelineItem[]>()
   const lifecycle = options.lifecycle ?? 'all'
   let processed = 0
   let lastEvent: Event | undefined
 
   const streamKey = (event: Event) => `${event.sessionId}:${event.emitter}`
   const scope = (event: Event) => `${streamKey(event)}:${event.turnId || 'session'}`
-  const eventKey = (event: Event, index: number) => event.id || `${scope(event)}:${event.seq || BigInt(index + 1)}`
+  const eventKey = (event: Event, index: number) => JSON.stringify([event.sessionId, event.emitter, event.id || String(event.seq || BigInt(index + 1))])
   const responseID = (event: Event) => `${scope(event)}:response`
 
   const ensureResponse = (event: Event): AssistantResponseTimelineItem => {
@@ -141,6 +144,15 @@ export function createAOPTimelineReducer(
     const current = entries.get(tool.id)
     if (current) Object.assign(current, tool)
     else { response.tools.push(tool); entries.set(tool.id, tool) }
+  }
+
+  const attachWaiting = (key: string, response: AssistantResponseTimelineItem, callID: string) => {
+    const waiting = waitingObservations.get(key)
+    const tool = tools.get(response)?.get(callID)
+    if (!waiting || !tool) return
+    tool.observations = [...(tool.observations || []), ...waiting.flatMap(item => item.event ? [item.event] : [])]
+    for (const item of waiting) { const index = items.indexOf(item); if (index >= 0) items.splice(index, 1) }
+    waitingObservations.delete(key)
   }
 
   const updateMessage = (key: string, response: AssistantResponseTimelineItem, text: string, thinking: string, delta = false) => {
@@ -281,6 +293,7 @@ export function createAOPTimelineReducer(
           toolArgs: stringify(encoded(call.arguments), MAX_TOOL_ARGS_CHARS), pending: true,
         })
         responseByTool.set(`${scope(event)}:tool:${call.id}`, response)
+        attachWaiting(`${scope(event)}:tool:${call.id}`, response, call.id)
         break
       }
 
@@ -292,9 +305,11 @@ export function createAOPTimelineReducer(
         appendTool(response, {
           id: result.callId, toolName: result.name || current?.toolName || '', toolArgs: current?.toolArgs || '',
           result: stringify(contentText(result.output), MAX_TOOL_RESULT_CHARS),
+          toolResult: result, resultEventId: event.id,
           pending: false, error: result.isError,
         })
         responseByTool.set(key, response)
+        attachWaiting(key, response, result.callId)
         break
       }
 
@@ -316,11 +331,23 @@ export function createAOPTimelineReducer(
 
       case 'extension': {
         const extension = event.payload.value
-        items.push({
+        const value = observation(event)
+        const ref = value && observationRef(event)
+        const key = ref?.correlation === Correlation.EXPLICIT && ref.callId ? `${scope(event)}:tool:${ref.callId}` : undefined
+        const response = key && responseByTool.get(key)
+        const tool = response && tools.get(response)?.get(ref!.callId)
+        if (tool) {
+          tool.observations = [...(tool.observations || []), event]
+          break
+        }
+        const item: ExtensionTimelineItem = {
           id: unique, kind: 'extension', timestamp: timestamp(event), actorName: event.emitter,
           extensionType: extension.typeUrl || 'extension',
           data: { typeUrl: extension.typeUrl },
-        })
+          event,
+        }
+        items.push(item)
+        if (key) waitingObservations.set(key, [...(waitingObservations.get(key) || []), item])
         break
       }
     }
@@ -336,6 +363,7 @@ export function createAOPTimelineReducer(
       responseByTool.clear()
       messageParts.clear()
       tools.clear()
+      waitingObservations.clear()
       processed = 0
     }
     for (let index = processed; index < events.length; index++) append(events[index], index)

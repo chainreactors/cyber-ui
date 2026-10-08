@@ -6,7 +6,10 @@
   "types": "./src/index.ts",
   "files": ["src"],
   "dependencies": {
+    "@cyber/aop": "workspace:*",
+    "@cyber/cstx": "workspace:*",
     "@cyber/ui": "workspace:*",
+    "@cyber/traffic": "workspace:*",
     "@cyber/theme": "workspace:*",
     "lucide-react": "^0.510.0"
   },

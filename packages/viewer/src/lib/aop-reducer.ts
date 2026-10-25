@@ -74,16 +74,20 @@ function contentMedia(parts: readonly Content[]): string {
   return values.join('\n')
 }
 
-function usageMetadata(usage: TokenUsage): Record<string, unknown> {
-  return {
-    usage: {
-      input_tokens: Number(usage.inputTokens),
-      output_tokens: Number(usage.outputTokens),
-      total_tokens: Number(usage.totalTokens),
-      model: usage.model,
-      ...Object.fromEntries(Object.entries(usage.detail).map(([key, value]) => [key, Number(value)])),
-    },
+function usageMetadata(usage: TokenUsage, previous?: unknown): Record<string, unknown> {
+  const counters: Record<string, unknown> = {
+    input_tokens: Number(usage.inputTokens),
+    output_tokens: Number(usage.outputTokens),
+    total_tokens: Number(usage.totalTokens),
+    model: usage.model,
+    ...Object.fromEntries(Object.entries(usage.detail).map(([key, value]) => [key, Number(value)])),
   }
+  if (previous && typeof previous === 'object') {
+    for (const [key, value] of Object.entries(previous)) {
+      if (typeof value === 'number') counters[key] = value + (typeof counters[key] === 'number' ? counters[key] as number : 0)
+    }
+  }
+  return { usage: counters }
 }
 
 // Retain the reducer's existing indexes between append-only event batches.
@@ -240,7 +244,11 @@ export function createAOPTimelineReducer(
           id: `${unique}:error`, kind: 'divider', timestamp: timestamp(event), actorName: event.emitter,
           label: failure, variant: 'warning',
         })
-        if (response && ended.usage) response.response = {
+        // Individual counters already cover these calls. Use the turn total
+        // only for producers that omit individual usage events.
+        const reported = items.some(item => item.kind === 'assistant_response' && item.sessionId === event.sessionId
+          && item.turnId === event.turnId && item.response?.metadata?.usage)
+        if (response && ended.usage && !reported) response.response = {
           content: response.response?.content ?? '',
           metadata: { ...response.response?.metadata, ...usageMetadata(ended.usage) },
         }
@@ -317,7 +325,7 @@ export function createAOPTimelineReducer(
         const response = responses.get(scope(event))
         if (response) response.response = {
           content: response.response?.content ?? '',
-          metadata: { ...response.response?.metadata, ...usageMetadata(event.payload.value) },
+          metadata: { ...response.response?.metadata, ...usageMetadata(event.payload.value, response.response?.metadata?.usage) },
         }
         break
       }

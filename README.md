@@ -51,6 +51,8 @@ CSTX 协议驱动的共享前端组件库。为 CyberHub、Cairn Platform 等应
 
 Next.js / Vite 需配置 `transpilePackages` 以编译源码。
 
+在 Next.js App Router 中，`@cyber/ui` 和 `@cyber/theme` 的源码入口声明了 `use client` 边界，以支持组件、主题 hooks 和 context。
+
 ## 设计原则
 
 - **CSTX 协议对齐** — 数据类型（CstxNode、CstxEdge）与 CSTX 协议保持一致，不与具体业务平台耦合

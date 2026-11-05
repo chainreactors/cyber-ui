@@ -1,4 +1,4 @@
-import { type ComponentType, useMemo } from 'react'
+import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react'
 import * as dagre from 'dagre'
 import {
   Background,
@@ -11,6 +11,7 @@ import {
   type Node as FlowNode,
   type NodeProps,
   type NodeTypes,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { ForumThread } from '../types'
@@ -33,7 +34,8 @@ type GraphNodeData = {
 }
 
 type GraphFlowNode = FlowNode<GraphNodeData>
-type GraphFlowEdge = FlowEdge<{ kind: 'refs.messages' }>
+type GraphRelation = string
+type GraphFlowEdge = FlowEdge<{ kind: GraphRelation }>
 
 // -- Node card --
 
@@ -74,28 +76,46 @@ interface GraphEdgeMeta {
   id: string
   source: string
   target: string
+  kind: GraphRelation
+}
+
+// Applications may project their own entities and relations without teaching
+// this IOA component about application metadata or scheduling semantics.
+export interface GraphExtension {
+  nodes: { id: string; title: string; kind: string; meta?: string; messageId?: string }[]
+  edges: { source: string; target: string; label: string }[]
 }
 
 function buildGraphFlow(
   thread: ForumThread,
   selectedMessageId: string,
-): { nodes: GraphFlowNode[]; edges: GraphFlowEdge[]; edgeCount: number; externalRefCount: number } {
+  extension?: GraphExtension,
+): { nodes: GraphFlowNode[]; edges: GraphFlowEdge[]; edgeCount: number; relationLabels: string[]; externalRefCount: number } {
   const messageIds = new Set(thread.messages.map(m => m.id!))
+  const descriptions = new Map((extension?.nodes ?? []).map(node => [node.id, node]))
+  const nodeIds = new Set([...messageIds, ...descriptions.keys()])
   const graphEdges: GraphEdgeMeta[] = []
+  const graphEdgeIDs = new Set<string>()
   let externalRefCount = 0
+  const addEdge = (source: string, target: string, kind: GraphRelation) => {
+    const id = `${kind}:${source}->${target}`
+    if (graphEdgeIDs.has(id)) return
+    graphEdgeIDs.add(id)
+    graphEdges.push({ id, source, target, kind })
+  }
 
   for (const message of thread.messages) {
     for (const refId of messageRefIds(message)) {
       if (messageIds.has(refId)) {
-        graphEdges.push({
-          id: `${message.id}__${refId}`,
-          source: refId,
-          target: message.id!,
-        })
+        addEdge(refId, message.id!, 'refs.messages')
       } else {
         externalRefCount++
       }
     }
+  }
+
+  for (const edge of extension?.edges ?? []) {
+    if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) addEdge(edge.source, edge.target, edge.label)
   }
 
   const graph = new dagre.graphlib.Graph<{ width: number; height: number }>()
@@ -109,8 +129,8 @@ function buildGraphFlow(
   })
   graph.setDefaultEdgeLabel(() => ({}))
 
-  for (const message of thread.messages) {
-    graph.setNode(message.id!, { width: 260, height: 86 })
+  for (const id of nodeIds) {
+    graph.setNode(id, { width: 260, height: 86 })
   }
   for (const edge of graphEdges) {
     graph.setEdge(edge.source, edge.target)
@@ -135,6 +155,7 @@ function buildGraphFlow(
   const messageById = new Map(thread.messages.map(m => [m.id!, m]))
   const flowNodes: GraphFlowNode[] = rawNodes.map(n => {
     const message = messageById.get(n.id)
+    const description = descriptions.get(n.id)
     const active = n.id === selectedMessageId
     const ct = message ? detectContentType(message.content, message.content_type) : 'unknown'
     const content = message?.content as Record<string, unknown> | undefined
@@ -148,10 +169,10 @@ function buildGraphFlow(
       selected: active,
       draggable: false,
       data: {
-        messageId: n.id,
-        title,
-        kind: ct,
-        meta: message?.sender ? shortId(message.sender) : '',
+        messageId: description?.messageId ?? (message ? n.id : ''),
+        title: description?.title ?? title,
+        kind: description?.kind ?? ct,
+        meta: description?.meta ?? (message?.sender ? shortId(message.sender) : ''),
         refCount: message ? messageRefIds(message).length : 0,
         active,
       },
@@ -160,7 +181,9 @@ function buildGraphFlow(
 
   const flowEdges: GraphFlowEdge[] = graphEdges.map(edge => {
     const active = Boolean(selectedMessageId && (edge.source === selectedMessageId || edge.target === selectedMessageId))
-    const stroke = active ? 'hsl(var(--primary))' : 'hsl(var(--border))'
+    const stroke = active
+      ? 'hsl(var(--primary))'
+      : edge.kind !== 'refs.messages' ? 'hsl(var(--success))' : 'hsl(var(--border))'
     return {
       id: edge.id,
       source: edge.source,
@@ -168,12 +191,18 @@ function buildGraphFlow(
       type: 'smoothstep',
       animated: active,
       markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
-      style: { stroke, strokeWidth: active ? 2.2 : 1.4 },
-      data: { kind: 'refs.messages' as const },
+      style: { stroke, strokeWidth: active ? 2.2 : 1.4, strokeDasharray: edge.kind !== 'refs.messages' ? '6 4' : undefined },
+      data: { kind: edge.kind },
     }
   })
 
-  return { nodes: flowNodes, edges: flowEdges, edgeCount: graphEdges.length, externalRefCount }
+  return {
+    nodes: flowNodes,
+    edges: flowEdges,
+    edgeCount: graphEdges.length,
+    relationLabels: [...new Set(graphEdges.map(edge => edge.kind).filter(kind => kind !== 'refs.messages'))],
+    externalRefCount,
+  }
 }
 
 // -- Graph panel --
@@ -183,6 +212,7 @@ export interface GraphPanelProps {
   selectedMessageId: string
   onSelectMessage: (messageId: string) => void
   mode: 'side' | 'dialog'
+  extension?: GraphExtension
   onCollapse?: () => void
 }
 
@@ -192,11 +222,29 @@ export function GraphPanel({
   onSelectMessage,
   mode,
   onCollapse,
+  extension,
 }: GraphPanelProps) {
   const layout = useMemo(
-    () => buildGraphFlow(thread, selectedMessageId),
-    [selectedMessageId, thread],
+    () => buildGraphFlow(thread, selectedMessageId, extension),
+    [selectedMessageId, thread, extension],
   )
+  const [flow, setFlow] = useState<ReactFlowInstance<GraphFlowNode, GraphFlowEdge> | null>(null)
+  const graphRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const selected = layout.nodes.find(node => node.id === selectedMessageId)
+    if (!flow || !selected || !graphRef.current) return
+    let frame = 0
+    const center = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        void flow.setCenter(selected.position.x + 130, selected.position.y + 43, { zoom: 0.75 })
+      })
+    }
+    const observer = new ResizeObserver(center)
+    observer.observe(graphRef.current)
+    center()
+    return () => { observer.disconnect(); cancelAnimationFrame(frame) }
+  }, [flow, layout, selectedMessageId])
 
   return (
     <div className={cn(
@@ -207,7 +255,7 @@ export function GraphPanel({
         <div className="min-w-0">
           <div className="truncate text-xs font-semibold text-foreground">Message Graph</div>
           <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            {thread.messageCount} messages · {layout.edgeCount} refs
+            {thread.messageCount} messages · {layout.edgeCount} links
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -227,7 +275,7 @@ export function GraphPanel({
           )}
         </div>
       </div>
-      <div className={cn('min-h-0 flex-1', mode === 'side' ? 'h-[420px]' : 'h-full')}>
+      <div ref={graphRef} className={cn('min-h-0 flex-1', mode === 'side' ? 'h-[420px]' : 'h-full')}>
         {layout.nodes.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <EmptyState icon={Inbox} title="No message graph" compact />
@@ -238,9 +286,10 @@ export function GraphPanel({
             nodes={layout.nodes}
             edges={layout.edges}
             nodeTypes={GRAPH_NODE_TYPES}
+            onInit={setFlow}
             fitView
             fitViewOptions={{ padding: 0.18 }}
-            minZoom={0.35}
+            minZoom={0.05}
             maxZoom={1.6}
             nodesDraggable={false}
             nodesConnectable={false}
@@ -248,7 +297,7 @@ export function GraphPanel({
             panOnDrag
             zoomOnScroll
             zoomOnPinch
-            onNodeClick={(_, node) => onSelectMessage(String(node.data.messageId))}
+            onNodeClick={(_, node) => { if (node.data.messageId) onSelectMessage(String(node.data.messageId)) }}
           >
             <Background gap={20} size={1} color="hsl(var(--border))" />
             <Controls showInteractive={false} />
@@ -260,6 +309,12 @@ export function GraphPanel({
           <span className="h-px w-5 bg-primary" />
           refs.messages
         </span>
+        {layout.relationLabels.map(label => (
+          <span key={label} className="inline-flex items-center gap-1.5">
+            <span className="w-5 border-t border-dashed border-success" />
+            {label}
+          </span>
+        ))}
         {layout.externalRefCount > 0 && <span>{layout.externalRefCount} external refs</span>}
       </div>
     </div>

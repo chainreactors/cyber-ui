@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type MouseEvent } from 'react'
+import { useState, useEffect, useMemo, type MouseEvent, type JSX } from 'react'
 import type { SCOPortNode } from '../types'
 import { EasmPortLine } from './EasmPortLine'
 import { EasmSitemap } from './EasmSitemap'

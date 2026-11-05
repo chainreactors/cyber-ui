@@ -19,7 +19,7 @@ export { Timeline } from './components/Timeline'
 export type { TimelineProps } from './components/Timeline'
 
 export { GraphPanel, CollapsedGraphButton } from './components/GraphPanel'
-export type { GraphPanelProps, CollapsedGraphButtonProps } from './components/GraphPanel'
+export type { GraphExtension, GraphPanelProps, CollapsedGraphButtonProps } from './components/GraphPanel'
 
 export { TimelineEntry } from './components/TimelineEntry'
 export type { TimelineEntryProps, TimelineEntryTone } from './components/TimelineEntry'

@@ -69,7 +69,7 @@ export function GraphPanelHeader({
                                 className={cn(
                                     'flex items-center justify-center rounded-lg border p-2 transition-all',
                                     layoutType === type
-                                        ? 'border-blue-200 bg-blue-100 text-blue-600 dark:border-blue-800 dark:bg-blue-900/50 dark:text-blue-400'
+                                        ? 'border-slate-400 bg-slate-100 text-slate-900 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100'
                                         : 'border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700',
                                     disabled && 'cursor-not-allowed opacity-50',
                                 )}

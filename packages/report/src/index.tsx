@@ -1,6 +1,7 @@
 export {
   ReportDocument,
   type ReportDocumentProps,
+  type ReportCodeBlock,
   type ReportFindingBinding,
 } from './ReportDocument'
 export { ReportTaskPreview } from './ReportAppendix'

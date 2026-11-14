@@ -71,6 +71,13 @@ interface RenderContext {
   componentNames: ReadonlySet<string>
   renderHttpView?: (view: TrafficHttpView) => ReactNode
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
+  renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
+}
+
+/** A fenced block outside HTTP evidence: its text and the fence's language. */
+export interface ReportCodeBlock {
+  code: string
+  language?: string
 }
 
 const HEADING = /^h([1-6])$/
@@ -144,6 +151,7 @@ function prepareContext(
   componentNames: readonly string[],
   renderHttpView?: (view: TrafficHttpView) => ReactNode,
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode,
+  renderCodeBlock?: (block: ReportCodeBlock) => ReactNode,
 ): RenderContext {
   const headingIds = new WeakMap<Element, string>()
   const headings: Heading[] = []
@@ -180,6 +188,7 @@ function prepareContext(
     componentNames: new Set(componentNames),
     renderHttpView,
     renderFindingActions,
+    renderCodeBlock,
   }
 }
 
@@ -264,6 +273,22 @@ function EvidencePre({ node, label }: { node: Element; label?: string }) {
       </pre>
     </div>
   )
+}
+
+/** The fence's language, from the `language-*` class of the block's code. */
+function codeLanguage(node: Element): string | undefined {
+  const code = node.children.find((child): child is Element => isElement(child) && child.tagName === 'code') ?? node
+  const classes = code.properties?.className
+  const names: unknown[] = Array.isArray(classes) ? classes : []
+  const language = names.find((name): name is string => typeof name === 'string' && name.startsWith('language-'))
+  return language ? language.slice('language-'.length).toLowerCase() : undefined
+}
+
+/** A fenced block that is not an HTTP packet: the owner's code block when it
+ *  supplies one, the verbatim evidence block otherwise. */
+function CodeBlockNode({ node, context }: { node: Element; context: RenderContext }) {
+  if (!context.renderCodeBlock) return <EvidencePre node={node} />
+  return <>{context.renderCodeBlock({ code: textOf(node), language: codeLanguage(node) })}</>
 }
 
 function packetLabel(node: Element, index: number): string {
@@ -461,7 +486,7 @@ const COMPONENT_RENDERERS: Record<KnownReportComponentName, ComponentRenderer> =
   'http-evidence': (node, context) => <HttpEvidence node={node} context={context} />,
   'data-table': (node, context) => <ReportTable node={node} context={context} />,
   callout: (node, context) => <ReportCallout node={node} context={context} />,
-  'code-block': (node) => <EvidencePre node={node} />,
+  'code-block': (node, context) => <CodeBlockNode node={node} context={context} />,
   markdown: (node, context) => (
     <div {...passthroughProps(node)} className="my-2">
       {renderNodes(node.children, context)}
@@ -550,7 +575,7 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'dt': return <dt {...props} className="mt-2 font-semibold">{children()}</dt>
     case 'dd': return <dd {...props} className="ml-4 text-muted-foreground">{children()}</dd>
     case 'blockquote': return <ReportCallout node={node} context={context} />
-    case 'pre': return <EvidencePre node={node} />
+    case 'pre': return <CodeBlockNode node={node} context={context} />
     case 'table': return <ReportTable node={node} context={context} />
     case 'caption': return <caption {...props} className="px-3 py-2 text-left text-xs font-semibold">{children()}</caption>
     case 'colgroup': return <colgroup {...props}>{renderTableNodes(node.children, context)}</colgroup>
@@ -638,6 +663,11 @@ export interface ReportDocumentProps {
    * which is what keeps a frozen export identical to the document it came from.
    */
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
+  /**
+   * Optional owner-provided renderer for fenced blocks outside HTTP evidence.
+   * Omitted, they render as verbatim evidence blocks.
+   */
+  renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
   /** CSTX assets associated with the report's task. */
   assetPreview?: CstxReportPreview | null
   /** Raw CSTX vulnerability records associated with the report's task. */
@@ -654,6 +684,7 @@ export function ReportDocument({
   componentNames,
   renderHttpView,
   renderFindingActions,
+  renderCodeBlock,
   assetPreview,
   vulnerabilities,
   vulnerabilitiesTitle,
@@ -662,7 +693,7 @@ export function ReportDocument({
   className,
 }: ReportDocumentProps) {
   const rendered = useMemo(() => {
-    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions)
+    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions, renderCodeBlock)
     const firstContentIndex = tree.children.findIndex((node) => (
       isElement(node) || (node.type === 'text' && node.value.trim() !== '')
     ))
@@ -677,7 +708,7 @@ export function ReportDocument({
         context,
       ),
     }
-  }, [tree, componentNames, renderHttpView, renderFindingActions])
+  }, [tree, componentNames, renderHttpView, renderFindingActions, renderCodeBlock])
 
   return (
     <div className={cn('cyber-report text-muted-foreground', className)}>

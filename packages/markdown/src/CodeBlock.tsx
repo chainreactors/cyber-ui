@@ -57,6 +57,10 @@ function useHostDarkTheme(): boolean {
   return dark
 }
 
+// The Prism themes paint a background on the inline <code>, which shows as a
+// block behind every line of text instead of the card's own surface.
+const hlCodeTagProps = { style: { background: 'transparent' } }
+
 export function CodeBlock({
   code,
   language,
@@ -112,6 +116,7 @@ export function CodeBlock({
             style={isDark ? oneDark : oneLight}
             PreTag="div"
             customStyle={hlCustomStyle}
+            codeTagProps={hlCodeTagProps}
             showLineNumbers={showLineNumbers}
             lineNumberStyle={lineNumStyle}
           >

@@ -72,6 +72,7 @@ interface RenderContext {
   renderHttpView?: (view: TrafficHttpView) => ReactNode
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
   renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
+  fitHttpView?: boolean
 }
 
 /** A fenced block outside HTTP evidence: its text and the fence's language. */
@@ -152,6 +153,7 @@ function prepareContext(
   renderHttpView?: (view: TrafficHttpView) => ReactNode,
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode,
   renderCodeBlock?: (block: ReportCodeBlock) => ReactNode,
+  fitHttpView?: boolean,
 ): RenderContext {
   const headingIds = new WeakMap<Element, string>()
   const headings: Heading[] = []
@@ -189,6 +191,7 @@ function prepareContext(
     renderHttpView,
     renderFindingActions,
     renderCodeBlock,
+    fitHttpView,
   }
 }
 
@@ -277,6 +280,8 @@ function EvidencePre({ node, label }: { node: Element; label?: string }) {
 
 /** The fence's language, from the `language-*` class of the block's code. */
 function codeLanguage(node: Element): string | undefined {
+  const marked = stringProp(node, 'dataLanguage')
+  if (marked) return marked
   const code = node.children.find((child): child is Element => isElement(child) && child.tagName === 'code') ?? node
   const classes = code.properties?.className
   const names: unknown[] = Array.isArray(classes) ? classes : []
@@ -324,7 +329,7 @@ function HttpEvidence({ node, context }: { node: Element; context: RenderContext
     <section {...passthroughProps(node)} className="my-3" aria-label="HTTP evidence">
       {renderNodes(intro, context)}
       {view && context.renderHttpView ? (
-        <div className="h-[420px] overflow-hidden rounded-md border border-border">
+        <div className={cn('overflow-hidden rounded-md border border-border', !context.fitHttpView && 'h-[420px]')}>
           {context.renderHttpView(view)}
         </div>
       ) : (
@@ -668,6 +673,11 @@ export interface ReportDocumentProps {
    * Omitted, they render as verbatim evidence blocks.
    */
   renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
+  /**
+   * The owner's HTTP view sizes itself to its packets. Omitted, the view gets
+   * the fixed frame a fill-height viewer needs.
+   */
+  fitHttpView?: boolean
   /** CSTX assets associated with the report's task. */
   assetPreview?: CstxReportPreview | null
   /** Raw CSTX vulnerability records associated with the report's task. */
@@ -685,6 +695,7 @@ export function ReportDocument({
   renderHttpView,
   renderFindingActions,
   renderCodeBlock,
+  fitHttpView,
   assetPreview,
   vulnerabilities,
   vulnerabilitiesTitle,
@@ -693,7 +704,7 @@ export function ReportDocument({
   className,
 }: ReportDocumentProps) {
   const rendered = useMemo(() => {
-    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions, renderCodeBlock)
+    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView)
     const firstContentIndex = tree.children.findIndex((node) => (
       isElement(node) || (node.type === 'text' && node.value.trim() !== '')
     ))
@@ -708,7 +719,7 @@ export function ReportDocument({
         context,
       ),
     }
-  }, [tree, componentNames, renderHttpView, renderFindingActions, renderCodeBlock])
+  }, [tree, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView])
 
   return (
     <div className={cn('cyber-report text-muted-foreground', className)}>

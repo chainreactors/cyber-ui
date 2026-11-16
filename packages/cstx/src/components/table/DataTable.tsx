@@ -1433,11 +1433,10 @@ export function CSTXTable({
           </div>
         ) : (
           <>
-            {/* Column headers — low-profile, no uppercase, no heavy bg */}
             <div
               className={cn(
-                'grid border-b border-[var(--c-line,#e2e8f0)] text-[var(--c-faint,#64748b)] dark:border-[var(--c-line,#334155cc)] dark:text-[var(--c-faint,#64748b)]',
-                compact ? 'px-3 text-[11px]' : 'px-4 text-[12px]',
+                'grid h-10 border-b border-[var(--c-line,#e2e8f0)] bg-[var(--c-surface-2,#f1f5f9)] text-[12px] text-[var(--c-faint,#64748b)] dark:border-[var(--c-line,#334155cc)] dark:bg-[var(--c-surface-2,#1e293b)] dark:text-[var(--c-faint,#64748b)]',
+                compact ? 'px-3' : 'px-4',
               )}
               style={tableGridStyle}
             >
@@ -1450,14 +1449,14 @@ export function CSTXTable({
                     <div
                       key={header.id}
                       className={cn(
-                        'relative min-w-0 font-medium',
-                        compact ? 'py-1.5 pr-1.5' : 'py-2 pr-2',
+                        'relative flex min-w-0 items-center font-medium',
+                        compact ? 'pr-1.5' : 'pr-2',
                         isFirst && 'sticky left-0 z-10',
                         isFirst && stickyEdges.start && STICKY_START_SHADOW,
                         isActions && 'sticky right-0 z-10',
                         isActions && stickyEdges.end && STICKY_END_SHADOW,
                       )}
-                      style={isSticky ? { background: 'var(--c-surface, var(--color-surface, #fff))' } : undefined}
+                      style={isSticky ? { background: 'inherit' } : undefined}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {enableColumnResize && headerIdx < hg.headers.length - 1 && !(header.column.columnDef.meta as Record<string, unknown>)?.fixed && (

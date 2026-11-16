@@ -15,6 +15,9 @@ export interface CstxFlagToolbarProps {
   visible?: number;
   hidden?: number;
   flagged?: number;
+  formatFlagLabel?: (label: string) => string;
+  hiddenLabel?: string;
+  flaggedLabel?: string;
   variant?: 'graph' | 'search';
   compact?: boolean;
   showStats?: boolean;
@@ -29,6 +32,9 @@ export function CstxFlagToolbar({
   visible,
   hidden,
   flagged,
+  formatFlagLabel = (label: string) => label,
+  hiddenLabel = 'Hidden',
+  flaggedLabel = 'Flagged',
   variant = 'graph',
   compact = false,
   showStats = true,
@@ -75,7 +81,7 @@ export function CstxFlagToolbar({
                 disabled && 'cursor-not-allowed opacity-50',
               )}
             >
-              {option.label}
+              {formatFlagLabel(option.label)}
             </button>
           );
         })}
@@ -88,12 +94,12 @@ export function CstxFlagToolbar({
           </span>
           {typeof hidden === 'number' && hidden > 0 && (
             <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-line px-1.5 text-[10px] text-faint">
-              hidden {hidden}
+              {hiddenLabel} {hidden}
             </span>
           )}
           {typeof flagged === 'number' && flagged > 0 && (
             <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-line px-1.5 text-[10px] text-faint">
-              flagged {flagged}
+              {flaggedLabel} {flagged}
             </span>
           )}
         </div>

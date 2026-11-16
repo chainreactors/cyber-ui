@@ -34,12 +34,12 @@ export function GraphToolbar({
     return (
         <div className="flex-shrink-0 border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
             <div className="px-3 py-2">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        {titleVisible && <h1 className="text-lg font-bold">{title}</h1>}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+                        {titleVisible && <h1 className="whitespace-nowrap text-lg font-semibold">{title}</h1>}
                         {titleExtra}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 [&>button]:whitespace-nowrap">
                         {children}
                         {onToggleStatistics && (
                             <button

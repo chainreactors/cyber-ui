@@ -16,6 +16,10 @@ export interface GraphQueryControlsProps {
     onPageChange: (page: number) => void;
     disabled?: boolean;
     compact?: boolean;
+    limitLabel?: string;
+    pageLabel?: string;
+    previousPageLabel?: string;
+    nextPageLabel?: string;
 }
 
 export function GraphQueryControls({
@@ -25,6 +29,10 @@ export function GraphQueryControls({
     onPageChange,
     disabled = false,
     compact = false,
+    limitLabel = 'Limit',
+    pageLabel = 'Page',
+    previousPageLabel = 'Previous page',
+    nextPageLabel = 'Next page',
 }: GraphQueryControlsProps): React.JSX.Element {
     const limitOptions = useMemo(
         () => Array.from(new Set([...GRAPH_QUERY_LIMIT_OPTIONS, limit])).sort((a, b) => a - b),
@@ -35,19 +43,20 @@ export function GraphQueryControls({
 
     return (
         <div
-            className={cn('flex items-center gap-2', compact && 'shrink-0')}
+            className={cn('flex flex-wrap items-center gap-2', compact && 'shrink-0')}
             onClick={stopPropagation}
             onKeyDown={stopPropagation}
         >
             <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                <span>Limit</span>
+                <span className="whitespace-nowrap">{limitLabel}</span>
                 <select
+                    aria-label={limitLabel}
                     value={String(limit)}
                     disabled={disabled}
                     onChange={(e) => onLimitChange(Number(e.target.value))}
                     className={cn(
                         'h-7 rounded-md border border-slate-200 bg-transparent px-2 text-xs outline-none',
-                        'focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
+                        'focus:border-slate-500 focus:ring-1 focus:ring-slate-500',
                         'dark:border-slate-600',
                         disabled && 'cursor-not-allowed opacity-50',
                     )}
@@ -60,10 +69,11 @@ export function GraphQueryControls({
                 </select>
             </label>
             <label className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                <span>Page</span>
+                <span className="whitespace-nowrap">{pageLabel}</span>
                 <div className="flex items-center overflow-hidden rounded-md border border-slate-200 dark:border-slate-600">
                     <button
                         type="button"
+                        aria-label={previousPageLabel}
                         onClick={() => onPageChange(page - 1)}
                         disabled={disabled || page <= 1}
                         className="flex h-7 w-7 items-center justify-center text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:hover:bg-slate-800"
@@ -72,6 +82,7 @@ export function GraphQueryControls({
                     </button>
                     <input
                         type="number"
+                        aria-label={pageLabel}
                         min={1}
                         value={page}
                         disabled={disabled}
@@ -80,6 +91,7 @@ export function GraphQueryControls({
                     />
                     <button
                         type="button"
+                        aria-label={nextPageLabel}
                         onClick={() => onPageChange(page + 1)}
                         disabled={disabled}
                         className="flex h-7 w-7 items-center justify-center text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:hover:bg-slate-800"

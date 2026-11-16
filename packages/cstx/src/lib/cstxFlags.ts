@@ -8,11 +8,12 @@ export const CSTX_FLAGS = {
     MANUAL_IGNORED: 1 << 3,
     THREAT_PRESENT: 1 << 4,
     HISTORIC_VULNERABLE: 1 << 5,
+    NOISE_PENDING: 1 << 7,
+    MANUAL_KEPT: 1 << 8,
 } as const;
 
 export const CSTX_FLAGS_ALL = Object.values(CSTX_FLAGS).reduce((mask, value) => mask | value, 0);
 export const DEFAULT_CSTX_EXCLUDE_MASK = CSTX_FLAGS.HONEYPOT
-    | CSTX_FLAGS.NOISE
     | CSTX_FLAGS.FALSE_POSITIVE
     | CSTX_FLAGS.MANUAL_IGNORED;
 
@@ -35,6 +36,8 @@ export const CSTX_FLAG_OPTIONS = [
     {key: 'MANUAL_IGNORED', token: 'manual_ignored', label: '人工忽略', value: CSTX_FLAGS.MANUAL_IGNORED},
     {key: 'THREAT_PRESENT', token: 'threat_present', label: '存在威胁', value: CSTX_FLAGS.THREAT_PRESENT},
     {key: 'HISTORIC_VULNERABLE', token: 'historic_vulnerable', label: '历史漏洞', value: CSTX_FLAGS.HISTORIC_VULNERABLE},
+    {key: 'NOISE_PENDING', token: 'noise_pending', label: '待验证', value: CSTX_FLAGS.NOISE_PENDING},
+    {key: 'MANUAL_KEPT', token: 'manual_kept', label: '人工保留', value: CSTX_FLAGS.MANUAL_KEPT},
 ] as const;
 
 export type CstxFlagOption = (typeof CSTX_FLAG_OPTIONS)[number];

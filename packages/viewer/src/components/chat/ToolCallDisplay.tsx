@@ -15,33 +15,9 @@ import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
 import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/ui'
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
-import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
+import { resolveToolResultFormat } from '../../lib/tool-result-format'
 
-function ToolResultContent({ result, format }: { result: string; format: ToolResultFormat }) {
-  if (format.kind === 'markdown') {
-    return (
-      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
-        <MarkdownContent content={result} compact />
-      </div>
-    )
-  }
-  if (format.kind === 'code') {
-    return (
-      <CodeBlock
-        code={format.code ?? result}
-        language={format.language}
-        showLineNumbers
-        maxHeight={320}
-        className="rounded-md"
-      />
-    )
-  }
-  return (
-    <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
-      {result}
-    </pre>
-  )
-}
+const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
 
 function requestCopyValue(args: string, language?: string): string {
   const command = language ? extractShellCommand(args) : undefined
@@ -85,7 +61,7 @@ function RequestContent({ args, language }: { args: string; language?: string })
       .split('\n')
       .map((line, index) => index === 0 ? `${prompt}${line}` : line)
       .join('\n')
-    return <CodeBlock code={code} language={language} maxHeight={192} className="rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words" />
+    return <CodeBlock code={code} language={language} maxHeight={192} className={cn(CODE_BLOCK_CLASS, 'border-l-2 border-l-accent')} />
   }
   let json = false
   try {
@@ -94,7 +70,7 @@ function RequestContent({ args, language }: { args: string; language?: string })
   } catch {
     // Keep plain-text legacy arguments as text rather than claiming JSON.
   }
-  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className="rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words" />
+  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className={CODE_BLOCK_CLASS} />
 }
 
 export interface ToolCallDisplayProps {
@@ -172,15 +148,15 @@ export default function ToolCallDisplay({
     response: sectionLabels?.copyResponse || `Copy ${labels.response.toLowerCase()}`,
     copied: sectionLabels?.copied || 'Copied',
   }
-  const displayResultFormat = useMemo(
-    () => displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult),
-    [toolArgs, displayResult],
-  )
-  const formattedResult = displayResult === undefined
-    ? undefined
-    : displayResultFormat?.kind === 'code'
-      ? (displayResultFormat.code ?? displayResult)
-      : displayResult
+  // Whatever its content, a result is shown in one code block: recognised
+  // formats keep their highlighting, everything else is plain text.
+  const resultBlock = useMemo(() => {
+    if (displayResult === undefined) return undefined
+    const format = resolveToolResultFormat(toolArgs, displayResult)
+    return format.kind === 'code'
+      ? { code: format.code ?? displayResult, language: format.language }
+      : { code: displayResult, language: 'text' }
+  }, [toolArgs, displayResult])
 
   const statusLabel = statusLabels && (error ? statusLabels.error : pending ? statusLabels.pending : statusLabels.completed)
   const statusDetail = statusLabels && error ? summarizeResult(displayResult ?? '') || statusLabels.noErrorDetails : ''
@@ -285,13 +261,13 @@ export default function ToolCallDisplay({
                 <RequestContent args={toolArgs} language={requestLanguage} />
               </div>
             )}
-            {displayResult !== undefined && (
+            {resultBlock && (
               <div className="px-3 py-2">
                 <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   <span>{labels.response}</span>
-                  <CopyButton value={formattedResult ?? displayResult} label={copyLabels.response} copiedLabel={copyLabels.copied} />
+                  <CopyButton value={resultBlock.code} label={copyLabels.response} copiedLabel={copyLabels.copied} />
                 </div>
-                <ToolResultContent result={displayResult} format={displayResultFormat ?? { kind: 'text' }} />
+                <CodeBlock code={resultBlock.code} language={resultBlock.language} showLineNumbers maxHeight={320} className={CODE_BLOCK_CLASS} />
               </div>
             )}
           </div>

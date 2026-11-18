@@ -97,10 +97,6 @@ export class CSTXArtifactNormalizer {
     }
   }
 
-  nodes(ids: readonly string[]): CanonicalSCONode[] {
-    return ids.map((id) => flattenNode(fromWasm<DynamicNode>(this.runtime.graph.node(id))))
-  }
-
   close(): void {
     if (!this.runtime.closed) this.runtime.close()
     this.runtime.free()

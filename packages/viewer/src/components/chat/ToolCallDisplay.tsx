@@ -17,7 +17,10 @@ import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/u
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
 import { resolveToolResultFormat } from '../../lib/tool-result-format'
 
+const CODE_BLOCK_CLASS_ACCENT = 'rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
 const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
+
+export type ToolResultMode = 'auto' | 'code'
 
 function requestCopyValue(args: string, language?: string): string {
   const command = language ? extractShellCommand(args) : undefined
@@ -52,25 +55,30 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
   )
 }
 
-function RequestContent({ args, language }: { args: string; language?: string }) {
-  const formatted = formatArgs(args)
-  const command = language ? extractShellCommand(args) : undefined
-  if (command) {
-    const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
-    const code = command
-      .split('\n')
-      .map((line, index) => index === 0 ? `${prompt}${line}` : line)
-      .join('\n')
-    return <CodeBlock code={code} language={language} maxHeight={192} className={cn(CODE_BLOCK_CLASS, 'border-l-2 border-l-accent')} />
-  }
-  let json = false
+function requestSyntax(args: string): string | undefined {
   try {
     JSON.parse(args)
-    json = true
+    return 'json'
   } catch {
-    // Keep plain-text legacy arguments as text rather than claiming JSON.
+    return undefined
   }
-  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className={CODE_BLOCK_CLASS} />
+}
+
+function RequestContent({ args, language, mode }: { args: string; language?: string; mode: ToolResultMode }) {
+  const formatted = formatArgs(args)
+  const command = language ? extractShellCommand(args) : undefined
+  const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
+  const body = command
+    ? command.split('\n').map((line, index) => index === 0 ? `${prompt}${line}` : line).join('\n')
+    : formatted
+  if (mode === 'code') {
+    const syntax = command ? language : formatted.trim().startsWith('{') || formatted.trim().startsWith('[') ? 'json' : 'text'
+    return <CodeBlock code={body} language={syntax} showLineNumbers maxHeight={192} className={cn(CODE_BLOCK_CLASS, command && 'border-l-2 border-l-accent')} />
+  }
+  if (command) {
+    return <CodeBlock code={body} language={language} maxHeight={192} className={CODE_BLOCK_CLASS_ACCENT} />
+  }
+  return <CodeBlock code={formatted} language={requestSyntax(args)} maxHeight={192} className={CODE_BLOCK_CLASS} />
 }
 
 export interface ToolCallDisplayProps {
@@ -84,6 +92,7 @@ export interface ToolCallDisplayProps {
   pending?: boolean
   error?: boolean
   defaultExpanded?: boolean
+  resultMode?: ToolResultMode
   /** Keep request/response summaries out of the compact header when desired. */
   showHeaderSummary?: boolean
   /** Host theme override for the compact header's hover treatment. */
@@ -121,6 +130,7 @@ export default function ToolCallDisplay({
   pending = false,
   error = false,
   defaultExpanded = false,
+  resultMode = 'auto',
   showHeaderSummary = true,
   headerClassName,
   statusLabels,
@@ -258,7 +268,7 @@ export default function ToolCallDisplay({
                   <span>{labels.request}</span>
                   <CopyButton value={requestCopyValue(toolArgs, requestLanguage)} label={copyLabels.request} copiedLabel={copyLabels.copied} />
                 </div>
-                <RequestContent args={toolArgs} language={requestLanguage} />
+                <RequestContent args={toolArgs} language={requestLanguage} mode={resultMode} />
               </div>
             )}
             {resultBlock && (

@@ -11,7 +11,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { cn } from '@cyber/theme'
-import { CodeBlock, MarkdownContent } from '@cyber/markdown'
+import { CodeBlock } from '@cyber/markdown'
 import { stripAnsiControl, formatArgs, summarizeArgs } from '../../lib/tool-utils'
 
 const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
@@ -65,30 +65,25 @@ function resultFormat(toolArgs: string, result: string): ResultFormat {
   return language ? { kind: 'code', language } : { kind: 'text' }
 }
 
+const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
+
+/**
+ * A result is one code block whatever its content: the call's shape only picks
+ * the syntax to highlight, never the frame. Rendering a result as markdown
+ * turned a command's `----` into a heading, and the plain-text branch lost the
+ * line numbers and wrapping the rest of the card already had.
+ */
 function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: string }) {
   const format = resultFormat(toolArgs, result)
-  if (format.kind === 'markdown') {
-    return (
-      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
-        <MarkdownContent content={result} compact />
-      </div>
-    )
-  }
-  if (format.kind === 'code') {
-    return (
-      <CodeBlock
-        code={result}
-        language={format.language}
-        showLineNumbers
-        maxHeight={320}
-        className="rounded-md"
-      />
-    )
-  }
+  const language = format.kind === 'markdown' ? 'markdown' : format.kind === 'code' ? format.language : 'text'
   return (
-    <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
-      {result}
-    </pre>
+    <CodeBlock
+      code={result}
+      language={language}
+      showLineNumbers
+      maxHeight={320}
+      className={CODE_BLOCK_CLASS}
+    />
   )
 }
 

@@ -11,7 +11,7 @@ export default defineConfig({
       fileName: (format) => `traffic.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime', '@cyber/theme', 'lucide-react', 'react-resizable-panels'],
+      external: ['react', 'react-dom', 'react/jsx-runtime', '@cyber/theme', '@cyber/aop', '@cyber/ui', '@bufbuild/protobuf/wkt', 'lucide-react', 'react-resizable-panels'],
     },
   },
 })

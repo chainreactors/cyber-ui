@@ -1,4 +1,5 @@
 import type { EvidenceExchangeLike, MitmFlowLike, TrafficHttpView, TrafficRecordLike } from './types'
+import type { TrafficFlow } from '@cyber/aop'
 
 function resolveRequestTarget(url: string, fallbackPath: string): string {
   try {
@@ -6,6 +7,36 @@ function resolveRequestTarget(url: string, fallbackPath: string): string {
     return `${parsed.pathname}${parsed.search}`
   } catch {
     return fallbackPath || '/'
+  }
+}
+
+function bodyText(data?: Uint8Array): string | undefined {
+  if (!data?.length) return undefined
+  const limit = 128 * 1024
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(data.subarray(0, limit), { stream: data.length > limit })
+    if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(text)) throw new Error('binary')
+    return text + (data.length > limit ? `\n[${data.length - limit} bytes omitted]` : '')
+  } catch {
+    return `[Binary body: ${data.length} bytes]\n` + Array.from(data.subarray(0, 256), byte => byte.toString(16).padStart(2, '0')).join(' ')
+  }
+}
+
+/** Adapt native bytes/headers to the package's existing HTTP view, preserving duplicates. */
+export function aopFlowToHttpView(flow: TrafficFlow): TrafficHttpView {
+  const request = flow.request
+  const response = flow.response
+  return {
+    id: flow.id, method: request?.method || '', url: request?.url || '', hostPath: request?.url || '',
+    status: response?.statusCode || 0, reason: response?.reasonPhrase || '', durationMs: -1, error: flow.error || undefined,
+    request: {
+      method: request?.method || '', requestTarget: resolveRequestTarget(request?.url || '', '/'),
+      httpVersion: request?.protocol || '', headers: request?.headers.map(header => [header.name, header.value]) || [], body: bodyText(request?.body),
+    },
+    response: response ? {
+      httpVersion: request?.protocol || '', status: response.statusCode, reason: response.reasonPhrase,
+      headers: response.headers.map(header => [header.name, header.value]), body: bodyText(response.body),
+    } : null,
   }
 }
 

@@ -3,9 +3,18 @@ export type { CSTXNode, CSTXEdge, CSTXSnapshot, CSTXDelta, CSTXStat } from './ty
 export {
   CSTXGraph,
   getCSTXNodeLabel,
-  getCSTXNodeField,
-  getCSTXEdgeField,
 } from './lib/CSTXGraph';
+export {
+  getCSTXDiffChangeKind,
+  getFieldValue,
+  fieldPathKey,
+  fieldPathSegments,
+} from './lib/fieldPath';
+export type { FieldPath } from './lib/fieldPath';
+
+// Browser normalization runtime backed by the CSTX WASM ABI
+export { CSTXArtifactNormalizer } from './artifactRuntime';
+export type { ArtifactInput, ArtifactResult, CanonicalSCONode } from './artifactRuntime';
 
 export type {
   JsonPrimitive,
@@ -163,7 +172,7 @@ export type { CellRendererFn } from './lib/renderers';
 
 // Column utilities
 export type { ColumnConfig } from './components/table/columns';
-export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './components/table/columns';
+export { inferColumns, applyExclusions, flattenRow, getColumnValue, isMetaKey } from './components/table/columns';
 
 // Table sub-components
 export { PaginationBar } from './components/table/sub/PaginationBar';
@@ -256,6 +265,7 @@ export {
 // Snapshot / envelope helpers
 export {
   mergeSnapshots,
+  parseCSTXSnapshot,
 } from './lib/snapshot';
 
 // CSTX query DSL utilities

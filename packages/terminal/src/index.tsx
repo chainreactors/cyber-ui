@@ -22,19 +22,35 @@ export function TerminalView({ onReady, className }: { onReady: (terminal: XTerm
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
-    const terminal = new XTerm({ cursorBlink: true, convertEol: true, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontSize: 12, lineHeight: 1.35, theme: { background: '#060a0d', foreground: '#d7e1ea', cursor: '#38e38b' } })
+    const terminal = new XTerm({ cursorBlink: true, convertEol: false, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', fontSize: 12, lineHeight: 1.35, theme: { background: '#060a0d', foreground: '#d7e1ea', cursor: '#38e38b' } })
     const fit = new FitAddon()
     terminal.loadAddon(fit)
     terminal.open(mount)
     const resize = () => { try { fit.fit() } catch {} }
-    requestAnimationFrame(resize)
-    const observer = new ResizeObserver(resize)
+    // Measure before the caller attaches a PTY, so its first frame uses the
+    // browser's dimensions rather than xterm's default 80x24.
+    resize()
+    let resizeFrame = 0
+    let ready = false
+    const scheduleResize = () => {
+      cancelAnimationFrame(resizeFrame)
+      resizeFrame = requestAnimationFrame(() => {
+        // The first fit initializes xterm's viewport and scrollbar. Fit again
+        // after layout settles before exposing the dimensions to the caller.
+        resize()
+        if (!ready) {
+          ready = true
+          onReadyRef.current(terminal, fit)
+          terminal.focus()
+        }
+      })
+    }
+    scheduleResize()
+    const observer = new ResizeObserver(scheduleResize)
     observer.observe(mount)
-    onReadyRef.current(terminal, fit)
-    terminal.focus()
-    return () => { observer.disconnect(); terminal.dispose() }
+    return () => { observer.disconnect(); cancelAnimationFrame(resizeFrame); terminal.dispose() }
   }, [])
-  return <div className={cn('min-h-0 flex-1 bg-[#060a0d] p-2', className)}><div ref={mountRef} className="h-full min-h-[18rem] w-full" /></div>
+  return <div className={cn('min-h-0 min-w-0 flex-1 bg-[#060a0d] p-2', className)}><div ref={mountRef} className="h-full min-h-[18rem] w-full" /></div>
 }
 
 export function TerminalHeader({ actions, status, title }: {
@@ -64,8 +80,8 @@ export function SessionButton({ active, details, meta, onClick, state, title, un
   return <button type="button" aria-current={active ? 'true' : undefined} onClick={onClick} title={details} className={cn('mb-1 flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-xs transition-colors', active ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground')}><span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', stateColor(state), unread && 'ring-2 ring-primary/30')} /><span className="min-w-0 flex-1"><span className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 flex-1 truncate font-medium">{title}</span>{state && <span className={cn('shrink-0 text-[10px]', stateTextColor(state))}>{stateLabel(state)}</span>}</span>{meta && <span className="mt-0.5 block truncate font-mono text-[10px] text-muted-foreground">{meta}</span>}</span></button>
 }
 
-export function DetailPanel({ children, onClose, title }: { children: ReactNode; onClose: () => void; title: string }) {
-  return <aside className="flex max-h-72 w-full shrink-0 flex-col border-t border-border bg-card lg:max-h-none lg:w-80 lg:border-l lg:border-t-0"><div className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3"><span className="text-xs font-medium uppercase text-muted-foreground">{title}</span><button type="button" aria-label="Close details" onClick={onClose} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><X className="h-3.5 w-3.5" /></button></div><div className="min-h-0 flex-1 overflow-auto p-3 text-xs">{children}</div></aside>
+export function DetailPanel({ children, closeLabel = 'Close details', onClose, title }: { children: ReactNode; closeLabel?: string; onClose: () => void; title: string }) {
+  return <aside className="flex max-h-72 w-full shrink-0 flex-col border-t border-border bg-card lg:max-h-none lg:w-80 lg:border-l lg:border-t-0"><div className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3"><span className="text-xs font-medium uppercase text-muted-foreground">{title}</span><button type="button" aria-label={closeLabel} onClick={onClose} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><X className="h-3.5 w-3.5" /></button></div><div className="min-h-0 flex-1 overflow-auto p-3 text-xs">{children}</div></aside>
 }
 export function DetailGroup({ children, title }: { children: ReactNode; title: string }) { return <section className="mb-4 last:mb-0"><h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3><div className="space-y-1">{children}</div></section> }
 export function DetailRow({ label, mono, value }: { label: string; mono?: boolean; value?: ReactNode }) { if (value === undefined || value === null || value === '') return null; return <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2"><span className="text-muted-foreground">{label}</span><span className={cn('min-w-0 break-words text-foreground', mono && 'font-mono text-[11px]')}>{value}</span></div> }
@@ -73,7 +89,9 @@ export function DetailRow({ label, mono, value }: { label: string; mono?: boolea
 export function encodeTerminalData(value: string): Uint8Array { return new TextEncoder().encode(value) }
 export function encodePTYFrame(frame: PTYFrame): Uint8Array { return toBinary(PtyProtocolMessageSchema, frame) }
 export function decodePTYFrame(frame: Uint8Array): PTYFrame { return fromBinary(PtyProtocolMessageSchema, frame) }
-export function writeTerminalData(terminal: XTerm, frame: PTYFrame) { if (frame.message.case === 'output') terminal.write(new TextDecoder().decode(frame.message.value.data)) }
+// xterm maintains its UTF-8 decoder across writes. Decoding each transport
+// frame separately corrupts characters split across PTY output chunks.
+export function writeTerminalData(terminal: XTerm, frame: PTYFrame) { if (frame.message.case === 'output') terminal.write(frame.message.value.data) }
 export function sessionsFromFrame(frame: PTYFrame): PTYSession[] { return frame.message.case === 'sessions' ? frame.message.value.sessions.filter((session) => !!session.id) : [] }
 export function sessionFromFrame(frame: PTYFrame): PTYSession | null {
   switch (frame.message.case) {

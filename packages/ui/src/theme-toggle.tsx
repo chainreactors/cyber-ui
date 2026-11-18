@@ -7,9 +7,18 @@ export interface ThemeToggleProps {
   onToggle: () => void
   className?: string
   size?: 'default' | 'sm'
+  toLightLabel?: string
+  toDarkLabel?: string
 }
 
-export function ThemeToggle({ isDark, onToggle, className, size = 'default' }: ThemeToggleProps) {
+export function ThemeToggle({
+  isDark,
+  onToggle,
+  className,
+  size = 'default',
+  toLightLabel = 'Switch to light theme',
+  toDarkLabel = 'Switch to dark theme',
+}: ThemeToggleProps) {
   const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'
   const btnSize = size === 'sm' ? 'h-7 w-7' : 'h-9 w-9'
 
@@ -18,7 +27,7 @@ export function ThemeToggle({ isDark, onToggle, className, size = 'default' }: T
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+      aria-label={isDark ? toLightLabel : toDarkLabel}
       onClick={onToggle}
       className={cn(btnSize, 'shrink-0 text-muted-foreground', className)}
     >

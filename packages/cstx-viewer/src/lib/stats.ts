@@ -1,8 +1,7 @@
-import type { CstxNode, CstxEdge } from '@cyber/cstx';
+import type { CSTXNode, CSTXEdge } from '@cyber/cstx';
 
-function modelField(node: CstxNode, field: string): unknown {
-  const m = node.model;
-  return m && typeof m === 'object' ? (m as Record<string, unknown>)[field] : undefined;
+function modelField(node: CSTXNode, field: string): unknown {
+  return node.model[field];
 }
 
 export interface TopNode {
@@ -92,8 +91,8 @@ function topEntries(counts: Record<string, number>, n: number): [string, number]
 }
 
 export function computeStats(
-  nodes: CstxNode[],
-  edges: CstxEdge[],
+  nodes: CSTXNode[],
+  edges: CSTXEdge[],
   topN = 10,
 ): GraphStats {
   const nodeTypeCounts = countBy(nodes, n => n.type);
@@ -169,7 +168,7 @@ export function computeStats(
     if (vulnIds.has(edge.source_id) && edge.target_id) affectedIds.add(edge.target_id);
     else if (vulnIds.has(edge.target_id) && edge.source_id) affectedIds.add(edge.source_id);
   }
-  const affectedAssets = [...affectedIds].map(id => nodeIndex.get(id)).filter(Boolean) as CstxNode[];
+  const affectedAssets = [...affectedIds].map(id => nodeIndex.get(id)).filter(Boolean) as CSTXNode[];
   const affectedTypeCounts = countBy(affectedAssets, n => n.type);
 
   const topVulns: TopVuln[] = topEntries(degreeMap, topN * 2)

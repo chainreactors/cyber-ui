@@ -1,6 +1,7 @@
 export * from './gen/aop/value_pb.js'
 export * from './gen/aop/content_pb.js'
 export * from './gen/aop/event_pb.js'
+export * from './gen/aop/operation/protocol_pb.js'
 export * from './gen/aop/chat_pb.js'
 export * from './gen/aop/envelope_pb.js'
 
@@ -16,6 +17,10 @@ export {
 } from './gen/aop/protocol_pb.js'
 
 export {
+  AccessSchema as FileAccessSchema,
+  AccessOp as FileAccessOp,
+  AccessSource as FileAccessSource,
+  type Access as FileAccess,
   ProtocolMessageSchema as FileProtocolMessageSchema,
   ResultSchema as FileResultSchema,
   type ProtocolMessage as FileProtocolMessage,
@@ -32,13 +37,13 @@ export {
   type Session as PtySession,
 } from './gen/aop/pty/protocol_pb.js'
 export {
+  ArtifactSchema,
+  LootSchema,
+  type Loot,
   ProtocolMessageSchema as ToolProtocolMessageSchema,
+  type Artifact,
   type ProtocolMessage as ToolProtocolMessage,
 } from './gen/aop/tool/protocol_pb.js'
-export {
-  ProtocolMessageSchema as SCOProtocolMessageSchema,
-  type ProtocolMessage as SCOProtocolMessage,
-} from './gen/aop/sco/protocol_pb.js'
 export {
   CaptureMode,
   FlowSchema as TrafficFlowSchema,

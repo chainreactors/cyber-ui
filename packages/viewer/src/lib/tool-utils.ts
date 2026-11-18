@@ -1,3 +1,10 @@
+import type { ToolResult } from '@cyber/aop'
+
+export function toolResultText(result: ToolResult): string {
+  return result.output.flatMap(part => part.value.case === 'text' || part.value.case === 'reasoning'
+    ? [part.value.value.text] : part.value.case === 'refusal' ? [part.value.value] : []).join('\n')
+}
+
 export function stripAnsiControl(value: string): string {
   // eslint-disable-next-line no-control-regex
   const ansiPattern = /[\x1B\x9B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[a-zA-Z\d]*)*)?\x07)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g

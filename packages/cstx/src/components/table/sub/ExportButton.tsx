@@ -7,8 +7,10 @@ export interface ExportButtonProps {
   compact?: boolean;
   onExport: (format: 'xlsx' | 'csv' | 'report') => void;
   formats?: string[];
+  /** Localized format labels, keyed by format. Falls back to English. */
+  labels?: Record<string, string>;
+  /** Accessible name for the icon-only trigger, and the last-resort format label. */
   label?: string;
-  formatLabels?: Record<string, string>;
 }
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -17,7 +19,11 @@ const FORMAT_LABELS: Record<string, string> = {
   report: 'Generate Report',
 };
 
-export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'], label = 'Export', formatLabels = FORMAT_LABELS }: ExportButtonProps) {
+function formatLabel(labels: Record<string, string> | undefined, format: string, fallback: string): string {
+  return labels?.[format] ?? FORMAT_LABELS[format] ?? fallback;
+}
+
+export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'], labels, label = 'Export' }: ExportButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -37,7 +43,7 @@ export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'], lab
         )}
       >
         <Download className="h-3.5 w-3.5" />
-        {formatLabels[formats[0]] ?? FORMAT_LABELS[formats[0]] ?? label}
+        {formatLabel(labels, formats[0], label)}
       </button>
     );
   }
@@ -70,7 +76,7 @@ export function ExportButton({ compact, onExport, formats = ['xlsx', 'csv'], lab
                 onClick={() => { onExport(fmt as 'xlsx' | 'csv' | 'report'); setOpen(false); }}
                 className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-xs text-[var(--c-fg,#334155)] hover:bg-[var(--c-surface-2,#f8fafc)] dark:text-[var(--c-fg,#cbd5e1)] dark:hover:bg-[var(--c-surface-2,#1e293b)]"
               >
-                {formatLabels[fmt] ?? FORMAT_LABELS[fmt] ?? fmt}
+                {formatLabel(labels, fmt, fmt)}
               </button>
             ))}
           </div>

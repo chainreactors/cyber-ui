@@ -37,7 +37,9 @@ export function HttpViewPanels({
   emptyText = '选择流量查看详情',
   requestTitle = 'Request',
   responseTitle = 'Response',
+  labels,
 }: HttpViewPanelsProps) {
+  const l = { loadFailed: 'Failed to load', requestError: 'Request error', noResponse: 'No response', emptyBody: '(Empty body)', ...labels }
   const responseHeaderRight = view ? (
     <>
       {responseHeaderExtra}
@@ -53,7 +55,7 @@ export function HttpViewPanels({
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full">
       <ResizablePanel defaultSize={50} minSize={25}>
-        <HttpColumn title={requestTitle} view={view} loading={loading} error={error} type="request" emptyText={emptyText} bordered />
+        <HttpColumn title={requestTitle} view={view} loading={loading} error={error} type="request" emptyText={emptyText} labels={l} bordered />
       </ResizablePanel>
 
       <ResizableHandle withHandle />
@@ -67,6 +69,7 @@ export function HttpViewPanels({
           type="response"
           emptyText={emptyText}
           headerRight={responseHeaderRight}
+          labels={l}
         />
       </ResizablePanel>
     </ResizablePanelGroup>
@@ -82,6 +85,7 @@ function HttpColumn({
   bordered,
   headerRight,
   emptyText,
+  labels,
 }: {
   title: string
   view: TrafficHttpView | null
@@ -91,6 +95,7 @@ function HttpColumn({
   bordered?: boolean
   headerRight?: ReactNode
   emptyText: string
+  labels: NonNullable<HttpViewPanelsProps['labels']>
 }) {
   return (
     <div className={cn('h-full flex flex-col', bordered && 'border-r')}>
@@ -104,12 +109,12 @@ function HttpColumn({
         </div>
       ) : error ? (
         <div className="flex-1 flex flex-col items-center justify-center text-red-500 text-sm gap-2">
-          <span>加载失败</span>
+          <span>{labels.loadFailed}</span>
           <span className="text-xs text-muted-foreground">{error}</span>
         </div>
       ) : view ? (
         <div className="flex-1 overflow-auto">
-          <RawHttpView view={view} type={type} />
+          <RawHttpView view={view} type={type} labels={labels} />
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
@@ -120,10 +125,10 @@ function HttpColumn({
   )
 }
 
-function RawHttpView({ view, type }: { view: TrafficHttpView; type: 'request' | 'response' }) {
+function RawHttpView({ view, type, labels }: { view: TrafficHttpView; type: 'request' | 'response'; labels: NonNullable<HttpViewPanelsProps['labels']> }) {
   const highlightTexts = useMemo(() => collectHighlightTexts(view.highlightSource ?? {}), [view])
   if (type === 'request') return <RequestContent view={view} highlightTexts={highlightTexts} />
-  return <ResponseContent view={view} highlightTexts={highlightTexts} />
+  return <ResponseContent view={view} highlightTexts={highlightTexts} labels={labels} />
 }
 
 function RequestContent({ view, highlightTexts }: { view: TrafficHttpView; highlightTexts: Set<string> }) {
@@ -161,11 +166,11 @@ function RequestContent({ view, highlightTexts }: { view: TrafficHttpView; highl
   )
 }
 
-function ResponseContent({ view, highlightTexts }: { view: TrafficHttpView; highlightTexts: Set<string> }) {
-  if (view.error) {
+function ResponseContent({ view, highlightTexts, labels }: { view: TrafficHttpView; highlightTexts: Set<string>; labels: NonNullable<HttpViewPanelsProps['labels']> }) {
+  if (view.error && !view.response) {
     return (
-      <div className="p-3 text-red-500 text-xs">
-        <div className="font-medium mb-2">请求错误</div>
+      <div className="p-3 text-red-500 text-xs" role="alert">
+        <div className="font-medium mb-2">{labels.requestError}</div>
         <pre className="font-mono whitespace-pre-wrap">{view.error}</pre>
       </div>
     )
@@ -174,13 +179,13 @@ function ResponseContent({ view, highlightTexts }: { view: TrafficHttpView; high
   if (!view.status) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-        请求进行中或无响应...
+        {labels.noResponse}
       </div>
     )
   }
 
   const response = view.response
-  const statusLine = `${response?.httpVersion ?? 'HTTP/1.1'} ${view.status} ${view.reason || 'OK'}`
+  const statusLine = `${response?.httpVersion ?? 'HTTP/1.1'} ${view.status} ${view.reason}`.trimEnd()
   const responseBody = normalizeHttpBodyForDisplay(response?.body)
   const statusColor =
     view.status >= 200 && view.status < 300
@@ -195,6 +200,7 @@ function ResponseContent({ view, highlightTexts }: { view: TrafficHttpView; high
 
   return (
     <div className="p-3 font-mono text-xs leading-relaxed">
+      {view.error && <p role="alert" className="mb-2 text-warning">{view.error}</p>}
       <div className={`font-semibold ${statusColor}`}>
         {renderHighlightedText(statusLine, findHighlightRanges(statusLine, highlightTexts))}
       </div>
@@ -221,7 +227,7 @@ function ResponseContent({ view, highlightTexts }: { view: TrafficHttpView; high
         </div>
       ) : (
         <div className="text-gray-400 dark:text-gray-500 italic border-t border-dashed border-gray-300 dark:border-gray-600 pt-2">
-          (无响应体)
+          {labels.emptyBody}
         </div>
       )}
     </div>

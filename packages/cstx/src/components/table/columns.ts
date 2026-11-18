@@ -1,7 +1,9 @@
 import type { JsonObject } from '../../types/common';
+import { fieldPathKey, getFieldValue } from '../../lib/fieldPath';
 
 export interface ColumnConfig {
   key: string;
+  path?: string[];
   title?: string;
   sortable?: boolean;
   width?: string;
@@ -15,7 +17,7 @@ export interface ColumnConfig {
 
 export function humanize(key: string): string {
   return key
-    .replace(/[_-]/g, ' ')
+    .replace(/[._-]/g, ' ')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -136,37 +138,52 @@ function comparable(value: unknown): string {
   return String(value);
 }
 
-function hasValues(rows: Record<string, unknown>[], key: string): boolean {
-  return rows.some((row) => row[key] != null && comparable(row[key]) !== '');
+function leafKey(path: readonly string[]): string {
+  return path[path.length - 1] ?? '';
 }
 
-function isDuplicateOf(
+function hasValues(rows: Record<string, unknown>[], path: readonly string[]): boolean {
+  return rows.some((row) => {
+    const value = getFieldValue(row, path);
+    return value != null && comparable(value) !== '';
+  });
+}
+
+function isDuplicateOfTopLevelField(
   rows: Record<string, unknown>[],
-  key: string,
+  path: readonly string[],
   otherKey: string,
 ): boolean {
   const withValue = rows.filter(
-    (row) => row[key] != null && comparable(row[key]) !== '',
+    (row) => {
+      const value = getFieldValue(row, path);
+      return value != null && comparable(value) !== '';
+    },
   );
   return (
     withValue.length > 0 &&
     withValue.every(
-      (row) =>
-        row[otherKey] != null &&
-        comparable(row[key]) === comparable(row[otherKey]),
+      (row) => {
+        const value = getFieldValue(row, path);
+        const otherValue = getFieldValue(row, otherKey);
+        return otherValue != null && comparable(value) === comparable(otherValue);
+      },
     )
   );
 }
 
-function shouldExcludeKey(
-  key: string,
+function shouldExcludePath(
+  path: readonly string[],
   rows: Record<string, unknown>[],
   includeMeta = false,
 ): boolean {
-  if (!includeMeta && EXCLUDED_KEYS.has(key)) return true;
-  if (!hasValues(rows, key)) return true;
+  const key = fieldPathKey(path);
+  const leaf = leafKey(path);
+  if (leaf === '_cstx_diff' || leaf.startsWith('__')) return true;
+  if (!includeMeta && (EXCLUDED_KEYS.has(key) || EXCLUDED_KEYS.has(leaf))) return true;
+  if (!hasValues(rows, path)) return true;
 
-  if (key === 'value' && !includeMeta && isDuplicateOf(rows, key, 'name')) {
+  if (path.length === 1 && key === 'value' && !includeMeta && isDuplicateOfTopLevelField(rows, path, 'name')) {
     return true;
   }
 
@@ -240,8 +257,10 @@ function inferColumnWidth(key: string, values: unknown[]): string {
 
 function sortByPriority(keys: string[]): string[] {
   return keys.sort((a, b) => {
-    const aKey = a.toLowerCase();
-    const bKey = b.toLowerCase();
+    const aParts = a.split('.');
+    const bParts = b.split('.');
+    const aKey = (aParts[aParts.length - 1] ?? a).toLowerCase();
+    const bKey = (bParts[bParts.length - 1] ?? b).toLowerCase();
     const aPriority = PREFERRED_FRONT_KEY_INDEX.get(aKey);
     const bPriority = PREFERRED_FRONT_KEY_INDEX.get(bKey);
     if (aPriority != null || bPriority != null) {
@@ -268,28 +287,44 @@ export function inferColumns(
   if (rows.length === 0) return [];
 
   const includeMeta = options?.includeMeta ?? false;
-  const sample = rows.slice(0, 20);
-  const keyOrder: string[] = [];
-  const keySeen = new Set<string>();
+  const pathOrder: string[][] = [];
+  const pathSeen = new Set<string>();
 
-  for (const row of sample) {
-    for (const k of Object.keys(row)) {
-      if (!keySeen.has(k) && !shouldExcludeKey(k, sample, includeMeta)) {
-        keySeen.add(k);
-        keyOrder.push(k);
+  for (const row of rows) {
+    for (const [key, value] of Object.entries(row)) {
+      const entries = value != null && typeof value === 'object' && !Array.isArray(value)
+        ? Object.keys(value as Record<string, unknown>).map((child) => [key, child])
+        : [[key]];
+      for (const path of entries) {
+        const pathKey = fieldPathKey(path);
+        if (!pathSeen.has(pathKey)) {
+          pathSeen.add(pathKey);
+          if (shouldExcludePath(path, rows, includeMeta)) continue;
+          pathOrder.push(path);
+        }
       }
     }
   }
 
-  return sortByPriority(keyOrder).map((key) => {
-    const values = sample.map((r) => r[key]).filter((v) => v != null);
-    const render = inferRenderType(key, values);
+  const pathByKey = new Map(pathOrder.map((path) => [fieldPathKey(path), path]));
+  const leafCounts = new Map<string, number>();
+  for (const path of pathOrder) {
+    const leaf = leafKey(path);
+    leafCounts.set(leaf, (leafCounts.get(leaf) ?? 0) + 1);
+  }
+
+  return sortByPriority([...pathByKey.keys()]).map((key) => {
+    const path = pathByKey.get(key) ?? [key];
+    const leaf = leafKey(path);
+    const values = rows.map((r) => getFieldValue(r, path)).filter((v) => v != null).slice(0, 20);
+    const render = inferRenderType(leaf, values);
     return {
       key,
-      title: humanize(key),
+      path,
+      title: humanize((leafCounts.get(leaf) ?? 0) > 1 ? key : leaf),
       sortable: true,
       render,
-      width: inferColumnWidth(key, values),
+      width: inferColumnWidth(leaf, values),
       filterable: isLowCardinality(values, rows.length),
       searchable: values.some((v) => typeof v === 'string'),
     };
@@ -359,11 +394,17 @@ export function sparseColumnKeys(
 }
 
 export function isMetaKey(key: string): boolean {
-  if (EXCLUDED_KEYS.has(key)) return true;
-  if (key.startsWith('cstx_') || key.startsWith('__')) return true;
-  const derived = key.match(/^(.+?)_(count|keys|first)$/);
+  const parts = key.split('.');
+  const leaf = parts[parts.length - 1] ?? key;
+  if (EXCLUDED_KEYS.has(key) || EXCLUDED_KEYS.has(leaf)) return true;
+  if (leaf.startsWith('cstx_') || leaf.startsWith('__')) return true;
+  const derived = leaf.match(/^(.+?)_(count|keys|first)$/);
   if (derived && EXCLUDED_KEYS.has(derived[1])) return true;
   return false;
+}
+
+export function getColumnValue(row: Record<string, unknown>, column: Pick<ColumnConfig, 'key' | 'path'>): unknown {
+  return getFieldValue(row, column.path ?? column.key);
 }
 
 export function applyExclusions(

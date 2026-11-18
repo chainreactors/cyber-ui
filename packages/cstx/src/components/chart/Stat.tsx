@@ -1,8 +1,8 @@
 import React from 'react';
-import * as icons from 'lucide-react';
 import type { RuntimeComponentProps } from '../../runtime/registry';
 import type { Tone } from '../../types/common';
 import { cn } from '../../lib/cn';
+import { resolveLucideIcon } from '../../lib/lucideIcon';
 import { CARD_CLASS } from '../primitives/Card';
 
 const TONE_STYLES: Record<Tone, { bg: string; icon: string; text: string }> = {
@@ -23,11 +23,6 @@ const CHANGE_COLORS = {
   neutral: 'text-slate-500 dark:text-slate-400',
 } as const;
 
-function resolveIcon(name: string): icons.LucideIcon | null {
-  if (!name) return null;
-  return (icons as Record<string, unknown>)[name] as icons.LucideIcon | undefined ?? null;
-}
-
 export function StatCard({ data, loading, config }: RuntimeComponentProps): React.JSX.Element {
   const title = config.title as string;
   const description = config.description as string;
@@ -39,7 +34,7 @@ export function StatCard({ data, loading, config }: RuntimeComponentProps): Reac
   const metric = data.metric;
   const isLoading = loading.metric;
   const styles = TONE_STYLES[tone];
-  const Icon = resolveIcon(iconName);
+  const Icon = resolveLucideIcon(iconName);
 
   return (
     <div className={cn(CARD_CLASS, 'p-4')}>

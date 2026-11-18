@@ -4,6 +4,8 @@
     "noEmit": true,
     "baseUrl": "./",
     "paths": {
+      "@cyber/ui": ["../ui/src/index.ts"],
+      "@cyber/ui/*": ["../ui/src/*"],
       "@cyber/cstx/*": ["src/*"]
     }
   },

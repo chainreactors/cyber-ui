@@ -1,6 +1,6 @@
 # cyber-ui
 
-CSTX 协议驱动的共享前端组件库。为 CyberHub、Cairn Platform 等产品提供统一的 UI 原语、CSTX 数据渲染和领域组件。
+CSTX 协议驱动的共享前端组件库。为 CyberHub、Cairn Platform 等应用提供统一的 UI 原语、CSTX 数据渲染和领域组件。
 
 ## Packages
 

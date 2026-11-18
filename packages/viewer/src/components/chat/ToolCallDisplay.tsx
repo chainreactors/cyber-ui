@@ -15,9 +15,17 @@ import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
 import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/ui'
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
-import { resolveToolResultFormat } from '../../lib/tool-result-format'
+import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
 
 const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
+
+/**
+ * How a result is framed. `auto` keeps the renderer's long-standing choice —
+ * a Markdown document is rendered, code is highlighted, anything else is plain
+ * text — while `code` puts every result in the same block as the request, which
+ * is what a detail inspector wants: one frame, line numbers, wrapping.
+ */
+export type ToolResultMode = 'auto' | 'code'
 
 function requestCopyValue(args: string, language?: string): string {
   const command = language ? extractShellCommand(args) : undefined
@@ -52,25 +60,96 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
   )
 }
 
-function RequestContent({ args, language }: { args: string; language?: string }) {
+function RequestContent({ args, language, mode }: { args: string; language?: string; mode: ToolResultMode }) {
   const formatted = formatArgs(args)
   const command = language ? extractShellCommand(args) : undefined
-  if (command) {
-    const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
-    const code = command
-      .split('\n')
-      .map((line, index) => index === 0 ? `${prompt}${line}` : line)
-      .join('\n')
-    return <CodeBlock code={code} language={language} maxHeight={192} className={cn(CODE_BLOCK_CLASS, 'border-l-2 border-l-accent')} />
+  const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
+  const body = command
+    ? command.split('\n').map((line, index) => index === 0 ? `${prompt}${line}` : line).join('\n')
+    : formatted
+  if (mode === 'auto') {
+    // Chat keeps the request as plain arguments; only the framed mode claims a
+    // syntax and line numbers for every payload.
+    return (
+      <pre className="max-h-40 overflow-auto overscroll-contain whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
+        {body}
+      </pre>
+    )
   }
-  let json = false
-  try {
-    JSON.parse(args)
-    json = true
-  } catch {
-    // Keep plain-text legacy arguments as text rather than claiming JSON.
+  const syntax = command ? language : formatted.trim().startsWith('{') || formatted.trim().startsWith('[') ? 'json' : 'text'
+  return (
+    <CodeBlock
+      code={body}
+      language={syntax}
+      showLineNumbers
+      maxHeight={192}
+      className={cn(CODE_BLOCK_CLASS, command && 'border-l-2 border-l-accent')}
+    />
+  )
+}
+
+/** The text and syntax a result is shown with, whichever mode frames it. */
+function resultContent(result: string, toolArgs: string, mode: ToolResultMode, format: ToolResultFormat): {
+  code: string
+  language?: string
+} {
+  if (mode === 'code') {
+    return format.kind === 'code'
+      ? { code: format.code ?? result, language: format.language }
+      : { code: result, language: 'text' }
   }
-  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className={CODE_BLOCK_CLASS} />
+  if (format.kind === 'code') return { code: format.code ?? result, language: format.language }
+  return { code: result }
+}
+
+function ToolResultContent({ result, toolArgs, mode }: { result: string; toolArgs: string; mode: ToolResultMode }) {
+  const format = resolveToolResultFormat(toolArgs, result)
+  // A Markdown document is rendered as a document unless the caller asked for
+  // the uniform code frame; inside that frame its source is what is shown.
+  if (mode === 'auto' && format.kind === 'markdown') {
+    return (
+      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
+        <MarkdownContent content={result} compact />
+      </div>
+    )
+  }
+  const content = resultContent(result, toolArgs, mode, format)
+  return (
+    <CodeBlock
+      code={content.code}
+      language={content.language}
+      showLineNumbers
+      maxHeight={320}
+      className={CODE_BLOCK_CLASS}
+    />
+  )
+}
+
+/** Host-supplied strings, so this package stays free of i18n dependencies. */
+export interface ToolCallLabels {
+  arguments: string
+  result: string
+  failed: string
+  running: string
+  completed: string
+}
+
+const DEFAULT_LABELS: ToolCallLabels = {
+  arguments: 'Arguments',
+  result: 'Result',
+  failed: 'failed',
+  running: 'running',
+  completed: 'completed',
+}
+
+/** Host-supplied labels for the payload sections and their copy buttons. */
+export interface ToolCallSectionLabels {
+  thinking?: string
+  request?: string
+  response?: string
+  copyRequest?: string
+  copyResponse?: string
+  copied?: string
 }
 
 export interface ToolCallDisplayProps {
@@ -84,6 +163,8 @@ export interface ToolCallDisplayProps {
   pending?: boolean
   error?: boolean
   defaultExpanded?: boolean
+  /** Frame the result as the same code block as the request, line numbers included. */
+  resultMode?: ToolResultMode
   /** Keep request/response summaries out of the compact header when desired. */
   showHeaderSummary?: boolean
   /** Host theme override for the compact header's hover treatment. */
@@ -97,19 +178,104 @@ export interface ToolCallDisplayProps {
     expand: string
   }
   /** Optional localized labels for the expanded body sections. */
-  sectionLabels?: {
-    thinking?: string
-    request?: string
-    response?: string
-    copyRequest?: string
-    copyResponse?: string
-    copied?: string
-  }
+  sectionLabels?: ToolCallSectionLabels
   className?: string
   /** Optional content rendered in the shared call header (for example, an
    *  owning Oracle intent). Keeping this slot here lets host surfaces reuse the
    *  Harness renderer instead of rebuilding a second tool card. */
   headerMeta?: ReactNode
+  labels?: Partial<ToolCallLabels>
+  headerExtra?: ReactNode
+  children?: ReactNode
+  /** Reuse the same body inside a host-owned card, without another disclosure. */
+  bodyOnly?: boolean
+  /** Separate execution anchors can show each payload once. Arguments remain available for result formatting. */
+  content?: 'all' | 'arguments' | 'result'
+}
+
+export interface ToolCallBodyProps extends Pick<ToolCallDisplayProps,
+  'toolArgs' | 'result' | 'labels' | 'sectionLabels' | 'requestLanguage' | 'thinking' |
+  'resultMode' | 'children' | 'bodyOnly' | 'content'> {
+}
+
+function PayloadSection({ kind, label, copy, secondary, children }: {
+  kind: 'arguments' | 'result' | 'thinking'
+  label: string
+  copy?: { value: string; label: string; copiedLabel: string }
+  secondary: boolean
+  children: ReactNode
+}) {
+  const copyButton = copy && <CopyButton value={copy.value} label={copy.label} copiedLabel={copy.copiedLabel} />
+  if (secondary) {
+    return (
+      <details className="border-t border-border px-3 py-2" data-testid={`tool-${kind}`}>
+        <summary className="cursor-pointer text-xs text-muted-foreground">{label}</summary>
+        <div className="mt-2">{children}</div>
+      </details>
+    )
+  }
+  return (
+    <div className="px-3 py-2" data-testid={`tool-${kind}`}>
+      <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span>{label}</span>
+        {copyButton}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+export function ToolCallBody({
+  toolArgs = '',
+  result,
+  labels,
+  sectionLabels,
+  requestLanguage,
+  thinking,
+  resultMode = 'auto',
+  children,
+  bodyOnly = false,
+  content = 'all',
+}: ToolCallBodyProps) {
+  const l = { ...DEFAULT_LABELS, ...labels }
+  const displayResult = result === undefined ? undefined : stripAnsiControl(result)
+  const displayThinking = thinking?.trim() || undefined
+  // A host opts into the copy affordance by naming it, so a host that never
+  // asked for one keeps its card free of extra controls.
+  const copied = sectionLabels?.copied || 'Copied'
+  const secondary = !!children && !bodyOnly
+  return <div className="min-w-0" data-testid="tool-content">
+    {children}
+    {content !== 'result' && displayThinking && (
+      <PayloadSection kind="thinking" label={sectionLabels?.thinking || 'Thinking'} secondary={secondary}>
+        <MarkdownContent content={displayThinking} compact muted />
+      </PayloadSection>
+    )}
+    {content !== 'result' && toolArgs && (
+      <PayloadSection
+        kind="arguments"
+        label={sectionLabels?.request || l.arguments}
+        copy={sectionLabels?.copyRequest
+          ? { value: requestCopyValue(toolArgs, requestLanguage), label: sectionLabels.copyRequest, copiedLabel: copied }
+          : undefined}
+        secondary={secondary}
+      >
+        <RequestContent args={toolArgs} language={requestLanguage} mode={resultMode} />
+      </PayloadSection>
+    )}
+    {content !== 'arguments' && displayResult !== undefined && (
+      <PayloadSection
+        kind="result"
+        label={sectionLabels?.response || l.result}
+        copy={sectionLabels?.copyResponse
+          ? { value: displayResult, label: sectionLabels.copyResponse, copiedLabel: copied }
+          : undefined}
+        secondary={secondary}
+      >
+        <ToolResultContent result={displayResult} toolArgs={toolArgs} mode={resultMode} />
+      </PayloadSection>
+    )}
+  </div>
 }
 
 export default function ToolCallDisplay({
@@ -121,12 +287,18 @@ export default function ToolCallDisplay({
   pending = false,
   error = false,
   defaultExpanded = false,
+  resultMode = 'auto',
   showHeaderSummary = true,
   headerClassName,
   statusLabels,
   sectionLabels,
   className,
   headerMeta,
+  labels,
+  headerExtra,
+  children,
+  bodyOnly = false,
+  content = 'all',
 }: ToolCallDisplayProps) {
   // Keep every tool body collapsed on first render, including calls that have
   // persisted reasoning. Thinking remains available in the body when the user
@@ -134,32 +306,32 @@ export default function ToolCallDisplay({
   const [expanded, setExpanded] = useState(defaultExpanded)
   const summary = summarizeArgs(toolArgs)
   const formattedArgs = formatArgs(toolArgs)
-  const displayResult = result === undefined ? undefined : stripAnsiControl(result)
-  const displayThinking = thinking?.trim() || undefined
+  const displayResult = useMemo(
+    () => result === undefined ? undefined : stripAnsiControl(result),
+    [result],
+  )
   const rowSummary = summarizeToolCall(toolArgs, displayResult, pending, error)
   const errorSummary = error ? rowSummary : ''
-  const labels = {
-    thinking: sectionLabels?.thinking || 'Thinking',
-    request: sectionLabels?.request || 'Arguments',
-    response: sectionLabels?.response || 'Result',
-  }
-  const copyLabels = {
-    request: sectionLabels?.copyRequest || `Copy ${labels.request.toLowerCase()}`,
-    response: sectionLabels?.copyResponse || `Copy ${labels.response.toLowerCase()}`,
-    copied: sectionLabels?.copied || 'Copied',
-  }
-  // Whatever its content, a result is shown in one code block: recognised
-  // formats keep their highlighting, everything else is plain text.
-  const resultBlock = useMemo(() => {
-    if (displayResult === undefined) return undefined
-    const format = resolveToolResultFormat(toolArgs, displayResult)
-    return format.kind === 'code'
-      ? { code: format.code ?? displayResult, language: format.language }
-      : { code: displayResult, language: 'text' }
-  }, [toolArgs, displayResult])
-
+  const l = { ...DEFAULT_LABELS, ...labels }
   const statusLabel = statusLabels && (error ? statusLabels.error : pending ? statusLabels.pending : statusLabels.completed)
   const statusDetail = statusLabels && error ? summarizeResult(displayResult ?? '') || statusLabels.noErrorDetails : ''
+  const body = (
+    <ToolCallBody
+      toolArgs={toolArgs}
+      result={result}
+      labels={labels}
+      sectionLabels={sectionLabels}
+      requestLanguage={requestLanguage}
+      thinking={thinking}
+      resultMode={resultMode}
+      bodyOnly={bodyOnly}
+      content={content}
+    >
+      {children}
+    </ToolCallBody>
+  )
+  if (bodyOnly) return <div className={cn('min-w-0', className)}>{body}</div>
+
   const header = (
     <button
       type="button"
@@ -190,11 +362,12 @@ export default function ToolCallDisplay({
           )}
           title={errorSummary || summary || formattedArgs}
         >
-          {rowSummary}
+          {rowSummary || (error ? l.failed : pending ? l.running : l.completed)}
         </span>
       ) : headerMeta ? null : (
         <span className="min-w-0 flex-1" aria-hidden="true" />
       )}
+      {headerExtra}
       {error ? (
         <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
       ) : pending ? (
@@ -244,32 +417,7 @@ export default function ToolCallDisplay({
       >
         <div className="overflow-hidden">
           <div className="divide-y divide-border border-t border-border">
-            {displayThinking && (
-              <div className="bg-card px-3 py-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {labels.thinking}
-                </div>
-                <MarkdownContent content={displayThinking} compact muted />
-              </div>
-            )}
-            {toolArgs && (
-              <div className="bg-card px-3 py-2">
-                <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <span>{labels.request}</span>
-                  <CopyButton value={requestCopyValue(toolArgs, requestLanguage)} label={copyLabels.request} copiedLabel={copyLabels.copied} />
-                </div>
-                <RequestContent args={toolArgs} language={requestLanguage} />
-              </div>
-            )}
-            {resultBlock && (
-              <div className="px-3 py-2">
-                <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  <span>{labels.response}</span>
-                  <CopyButton value={resultBlock.code} label={copyLabels.response} copiedLabel={copyLabels.copied} />
-                </div>
-                <CodeBlock code={resultBlock.code} language={resultBlock.language} showLineNumbers maxHeight={320} className={CODE_BLOCK_CLASS} />
-              </div>
-            )}
+            {body}
           </div>
         </div>
       </div>

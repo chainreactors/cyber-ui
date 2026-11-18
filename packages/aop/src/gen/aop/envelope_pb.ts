@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/envelope.proto.
  */
 export const file_aop_envelope: GenFile = /*@__PURE__*/
-  fileDesc("ChJhb3AvZW52ZWxvcGUucHJvdG8SA2FvcCJoCghFbnZlbG9wZRIKCgJpZBgBIAEoCRIQCghyZXBseV90bxgCIAEoCRIXCg9kZWxpdmVyeV9jdXJzb3IYAyABKAkSJQoHcGF5bG9hZBgEIAEoCzIULmdvb2dsZS5wcm90b2J1Zi5BbnlCJVojZ2l0aHViLmNvbS9jaGFpbnJlYWN0b3JzL2Fpc2Nhbi9hb3BiBnByb3RvMw", [file_google_protobuf_any]);
+  fileDesc("ChJhb3AvZW52ZWxvcGUucHJvdG8SA2FvcCJoCghFbnZlbG9wZRIKCgJpZBgBIAEoCRIQCghyZXBseV90bxgCIAEoCRIXCg9kZWxpdmVyeV9jdXJzb3IYAyABKAkSJQoHcGF5bG9hZBgEIAEoCzIULmdvb2dsZS5wcm90b2J1Zi5BbnlCJFoiZ2l0aHViLmNvbS9jaGFpbnJlYWN0b3JzL2N5YmVyL2FvcGIGcHJvdG8z", [file_google_protobuf_any]);
 
 /**
  * Envelope is the only AOP wire envelope. Business namespaces are carried by

@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
-import * as LucideIcons from 'lucide-react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -24,11 +23,11 @@ import {
   Check,
   ExternalLink,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import type { RuntimeComponentProps } from '../../runtime/registry';
 import { cn } from '../../lib/cn';
 import { copyToClipboard } from '@cyber/theme';
 import { asRecord, asStringArray } from '../../lib/coerce';
+import { resolveLucideIcon } from '../../lib/lucideIcon';
 import { downloadText, rowsToCsv } from '../../lib/downloadUtils';
 import { defaultCellRenderers, type CellRendererRegistry } from '../../lib/renderers';
 import { SearchInput } from '../../lib/SearchInput';
@@ -39,6 +38,7 @@ import {
   inferColumns,
   applyExclusions,
   flattenRow,
+  getColumnValue,
   isMetaKey,
   sparseColumnKeys,
 } from './columns';
@@ -53,6 +53,7 @@ import { ExportButton } from './sub/ExportButton';
 import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, flagDescription } from './sub/FlagCell';
 import { Flag as FlagIcon } from 'lucide-react';
 import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
+import { getFieldValue } from '../../lib/fieldPath';
 import { useColumnResize } from './hooks/useColumnResize';
 import { parseSearchQuery, matchesFieldSearch } from './hooks/useFieldSearch';
 import { useUrlSlot } from './hooks/useUrlState';
@@ -108,7 +109,7 @@ function resolveCommonValue(rows: Row[], key: string): string | null {
   if (rows.length === 0) return null;
   const values = new Set<string>();
   for (const row of rows) {
-    const value = row[key];
+    const value = getFieldValue(row, key);
     if (!hasDisplayValue(value)) return null;
     values.add(String(value));
     if (values.size > 1) return null;
@@ -196,11 +197,6 @@ function buildGridLayout(
   return { tracks, ids, minWidth };
 }
 
-function resolveIcon(name: string | undefined): LucideIcon | null {
-  if (!name) return null;
-  return (LucideIcons as Record<string, unknown>)[name] as LucideIcon | undefined ?? null;
-}
-
 function actionButtonClass(variant: string | undefined): string {
   if (variant === 'danger') {
     return 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20';
@@ -212,7 +208,7 @@ function actionButtonClass(variant: string | undefined): string {
 }
 
 function resolveRowId(row: Row, rowIdKey: string, index?: number): string {
-  const value = row[rowIdKey] ?? row.id ?? row.cstx_id ?? row.name ?? row.value;
+  const value = getFieldValue(row, rowIdKey) ?? row.id ?? row.cstx_id ?? row.name ?? row.value;
   if (value != null && String(value).length > 0) return String(value);
   return index != null ? String(index) : '';
 }
@@ -249,7 +245,7 @@ function asHttpUrl(value: unknown): string | null {
   }
 }
 
-function RowControlHeader({ table, i18n }: { table: ReturnType<typeof useReactTable<Row>>; i18n?: Record<string, unknown> }) {
+function RowControlHeader({ table, label }: { table: ReturnType<typeof useReactTable<Row>>; label: string }) {
   const selectableRows = table.getFilteredRowModel().rows;
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const allSelected = selectableRows.length > 0 && selectedRows.length === selectableRows.length;
@@ -262,7 +258,7 @@ function RowControlHeader({ table, i18n }: { table: ReturnType<typeof useReactTa
           if (el) el.indeterminate = someSelected;
         }}
         type="checkbox"
-        aria-label={tableMessage(i18n, 'selectAll', 'Select all filtered rows')}
+        aria-label={label}
         checked={allSelected}
         onChange={(e) => {
           const checked = e.target.checked;
@@ -275,10 +271,10 @@ function RowControlHeader({ table, i18n }: { table: ReturnType<typeof useReactTa
   );
 }
 
-function RowControlCell({ row, table, i18n }: {
+function RowControlCell({ row, table, label }: {
   row: ReturnType<ReturnType<typeof useReactTable<Row>>['getRowModel']>['rows'][number];
   table: ReturnType<typeof useReactTable<Row>>;
-  i18n?: Record<string, unknown>;
+  label: string;
 }) {
   const orderedRows = table.getSortedRowModel().rows;
   const orderedIndex = orderedRows.findIndex((candidate) => candidate.id === row.id);
@@ -291,7 +287,7 @@ function RowControlCell({ row, table, i18n }: {
         checked={row.getIsSelected()}
         onChange={row.getToggleSelectedHandler()}
         onClick={(e) => e.stopPropagation()}
-        aria-label={tableMessage(i18n, 'selectRow', 'Select row {n}').replace('{n}', String(displayIndex))}
+        aria-label={label.replace('{n}', String(displayIndex))}
         className="h-3.5 w-3.5 rounded border-slate-300 accent-blue-600"
       />
       <span className="w-8 text-right text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
@@ -301,7 +297,7 @@ function RowControlCell({ row, table, i18n }: {
   );
 }
 
-function CellCopyButton({ value, onCopy, i18n }: { value: unknown; onCopy: (text: string) => void; i18n?: Record<string, unknown> }) {
+function CellCopyButton({ value, onCopy, copyLabel, copiedLabel }: { value: unknown; onCopy: (text: string) => void; copyLabel: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
   const text = value != null ? String(value) : '';
   if (!text) return null;
@@ -334,14 +330,14 @@ function CellCopyButton({ value, onCopy, i18n }: { value: unknown; onCopy: (text
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      title={copied ? tableMessage(i18n, 'copied', '已复制') : tableMessage(i18n, 'copy', '复制')}
+      title={copied ? copiedLabel : copyLabel}
     >
       {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
 
-function CellOpenLinkButton({ href, i18n }: { href: string | null; i18n?: Record<string, unknown> }) {
+function CellOpenLinkButton({ href, openLabel }: { href: string | null; openLabel: string }) {
   if (!href) return null;
 
   return (
@@ -352,8 +348,8 @@ function CellOpenLinkButton({ href, i18n }: { href: string | null; i18n?: Record
         event.stopPropagation();
         window.open(href, '_blank', 'noopener,noreferrer');
       }}
-      title={tableMessage(i18n, 'openLink', '打开链接')}
-      aria-label={tableMessage(i18n, 'openLink', '打开链接')}
+      title={openLabel}
+      aria-label={openLabel}
     >
       <ExternalLink className="h-3 w-3" />
     </button>
@@ -379,7 +375,7 @@ function RowActionsCell({
         if (action.render) {
           return <React.Fragment key={action.id}>{action.render(row, rowId)}</React.Fragment>;
         }
-        const Icon = resolveIcon(action.icon);
+        const Icon = resolveLucideIcon(action.icon);
         return (
           <button
             key={action.id}
@@ -478,15 +474,19 @@ function buildColumns(
     rowActions?: TableActionConfig[];
     rowIdKey?: string;
     onAction?: (action: string, payload?: Record<string, unknown>) => void;
+    selectAllLabel?: string;
+    selectRowLabel?: string;
   },
 ): ColumnDef<Row>[] {
   const cols: ColumnDef<Row>[] = [];
 
   if (options?.enableRowSelection) {
+    const selectAllLabel = options.selectAllLabel ?? 'Select all filtered rows'
+    const selectRowLabel = options.selectRowLabel ?? 'Select row {n}'
     cols.push({
       id: '__row_control',
-      header: ({ table }) => <RowControlHeader table={table} i18n={options?.i18n} />,
-      cell: ({ row, table }) => <RowControlCell row={row} table={table} i18n={options?.i18n} />,
+      header: ({ table }) => <RowControlHeader table={table} label={selectAllLabel} />,
+      cell: ({ row, table }) => <RowControlCell row={row} table={table} label={selectRowLabel} />,
       size: 72,
       meta: { fixed: true },
     });
@@ -495,7 +495,7 @@ function buildColumns(
   if (options?.diffMode && options.diffField) {
     cols.push({
       id: '__diff',
-      accessorKey: options.diffField,
+      accessorFn: (row) => getFieldValue(row, options.diffField as string),
       header: () => <span>Change</span>,
       cell: ({ getValue }) => <DiffBadge changeKind={getValue() as string | undefined} />,
       size: 90,
@@ -533,7 +533,7 @@ function buildColumns(
     isFirstDataCol = false;
     cols.push({
       id: col.key,
-      accessorKey: col.key,
+      accessorFn: (row) => getColumnValue(row, col),
       header: ({ column }) => {
         const canSort = sortingEnabled && col.sortable !== false;
         if (!canSort) {
@@ -627,6 +627,8 @@ function RecordCard({
   onAction,
   isActive,
   onCardClick,
+  displayIndex,
+  selectRowLabel = 'Select row {n}',
 }: {
   row: TableRow;
   columns: ColumnConfig[];
@@ -643,6 +645,8 @@ function RecordCard({
   onAction?: (action: string, payload?: Record<string, unknown>) => void;
   isActive: boolean;
   onCardClick: () => void;
+  displayIndex: number;
+  selectRowLabel?: string;
 }): React.JSX.Element {
   const data = row.original;
   const primaryCol = primaryKey ? columns.find((c) => c.key === primaryKey) : columns[0];
@@ -680,7 +684,7 @@ function RecordCard({
             checked={selected}
             onChange={row.getToggleSelectedHandler()}
             onClick={(e) => e.stopPropagation()}
-            aria-label={tableMessage(i18n, 'selectRow', 'Select row {n}').replace('{n}', String(row.index + 1))}
+            aria-label={selectRowLabel.replace('{n}', String(displayIndex))}
             className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 accent-blue-600"
           />
         )}
@@ -806,6 +810,18 @@ export function CSTXTable({
     (key: string, fallback: string) => tableMessage(i18n, key, fallback),
     [i18n],
   );
+  // Hosts built against either naming of the cell and selection strings keep
+  // working: the older per-chip keys are read when the grouped ones are absent.
+  const trAlias = useCallback(
+    (key: string, alias: string, fallback: string) => tr(key, tr(alias, fallback)),
+    [tr],
+  );
+  const exportLabels = useMemo(() => Object.fromEntries(exportFormats.flatMap((format) => {
+    const grouped = i18n[`export.${format}`];
+    if (typeof grouped === 'string') return [[format, grouped]];
+    const legacy = i18n[`export${format[0].toUpperCase()}${format.slice(1)}`];
+    return typeof legacy === 'string' ? [[format, legacy]] : [];
+  })), [exportFormats, i18n]);
 
   const effectiveRowActions = useMemo(() => {
     if (!enableCstxFlags) return rowActions;
@@ -866,7 +882,7 @@ export function CSTXTable({
 
   // --- Data processing ---
   const rows = useMemo(
-    () => (enableFlatten ? rawRows.map(flattenRow) : rawRows),
+    () => enableFlatten ? rawRows.map(flattenRow) : rawRows,
     [rawRows, enableFlatten],
   );
 
@@ -956,20 +972,20 @@ export function CSTXTable({
   const typeValues = useMemo(() => {
     if (!typeFilterKey) return [];
     const vals = new Set<string>();
-    rows.forEach((r) => { const v = r[typeFilterKey]; if (v != null) vals.add(String(v)); });
+    rows.forEach((r) => { const v = getFieldValue(r, typeFilterKey); if (v != null) vals.add(String(v)); });
     return Array.from(vals).sort();
   }, [rows, typeFilterKey]);
 
   const typeCounts = useMemo(() => {
     if (!typeFilterKey) return {};
     const counts: Record<string, number> = {};
-    rows.forEach((r) => { const v = String(r[typeFilterKey] ?? ''); counts[v] = (counts[v] || 0) + 1; });
+    rows.forEach((r) => { const v = String(getFieldValue(r, typeFilterKey) ?? ''); counts[v] = (counts[v] || 0) + 1; });
     return counts;
   }, [rows, typeFilterKey]);
 
   const filteredByType = useMemo(() => {
     if (!typeFilterKey || typeFilter.size === 0) return rows;
-    return rows.filter((r) => typeFilter.has(String(r[typeFilterKey] ?? '')));
+    return rows.filter((r) => typeFilter.has(String(getFieldValue(r, typeFilterKey) ?? '')));
   }, [rows, typeFilterKey, typeFilter]);
 
   const handleTypeToggle = useCallback((val: string) => {
@@ -997,18 +1013,17 @@ export function CSTXTable({
   }, [enableColoredTypes, typeValues]);
 
   // --- Field search ---
-  const columnKeys = useMemo(() => resolvedColumns.map((c) => c.key), [resolvedColumns]);
   const customFilterFn = useCallback(
     (row: { original: Row }) => {
       if (!globalFilter) return true;
       if (enableFieldSearch) {
         const parsed = parseSearchQuery(globalFilter);
-        return matchesFieldSearch(row.original, parsed, columnKeys);
+        return matchesFieldSearch(row.original, parsed, resolvedColumns);
       }
       const lower = globalFilter.toLowerCase();
-      return columnKeys.some((k) => String(row.original[k] ?? '').toLowerCase().includes(lower));
+      return resolvedColumns.some((column) => String(getColumnValue(row.original, column) ?? '').toLowerCase().includes(lower));
     },
-    [globalFilter, enableFieldSearch, columnKeys],
+    [globalFilter, enableFieldSearch, resolvedColumns],
   );
 
   // --- Build TanStack columns ---
@@ -1024,8 +1039,10 @@ export function CSTXTable({
       rowActions: effectiveRowActions,
       rowIdKey,
       onAction,
+      selectAllLabel: trAlias('selectAll', 'selectAllRows', 'Select all filtered rows'),
+      selectRowLabel: tr('selectRow', 'Select row {n}'),
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction, tr],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
@@ -1245,7 +1262,7 @@ export function CSTXTable({
       const csvRows = [
         columnDefs.map((column) => column.title),
         ...exportOriginalRows.map((row) =>
-          columnDefs.map((column) => toCsvCellValue(row[column.key])),
+          visibleColumns.map((column) => toCsvCellValue(getColumnValue(row, column))),
         ),
       ];
       downloadText(
@@ -1309,8 +1326,8 @@ export function CSTXTable({
               onSubmit={handleSearchSubmit}
               placeholder={
                 enableFieldSearch
-                  ? 'Search... (type:domain value~example)'
-                  : `Search${title ? ' ' + title.toLowerCase() : ''}...`
+                  ? tr('searchField', 'Search... (type:domain value~example)')
+                  : tr('search', `Search${title ? ' ' + title.toLowerCase() : ''}...`)
               }
               compact
               className="w-full"
@@ -1366,7 +1383,7 @@ export function CSTXTable({
                   )}
                 >
                   {(() => {
-                    const Icon = resolveIcon(action.icon);
+                    const Icon = resolveLucideIcon(action.icon);
                     return Icon ? <Icon className="h-3 w-3" /> : null;
                   })()}
                   {action.label}
@@ -1412,9 +1429,12 @@ export function CSTXTable({
             />
           )}
           {showExportButton && (
-            <ExportButton compact onExport={handleExport} formats={exportFormats}
+            <ExportButton
+              compact
+              onExport={handleExport}
+              formats={exportFormats}
               label={tr('export', 'Export')}
-              formatLabels={Object.fromEntries(exportFormats.flatMap(format => typeof i18n[`export.${format}`] === 'string' ? [[format, i18n[`export.${format}`] as string]] : []))}
+              labels={exportLabels}
             />
           )}
         </div>
@@ -1513,10 +1533,11 @@ export function CSTXTable({
           />
         ) : useCards ? (
           <div className={cn('flex flex-col', compact ? 'gap-1.5 p-2' : 'gap-2 p-3')}>
-            {table.getRowModel().rows.map((row) => (
+            {table.getRowModel().rows.map((row, index) => (
               <RecordCard
                 key={row.id}
                 row={row}
+                displayIndex={index + 1}
                 columns={visibleColumns}
                 primaryKey={primaryKey}
                 renderers={cellRenderers}
@@ -1529,6 +1550,7 @@ export function CSTXTable({
                 i18n={i18n}
                 rowActions={effectiveRowActions}
                 onAction={onAction}
+                selectRowLabel={tr('selectRow', 'Select row {n}')}
                 isActive={activeRowId === row.id}
                 onCardClick={() => {
                   if (enableRowSelection) row.toggleSelected();
@@ -1582,7 +1604,9 @@ export function CSTXTable({
             {/* Data rows */}
             {table.getRowModel().rows.map((row) => {
               const isActive = activeRowId === row.id;
-              const diffRowClass = diffMode ? getDiffRowClass(row.original[diffField] as string | undefined) : '';
+              const diffRowClass = diffMode
+                ? getDiffRowClass(getFieldValue(row.original, diffField) as string | undefined)
+                : '';
               return (
                 <React.Fragment key={row.id}>
                   <div
@@ -1637,9 +1661,10 @@ export function CSTXTable({
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           {!isSystemCol && (
                             <>
-                              <CellOpenLinkButton href={externalHref} i18n={i18n} />
+                              <CellOpenLinkButton href={externalHref} openLabel={tr('openLink', 'Open link')} />
                               <CellCopyButton
-                                i18n={i18n}
+                                copyLabel={trAlias('copy', 'copyCell', 'Copy')}
+                                copiedLabel={trAlias('copied', 'copiedCell', 'Copied')}
                                 value={cell.getValue()}
                                 onCopy={(text) => {
                                   onAction?.('cellClick', {

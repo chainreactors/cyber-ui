@@ -21,7 +21,7 @@ export {
   formatArgs,
   summarizeArgs,
 } from './lib/tool-utils'
-export { reduceAOPToTimeline } from './lib/aop-reducer'
+export { createAOPTimelineReducer, reduceAOPToTimeline } from './lib/aop-reducer'
 
 // Layer 0.5 — Timeline renderer registry
 export {
@@ -40,6 +40,15 @@ export { default as NodeDetailPanel } from './components/graph/NodeDetailPanel'
 export { default as MessageBubble, StreamingCursor } from './components/chat/MessageBubble'
 export { AgentVoiceCard } from './components/chat/AgentVoiceCard'
 export { default as ToolCallDisplay, CodeCallDisplay, BlockingOutputDisplay, OutputSection } from './components/chat/ToolCallDisplay'
+export { ToolResultDisplay, type ToolResultDisplayProps } from './components/chat/ToolResultDisplay'
+export { ToolDefinitionCard } from './components/chat/ToolDefinitionCard'
+export { RecordToolCallDisplay, type RecordToolCallDisplayProps, type RecordToolCallLabels } from './components/chat/RecordToolCallDisplay'
+export { MediaPreview, type MediaPreviewProps, type MediaPreviewLabels, type ToolMediaResolver } from './components/chat/MediaPreview'
+export { recordingInfo } from './lib/record-result'
+export { observation, observationRef, observationKind, observationTitle, observationActivity, createObservationReducer, type ObservationKind } from './lib/observations'
+export { ObservationDisplay, ObservationList, type ObservationLabels } from './components/observability/ObservationDisplay'
+export { ObservabilityPanel, type ObservabilityPanelProps } from './components/observability/ObservabilityPanel'
+export { useObservations } from './lib/use-observations'
 export { default as ChatThinking, ThinkingDots } from './components/chat/ChatThinking'
 export { default as AssistantResponse } from './components/chat/AssistantResponse'
 export { default as ChatInput } from './components/chat/ChatInput'
@@ -75,7 +84,7 @@ export type { MessageBubbleProps, MessageBubbleVariant } from './components/chat
 export type { AgentVoiceCardProps } from './components/chat/AgentVoiceCard'
 export type { ChatThinkingProps } from './components/chat/ChatThinking'
 export type { AssistantResponseProps } from './components/chat/AssistantResponse'
-export type { ToolCallDisplayProps, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
+export type { ToolCallDisplayProps, ToolCallLabels, CodeCallDisplayProps, BlockingOutputDisplayProps } from './components/chat/ToolCallDisplay'
 export type { LiveChatPanelProps } from './components/chat/LiveChatPanel'
 export type { ChatInputProps, CommandHint, ComposerHelpContent, ComposerHelpItem, ComposerHelpPrefix, ChatAttachment, AttachmentMode, Mentionable, MentionPopupApi, PopupNavigationCommand, PopupNavigationKey } from './components/chat/ChatInput'
 export type { ChatPanelProps, ChatPanelTimelineProps, ChatPanelInputProps, ChatPanelHeaderProps } from './components/chat/ChatPanel'
@@ -89,7 +98,7 @@ export type {
 
 // Types — protocol & data
 export type { APGEvent, WireEvent } from './types/protocol'
-export type { ReduceAOPOptions } from './lib/aop-reducer'
+export type { ReduceAOPOptions, AOPRunState } from './lib/aop-reducer'
 export type { AOPChatPanelProps } from './components/chat/AOPChatPanel'
 export type { Event as AOPEvent, Content as AOPContent } from '@cyber/aop'
 export { EventSchema as AOPEventSchema, eventFromJson } from '@cyber/aop'

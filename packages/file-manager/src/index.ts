@@ -1,4 +1,6 @@
 export { FileManager, type FileManagerProps } from './FileManager'
+export { FileResourceCard, type FileResourceCardProps } from './FileResourceCard'
+export { FileAccessDisplay } from './FileAccessDisplay'
 export type { FileNode, SelectionState, UploadProgress, UploadQueueState, DownloadProgress, DownloadQueueState } from './types'
 export type {
   FileListing,

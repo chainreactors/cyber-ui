@@ -14,6 +14,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function asNumber(value: unknown): number | null {
+  if (typeof value === 'bigint') return Number(value)
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -35,13 +36,17 @@ function firstNumeric(record: Record<string, unknown>, keys: string[]): number |
 export function normalizeTokenUsage(value: unknown): TokenUsageSummary | null {
   const record = asRecord(value)
   if (Object.keys(record).length === 0) return null
+  const detail = asRecord(record.detail)
+  if ((firstNumeric(record, ['usage_missing']) ?? firstNumeric(detail, ['usage_missing']) ?? 0) > 0) return null
 
   const inputTokens = firstNumeric(record, ['input_tokens', 'inputTokens', 'request_tokens', 'prompt_tokens'])
   const outputTokens = firstNumeric(record, ['output_tokens', 'outputTokens', 'response_tokens', 'completion_tokens'])
   const totalTokens = firstNumeric(record, ['total_tokens', 'totalTokens'])
   const cachedInputTokens = firstNumeric(record, ['cached_input_tokens', 'cachedInputTokens'])
-  const cacheReadInputTokens = firstNumeric(record, ['cache_read_input_tokens', 'cacheReadInputTokens'])
-  const cacheCreationInputTokens = firstNumeric(record, ['cache_creation_input_tokens', 'cacheCreationInputTokens'])
+  const cacheReadInputTokens = firstNumeric(record, ['cache_read_input_tokens', 'cacheReadInputTokens', 'cache_read'])
+    ?? firstNumeric(detail, ['cache_read'])
+  const cacheCreationInputTokens = firstNumeric(record, ['cache_creation_input_tokens', 'cacheCreationInputTokens', 'cache_write'])
+    ?? firstNumeric(detail, ['cache_write'])
 
   if (
     inputTokens === null
@@ -57,16 +62,16 @@ export function normalizeTokenUsage(value: unknown): TokenUsageSummary | null {
   const normalized: TokenUsageSummary = {
     inputTokens: inputTokens ?? 0,
     outputTokens: outputTokens ?? 0,
-    totalTokens: totalTokens ?? ((inputTokens ?? 0) + (outputTokens ?? 0)),
+    totalTokens: totalTokens && totalTokens > 0 ? totalTokens : (inputTokens ?? 0) + (outputTokens ?? 0),
   }
 
-  if (cachedInputTokens !== null && cachedInputTokens > 0) {
+  if (cachedInputTokens !== null) {
     normalized.cachedInputTokens = cachedInputTokens
   }
-  if (cacheReadInputTokens !== null && cacheReadInputTokens > 0) {
+  if (cacheReadInputTokens !== null) {
     normalized.cacheReadInputTokens = cacheReadInputTokens
   }
-  if (cacheCreationInputTokens !== null && cacheCreationInputTokens > 0) {
+  if (cacheCreationInputTokens !== null) {
     normalized.cacheCreationInputTokens = cacheCreationInputTokens
   }
 
@@ -114,13 +119,13 @@ export function mergeTokenUsage(
     totalTokens: totalTokens || (inputTokens + outputTokens),
   }
 
-  if (hasCachedInputTokens && cachedInputTokens > 0) {
+  if (hasCachedInputTokens) {
     merged.cachedInputTokens = cachedInputTokens
   }
-  if (hasCacheReadInputTokens && cacheReadInputTokens > 0) {
+  if (hasCacheReadInputTokens) {
     merged.cacheReadInputTokens = cacheReadInputTokens
   }
-  if (hasCacheCreationInputTokens && cacheCreationInputTokens > 0) {
+  if (hasCacheCreationInputTokens) {
     merged.cacheCreationInputTokens = cacheCreationInputTokens
   }
 

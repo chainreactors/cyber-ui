@@ -7,8 +7,8 @@ as defined by RFC 2119.
 
 AOP defines provider-neutral Agent orchestration semantics, including Agent
 registration, Session/Turn lifecycle, Event, File, Exec, PTY, Tool progress and
-SCO transport. It does not define product management RPCs, persistence engines,
-or product-specific DTOs.
+SCO transport. It does not define application management RPCs, persistence
+engines, or application-specific DTOs.
 
 Protobuf under `proto/aop` is the only schema. Protobuf binary and standard
 Protobuf JSON are encodings of the same messages, not separate protocols.
@@ -18,7 +18,7 @@ Protobuf JSON are encodings of the same messages, not separate protocols.
 - Client-supplied request, session, turn, message, and tool-call IDs MUST remain
   unchanged across transports.
 - AOP operations use `Envelope.id` as their request and correlation identity.
-  Product management RPCs MAY define their own `request_id` for idempotency.
+  Application management RPCs MAY define their own `request_id` for idempotency.
 - `Event.seq` MUST start at 1 and increase strictly within one session. Relays
   MUST preserve it. An event with a zero sequence is not a published AOP event.
 - A service that must synthesize a terminal event after losing the bound node
@@ -73,7 +73,7 @@ Protobuf JSON are encodings of the same messages, not separate protocols.
 - AOP core extension slots MUST use `google.protobuf.Any` containing a concrete,
   generated namespace-owned protobuf message.
 - `Event.extensions` is metadata attached to a core Event. `Event.extension` is
-  the primary product-defined Event payload. They MUST NOT be conflated.
+  the primary application-defined Event payload. They MUST NOT be conflated.
 - One extension collection MUST NOT contain the same concrete `type_url` more
   than once. Collection order has no business meaning.
 - Known protobuf messages MUST NOT be encoded as JSON bytes or `EncodedValue`.

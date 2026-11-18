@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useId, type DragEvent, type ReactNode } from 'react'
 import { AtSign, CircleHelp, FileText, Keyboard, Paperclip, Send, Slash, Square, Upload, Wrench, X } from 'lucide-react'
 import { cn } from '@cyber/theme'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@cyber/ui'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@cyber/ui'
 function formatBytes(bytes: number): string { if (bytes < 1024) return bytes + "B"; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + "KB"; return (bytes / 1048576).toFixed(1) + "MB" }
 
 export interface CommandHint {
@@ -65,10 +65,15 @@ export interface PopupNavigationCommand {
 }
 
 export interface ChatInputProps {
-  onSend: (content: string, attachments?: ChatAttachment[]) => void
+  /** Optional host layout; existing consumers retain the inline composer. */
+  layout?: 'inline' | 'stacked'
+  onSend: (content: string, attachments?: ChatAttachment[]) => void | boolean | Promise<void | boolean>
   onPause?: () => void
   busy?: boolean
+  pausePending?: boolean
   disabled?: boolean
+  /** Disable submission while allowing the user to keep editing a draft. */
+  sendDisabled?: boolean
   placeholder?: string
   commands?: CommandHint[]
   toolCommands?: CommandHint[]
@@ -90,6 +95,26 @@ export interface ChatInputProps {
   topSlot?: ReactNode
   className?: string
   inputClassName?: string
+  // UI-chrome strings. Every entry falls back to the current English text, so
+  // hosts that pass nothing keep the existing behaviour.
+  labels?: ChatInputLabels
+}
+
+export interface ChatInputLabels {
+  context?: string
+  mentionContext?: string
+  contextMode?: string
+  uploadMode?: string
+  removeFile?: string
+  placeholder?: string
+  placeholderWithCommands?: string
+  placeholderWithAttachments?: string
+  dropFiles?: string
+  attachFiles?: string
+  sendMessage?: string
+  pauseResponse?: string
+  injectAsContext?: string
+  uploadToRemote?: string
 }
 
 function isTextFile(file: File): boolean {
@@ -138,7 +163,7 @@ function SuggestionPopup({
       <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2 text-xs">
         <span className={cn('grid h-6 w-6 place-items-center rounded-md font-mono font-semibold', meta.tone)}>{meta.prefix}</span>
         <span className="font-medium text-foreground">{meta.label}</span>
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground">← ↑ ↓ → · Enter</span>
+        <span className="ml-auto font-mono text-xs text-muted-foreground">← ↑ ↓ → · Enter</span>
       </div>
       <div ref={listRef} className="max-h-64 overflow-y-auto p-1.5">
         {options.length === 0 && (
@@ -162,10 +187,10 @@ function SuggestionPopup({
             <meta.Icon className={cn('h-3.5 w-3.5 shrink-0', kind === 'tool' ? 'text-amber-500' : kind === 'mention' ? 'text-ai' : 'text-primary')} />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-mono font-semibold text-foreground">{option.cmd}</span>
-              {option.desc && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{option.desc}</span>}
+              {option.desc && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{option.desc}</span>}
             </span>
             {option.usage && option.usage !== option.cmd && (
-              <span className="max-w-[45%] shrink-0 truncate rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{option.usage}</span>
+              <span className="max-w-[45%] shrink-0 truncate rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{option.usage}</span>
             )}
           </button>
         ))}
@@ -191,10 +216,13 @@ function mentionAt(value: string, caret: number): { start: number; query: string
 }
 
 export default function ChatInput({
+  layout = 'inline',
   onSend,
   onPause,
   busy,
+  pausePending = false,
   disabled,
+  sendDisabled = false,
   placeholder,
   commands = [],
   toolCommands = [],
@@ -208,6 +236,7 @@ export default function ChatInput({
   topSlot,
   className,
   inputClassName,
+  labels = {},
 }: ChatInputProps) {
   const [draft, setDraft] = useState('')
   const [showHints, setShowHints] = useState(false)
@@ -225,15 +254,14 @@ export default function ChatInput({
   // Guards the injectText effect: only fire when the nonce actually advances,
   // so a StrictMode double-invoke or an unrelated re-render can't re-append.
   const lastInjectRef = useRef(0)
-  // Coalesce a byte-identical resend fired within a frame of the previous one.
-  // The CJK-IME confirm Enter can invoke handleSend twice off a single keypress
-  // (see handleKeyDown); both calls close over the same not-yet-cleared draft and
-  // would post the message — and start an agent run — twice. This backstops the
-  // isComposing/keyCode 229 guard, which some engines don't report on that keydown.
-  const lastSendRef = useRef({ sig: '', at: 0 })
+  const sendingRef = useRef(false)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const revisionRef = useRef({ text: draft, version: 0 })
+  if (revisionRef.current.text !== draft) revisionRef.current = { text: draft, version: revisionRef.current.version + 1 }
 
   const hasContent = draft.trim().length > 0 || attachments.length > 0
-  const canSend = hasContent && !disabled
+  const canSend = hasContent && !disabled && !sendDisabled && !sending
   const canPause = !!busy && !disabled && !!onPause
   const matchingMentions = mention && mentionables.length > 0
     ? mentionables.filter((m) => m.target.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 8)
@@ -297,21 +325,27 @@ export default function ChatInput({
     setAttachments((prev) => prev.map((a, i) => i === index ? { ...a, mode: a.mode === 'context' ? 'upload' as const : 'context' as const } : a))
   }, [])
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = draft.trim()
-    if ((!text && attachments.length === 0) || disabled) return
-    const sig = JSON.stringify([text, attachments.length])
-    const now = Date.now()
-    if (sig === lastSendRef.current.sig && now - lastSendRef.current.at < 500) return
-    lastSendRef.current = { sig, at: now }
-    onSend(text, attachments.length > 0 ? attachments : undefined)
-    setDraft('')
-    setAttachments([])
-    setShowHints(false)
-    setShowToolHints(false)
-    setShowComposerHelp(false)
-    setMention(null)
-  }, [draft, attachments, disabled, onSend])
+    if ((!text && attachments.length === 0) || disabled || sendDisabled || sendingRef.current) return
+    sendingRef.current = true
+    setSending(true)
+    setSendError('')
+    const revision = revisionRef.current.version
+    const submitted = attachments
+    try {
+      const accepted = await onSend(text, attachments.length > 0 ? attachments : undefined)
+      if (accepted === false) return
+      if (revisionRef.current.version === revision) setDraft('')
+      setAttachments((current) => current.filter((item) => !submitted.includes(item)))
+      setShowHints(false)
+      setShowToolHints(false)
+      setShowComposerHelp(false)
+      setMention(null)
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : String(error))
+    } finally { sendingRef.current = false; setSending(false) }
+  }, [draft, attachments, disabled, sendDisabled, onSend])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     // Ignore keys mid-IME-composition (CJK input). The Enter that confirms a
@@ -334,7 +368,11 @@ export default function ChatInput({
       setActiveOptionIndex((index) => (index + delta + simpleOptions.length) % simpleOptions.length)
       return
     }
-    if (simplePopupKind && e.key === 'Enter' && !e.shiftKey) {
+    // Only take Enter for the popup when there is something to insert. A draft
+    // like `/context` that matches no command still opens the popup (it shows
+    // "No matching suggestions"), and swallowing Enter there leaves the operator
+    // with a dead key and no way to send the line but Escape.
+    if (simplePopupKind && simpleOptions.length > 0 && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       const option = simpleOptions[activeOptionIndex] ?? simpleOptions[0]
       if (option) {
@@ -513,10 +551,10 @@ export default function ChatInput({
 
   const hasCommands = commands.length > 0
   const defaultPlaceholder = hasCommands
-    ? 'Type a message... (/ for commands)'
+    ? labels.placeholderWithCommands ?? 'Type a message... (/ for commands)'
     : enableAttachments
-      ? 'Type a message or drop files...'
-      : 'Type a message...'
+      ? labels.placeholderWithAttachments ?? 'Type a message or drop files...'
+      : labels.placeholder ?? 'Type a message...'
 
   return (
     <div
@@ -529,12 +567,13 @@ export default function ChatInput({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {sendError && <p role="alert" className="px-3 py-2 text-xs text-destructive">{sendError}</p>}
       {/* drag overlay */}
       {dragOver && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-primary/5">
           <div className="flex items-center gap-2 rounded-lg border-2 border-dashed border-primary bg-card/90 px-4 py-2 text-sm font-medium text-primary">
             <Upload className="h-4 w-4" />
-            Drop files to attach
+            {labels.dropFiles ?? 'Drop files to attach'}
           </div>
         </div>
       )}
@@ -592,15 +631,15 @@ export default function ChatInput({
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="text-xs font-medium text-foreground">{item.title}</span>
-                      {item.meta && <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">{item.meta}</span>}
+                      {item.meta && <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground">{item.meta}</span>}
                     </span>
-                    <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">{item.description}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.description}</span>
                   </span>
                 </button>
               )
             })}
           </div>
-          <div className="flex items-start gap-2 border-t border-border/60 bg-muted/30 px-3 py-2 text-[10px] leading-relaxed text-muted-foreground">
+          <div className="flex items-start gap-2 border-t border-border/60 bg-muted/30 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
             <Keyboard className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>{composerHelp.hint}</span>
           </div>
@@ -646,18 +685,21 @@ export default function ChatInput({
                   type="button"
                   onClick={() => toggleMode(i)}
                   className={cn(
-                    'rounded px-1 py-0.5 text-[10px] font-medium transition-colors',
+                    'rounded px-1 py-0.5 text-xs font-medium transition-colors',
                     a.mode === 'context'
                       ? 'bg-primary/10 hover:bg-primary/20'
                       : 'bg-warning/10 hover:bg-warning/20',
                   )}
-                  title={a.mode === 'context' ? 'Injected as context — click to upload to remote' : 'Upload to remote — click to inject as context'}
+                  title={a.mode === 'context'
+                    ? labels.injectAsContext ?? 'Injected as context — click to upload to remote'
+                    : labels.uploadToRemote ?? 'Upload to remote — click to inject as context'}
                 >
-                  {a.mode === 'context' ? 'CTX' : 'UP'}
+                  {a.mode === 'context' ? labels.contextMode ?? 'CTX' : labels.uploadMode ?? 'UP'}
                 </button>
                 <button
                   type="button"
                   onClick={() => removeAttachment(i)}
+                  aria-label={labels.removeFile ? `${labels.removeFile}: ${a.file.name}` : `Remove ${a.file.name}`}
                   className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <X className="h-3 w-3" />
@@ -667,8 +709,8 @@ export default function ChatInput({
           </div>
         )}
 
-        <div className="flex items-end gap-2 rounded-lg border border-border/70 bg-card/40 p-1 transition-shadow duration-150 focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20">
-          {leading && <div className="shrink-0">{leading}</div>}
+        <div className={cn('flex items-end gap-2 rounded-lg border border-border/70 bg-card/40 p-1 transition-shadow duration-150 focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20', layout === 'stacked' && 'flex-wrap gap-1 rounded-xl bg-card px-2 py-3 sm:gap-2 sm:px-3')}>
+          {leading && <div className={cn('shrink-0', layout === 'stacked' && 'order-2')}>{leading}</div>}
 
           {enableAttachments && (
             <>
@@ -680,15 +722,22 @@ export default function ChatInput({
                 className="sr-only"
                 onChange={(e) => { if (e.target.files?.length) { addFiles(e.target.files); e.target.value = '' } }}
               />
-              <button
+              {layout === 'stacked' ? <DropdownMenu><DropdownMenuTrigger asChild>
+                <button type="button" disabled={disabled} className="order-2 flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-1 text-xs text-muted-foreground hover:bg-accent disabled:opacity-50 sm:px-2" aria-label={labels.context ?? 'Context'}>
+                  <Paperclip className="h-4 w-4" />{labels.context ?? 'Context'}
+                </button>
+              </DropdownMenuTrigger><DropdownMenuContent align="start" onCloseAutoFocus={event => event.preventDefault()}>
+                <DropdownMenuItem onSelect={openFilePicker}><Paperclip className="mr-2 h-4 w-4" />{labels.attachFiles ?? 'Attach files'}</DropdownMenuItem>
+                {(renderMentionPopup || mentionables.length > 0) && <DropdownMenuItem onSelect={() => insertHelpPrefix('@')}><AtSign className="mr-2 h-4 w-4" />{labels.mentionContext ?? 'Reference context'}</DropdownMenuItem>}
+              </DropdownMenuContent></DropdownMenu> : <button
                 type="button"
                 onClick={openFilePicker}
                 disabled={disabled}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-                aria-label="Attach files"
+                aria-label={labels.attachFiles ?? 'Attach files'}
               >
                 <Paperclip className="h-4 w-4" />
-              </button>
+              </button>}
             </>
           )}
 
@@ -715,6 +764,7 @@ export default function ChatInput({
               'placeholder:text-muted-foreground',
               'focus:outline-none focus:ring-0',
               'disabled:cursor-not-allowed disabled:opacity-50',
+              layout === 'stacked' && 'order-1 min-h-16 max-h-[200px] min-w-0 basis-full px-0',
               inputClassName,
             )}
           />
@@ -733,6 +783,7 @@ export default function ChatInput({
                   className={cn(
                     'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                     showComposerHelp && 'bg-accent text-foreground',
+                    layout === 'stacked' && 'order-3 w-8 sm:w-9',
                   )}
                   aria-label={composerHelp.label}
                   aria-expanded={showComposerHelp}
@@ -749,15 +800,18 @@ export default function ChatInput({
           <button
             type="button"
             onClick={canPause ? onPause : handleSend}
-            disabled={canPause ? false : !canSend}
+            disabled={canPause ? pausePending : !canSend}
             className={cn(
               'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-50',
               canPause
                 ? 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90'
                 : 'bg-primary text-primary-foreground',
+              layout === 'stacked' && 'order-4 ml-auto h-10 w-9 sm:w-10',
               !canPause && canSend && 'shadow-sm hover:bg-primary/90',
             )}
-            aria-label={canPause ? 'Pause response' : 'Send message'}
+            aria-label={canPause
+              ? labels.pauseResponse ?? 'Pause response'
+              : labels.sendMessage ?? 'Send message'}
           >
             {canPause ? <Square className="h-4 w-4 fill-current" /> : <Send className="h-4 w-4" />}
           </button>

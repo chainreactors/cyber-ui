@@ -52,7 +52,8 @@ export const statCardManifest: ComponentManifest = {
       label: 'Icon name (lucide)',
       type: 'string',
       default: '',
-      description: 'Name of a lucide-react icon, e.g. "Server", "Shield"',
+      description:
+        'Name of a supported lucide-react icon, e.g. "Server", "Shield". The supported set is listed in lib/lucideIcon.ts; an unrecognised name renders no icon.',
     },
     {
       key: 'change',

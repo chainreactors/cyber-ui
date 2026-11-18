@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/u
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
 import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
 
+const CODE_BLOCK_CLASS_ACCENT = 'rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
 const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
 
 /**
@@ -67,25 +68,33 @@ function RequestContent({ args, language, mode }: { args: string; language?: str
   const body = command
     ? command.split('\n').map((line, index) => index === 0 ? `${prompt}${line}` : line).join('\n')
     : formatted
-  if (mode === 'auto') {
-    // Chat keeps the request as plain arguments; only the framed mode claims a
-    // syntax and line numbers for every payload.
+  if (mode === 'code') {
+    // The framed mode claims a syntax and line numbers for every payload, so a
+    // plain-text request is framed like the response beside it.
+    const syntax = command ? language : formatted.trim().startsWith('{') || formatted.trim().startsWith('[') ? 'json' : 'text'
     return (
-      <pre className="max-h-40 overflow-auto overscroll-contain whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
-        {body}
-      </pre>
+      <CodeBlock
+        code={body}
+        language={syntax}
+        showLineNumbers
+        maxHeight={192}
+        className={cn(CODE_BLOCK_CLASS, command && 'border-l-2 border-l-accent')}
+      />
     )
   }
-  const syntax = command ? language : formatted.trim().startsWith('{') || formatted.trim().startsWith('[') ? 'json' : 'text'
-  return (
-    <CodeBlock
-      code={body}
-      language={syntax}
-      showLineNumbers
-      maxHeight={192}
-      className={cn(CODE_BLOCK_CLASS, command && 'border-l-2 border-l-accent')}
-    />
-  )
+  // Chat keeps the request as it was: a shell command or JSON is highlighted, and
+  // arguments that are neither stay unclaimed text.
+  if (command) {
+    return <CodeBlock code={body} language={language} maxHeight={192} className={CODE_BLOCK_CLASS_ACCENT} />
+  }
+  let json = false
+  try {
+    JSON.parse(args)
+    json = true
+  } catch {
+    // Keep plain-text legacy arguments as text rather than claiming JSON.
+  }
+  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className={CODE_BLOCK_CLASS} />
 }
 
 /** The text and syntax a result is shown with, whichever mode frames it. */

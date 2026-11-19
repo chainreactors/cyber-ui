@@ -12,7 +12,7 @@ interface YamlEditorProps {
   readOnly?: boolean
 }
 
-// the host drives light/dark off a `.dark` class on <html> (see web ThemeProvider /
+// The host drives light/dark off a `.dark` class on <html> (see web ThemeProvider /
 // index.css `@custom-variant dark`). Monaco paints on a canvas and can't read
 // Tailwind's `dark:` variant, so we mirror that class into a Monaco theme id at
 // runtime and keep it in sync when the user toggles theme.

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aop.exec;
 
-option go_package = "github.com/chainreactors/aiscan/aop/exec;exec";
+option go_package = "github.com/chainreactors/cyber/aop/exec;exec";
 
 enum Stream {
   STREAM_UNSPECIFIED = 0;

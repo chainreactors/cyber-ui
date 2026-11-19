@@ -109,7 +109,7 @@ export function registerBuiltinRenderers(registry: CellRendererRegistry): void {
     // `task:89a3f347-3995-466c-a061-ec087757f58b`. Rendered verbatim they blow the
     // column width out and stack into a tall block. Show a compact head with an
     // ellipsis and keep the full value one hover away via `title` (and copyable when
-    // the cell is widened). Short tokens (`cairn-runner`, `oracle:p_ee9d440b`) are
+    // the cell is widened). Short tokens (`cyber-platform-runner`, `oracle:p_ee9d440b`) are
     // left untouched.
     const MAX_TAG_CHARS = 22;
     return (

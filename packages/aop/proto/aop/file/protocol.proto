@@ -4,7 +4,7 @@ package aop.file;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop/file;file";
+option go_package = "github.com/chainreactors/cyber/aop/file;file";
 
 message ReadRequest {
   string path = 1;

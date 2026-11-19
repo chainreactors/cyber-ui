@@ -585,12 +585,12 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'footer': return <footer {...props}>{children()}</footer>
     case 'div': return <div {...props}>{children()}</div>
     // A report image is an operator-supplied screenshot. The host resolves the
-    // reference before rendering — an unresolved one is left as-is and degrades to
+    // reference before rendering — an unresolved one degrades to
     // the alt text, which is the caption the author wrote.
     case 'img': {
       const src = stringProp(node, 'src')
       const alt = stringProp(node, 'alt') ?? ''
-      if (!src || src.startsWith('cairn-shot:')) {
+      if (!src || src.startsWith('screenshot:')) {
         return alt ? <span className="text-xs italic text-muted-foreground">{alt}</span> : null
       }
       return (

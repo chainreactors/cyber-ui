@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aop;
 
-option go_package = "github.com/chainreactors/aiscan/aop";
+option go_package = "github.com/chainreactors/cyber/aop";
 
 // EncodedValue carries genuinely opaque data whose schema is not protobuf,
 // notably provider/tool JSON arguments and JSON Schema documents.

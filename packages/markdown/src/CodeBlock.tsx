@@ -32,7 +32,7 @@ const lineNumStyle: CSSProperties = {
 }
 
 function hostIsDark(root: HTMLElement): boolean {
-  // Cairn stamps `data-theme` before the app mounts and adds `.dark` from its
+  // the host stamps `data-theme` before the app mounts and adds `.dark` from its
   // provider. Read both so a code block never paints the light highlighter in
   // the gap between those two writes (and so embedded hosts may use either
   // convention).

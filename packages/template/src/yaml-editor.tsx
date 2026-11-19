@@ -12,7 +12,7 @@ interface YamlEditorProps {
   readOnly?: boolean
 }
 
-// Cairn drives light/dark off a `.dark` class on <html> (see web ThemeProvider /
+// the host drives light/dark off a `.dark` class on <html> (see web ThemeProvider /
 // index.css `@custom-variant dark`). Monaco paints on a canvas and can't read
 // Tailwind's `dark:` variant, so we mirror that class into a Monaco theme id at
 // runtime and keep it in sync when the user toggles theme.
@@ -32,7 +32,7 @@ function useIsDark(): boolean {
 }
 
 // Two GitHub-flavoured themes keyed to the app palette: the light one matches a
-// white card, the dark one sits on Cairn's deep code-well surface (--c-bg).
+// white card, the dark one sits on the host's deep code-well surface (--c-bg).
 function registerYamlThemes(monaco: typeof import('monaco-editor')) {
   monaco.editor.defineTheme('yamlLight', {
     base: 'vs',

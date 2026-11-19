@@ -97,40 +97,46 @@ function RequestContent({ args, language, mode }: { args: string; language?: str
   return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className={CODE_BLOCK_CLASS} />
 }
 
-/** The text and syntax a result is shown with, whichever mode frames it. */
-function resultContent(result: string, toolArgs: string, mode: ToolResultMode, format: ToolResultFormat): {
-  code: string
-  language?: string
-} {
-  if (mode === 'code') {
-    return format.kind === 'code'
-      ? { code: format.code ?? result, language: format.language }
-      : { code: result, language: 'text' }
-  }
-  if (format.kind === 'code') return { code: format.code ?? result, language: format.language }
-  return { code: result }
+/** The text a result is shown as: pretty-printed JSON, else the result itself. */
+function shownResult(result: string, format: ToolResultFormat): string {
+  return format.kind === 'code' ? format.code ?? result : result
 }
 
-function ToolResultContent({ result, toolArgs, mode }: { result: string; toolArgs: string; mode: ToolResultMode }) {
-  const format = resolveToolResultFormat(toolArgs, result)
-  // A Markdown document is rendered as a document unless the caller asked for
-  // the uniform code frame; inside that frame its source is what is shown.
-  if (mode === 'auto' && format.kind === 'markdown') {
+function ToolResultContent({ result, format, mode }: { result: string; format: ToolResultFormat; mode: ToolResultMode }) {
+  if (mode === 'code') {
+    // Inside the uniform frame a Markdown document shows its source.
+    return (
+      <CodeBlock
+        code={shownResult(result, format)}
+        language={format.kind === 'code' ? format.language : 'text'}
+        showLineNumbers
+        maxHeight={320}
+        className={CODE_BLOCK_CLASS}
+      />
+    )
+  }
+  if (format.kind === 'markdown') {
     return (
       <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
         <MarkdownContent content={result} compact />
       </div>
     )
   }
-  const content = resultContent(result, toolArgs, mode, format)
+  if (format.kind === 'code') {
+    return (
+      <CodeBlock
+        code={shownResult(result, format)}
+        language={format.language}
+        showLineNumbers
+        maxHeight={320}
+        className="rounded-md"
+      />
+    )
+  }
   return (
-    <CodeBlock
-      code={content.code}
-      language={content.language}
-      showLineNumbers
-      maxHeight={320}
-      className={CODE_BLOCK_CLASS}
-    />
+    <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
+      {result}
+    </pre>
   )
 }
 
@@ -248,6 +254,7 @@ export function ToolCallBody({
 }: ToolCallBodyProps) {
   const l = { ...DEFAULT_LABELS, ...labels }
   const displayResult = result === undefined ? undefined : stripAnsiControl(result)
+  const resultFormat = displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult)
   const displayThinking = thinking?.trim() || undefined
   // A host opts into the copy affordance by naming it, so a host that never
   // asked for one keeps its card free of extra controls.
@@ -272,16 +279,16 @@ export function ToolCallBody({
         <RequestContent args={toolArgs} language={requestLanguage} mode={resultMode} />
       </PayloadSection>
     )}
-    {content !== 'arguments' && displayResult !== undefined && (
+    {content !== 'arguments' && displayResult !== undefined && resultFormat && (
       <PayloadSection
         kind="result"
         label={sectionLabels?.response || l.result}
         copy={sectionLabels?.copyResponse
-          ? { value: displayResult, label: sectionLabels.copyResponse, copiedLabel: copied }
+          ? { value: shownResult(displayResult, resultFormat), label: sectionLabels.copyResponse, copiedLabel: copied }
           : undefined}
         secondary={secondary}
       >
-        <ToolResultContent result={displayResult} toolArgs={toolArgs} mode={resultMode} />
+        <ToolResultContent result={displayResult} format={resultFormat} mode={resultMode} />
       </PayloadSection>
     )}
   </div>

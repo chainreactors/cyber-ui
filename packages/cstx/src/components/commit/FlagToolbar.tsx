@@ -66,7 +66,7 @@ export function CstxFlagToolbar({
               className={cn(
                 'inline-flex items-center rounded-md border font-medium transition-colors',
                 compact ? 'h-6 px-1.5 text-[11px]' : 'h-7 px-2 text-xs',
-                // Cairn tokens (this toolbar renders only inside the Cairn app).
+                // Theme tokens supplied by the host application.
                 // Inactive chips were text-slate-400/500 (~2.8:1 on the dark
                 // surface) — the readability complaint. Muted foreground clears 7:1.
                 active

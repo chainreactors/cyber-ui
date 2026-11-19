@@ -15,7 +15,7 @@ import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
 import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/ui'
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
-import { resolveToolResultFormat } from '../../lib/tool-result-format'
+import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
 
 const CODE_BLOCK_CLASS_ACCENT = 'rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
 const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
@@ -79,6 +79,27 @@ function RequestContent({ args, language, mode }: { args: string; language?: str
     return <CodeBlock code={body} language={language} maxHeight={192} className={CODE_BLOCK_CLASS_ACCENT} />
   }
   return <CodeBlock code={formatted} language={requestSyntax(args)} maxHeight={192} className={CODE_BLOCK_CLASS} />
+}
+
+function shownResult(result: string, format: ToolResultFormat): string {
+  return format.kind === 'code' ? format.code ?? result : result
+}
+
+function ToolResultContent({ result, format, mode }: { result: string; format: ToolResultFormat; mode: ToolResultMode }) {
+  if (mode === 'code') {
+    return <CodeBlock code={shownResult(result, format)} language={format.kind === 'code' ? format.language : 'text'} showLineNumbers maxHeight={320} className={CODE_BLOCK_CLASS} />
+  }
+  if (format.kind === 'markdown') {
+    return (
+      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
+        <MarkdownContent content={result} compact />
+      </div>
+    )
+  }
+  if (format.kind === 'code') {
+    return <CodeBlock code={shownResult(result, format)} language={format.language} showLineNumbers maxHeight={320} className="rounded-md" />
+  }
+  return <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">{result}</pre>
 }
 
 export interface ToolCallDisplayProps {
@@ -158,15 +179,10 @@ export default function ToolCallDisplay({
     response: sectionLabels?.copyResponse || `Copy ${labels.response.toLowerCase()}`,
     copied: sectionLabels?.copied || 'Copied',
   }
-  // Whatever its content, a result is shown in one code block: recognised
-  // formats keep their highlighting, everything else is plain text.
-  const resultBlock = useMemo(() => {
-    if (displayResult === undefined) return undefined
-    const format = resolveToolResultFormat(toolArgs, displayResult)
-    return format.kind === 'code'
-      ? { code: format.code ?? displayResult, language: format.language }
-      : { code: displayResult, language: 'text' }
-  }, [toolArgs, displayResult])
+  const resultFormat = useMemo(
+    () => displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult),
+    [toolArgs, displayResult],
+  )
 
   const statusLabel = statusLabels && (error ? statusLabels.error : pending ? statusLabels.pending : statusLabels.completed)
   const statusDetail = statusLabels && error ? summarizeResult(displayResult ?? '') || statusLabels.noErrorDetails : ''
@@ -271,13 +287,13 @@ export default function ToolCallDisplay({
                 <RequestContent args={toolArgs} language={requestLanguage} mode={resultMode} />
               </div>
             )}
-            {resultBlock && (
+            {displayResult !== undefined && resultFormat && (
               <div className="px-3 py-2">
                 <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   <span>{labels.response}</span>
-                  <CopyButton value={resultBlock.code} label={copyLabels.response} copiedLabel={copyLabels.copied} />
+                  <CopyButton value={shownResult(displayResult, resultFormat)} label={copyLabels.response} copiedLabel={copyLabels.copied} />
                 </div>
-                <CodeBlock code={resultBlock.code} language={resultBlock.language} showLineNumbers maxHeight={320} className={CODE_BLOCK_CLASS} />
+                <ToolResultContent result={displayResult} format={resultFormat} mode={resultMode} />
               </div>
             )}
           </div>

@@ -18,6 +18,7 @@ import sql from 'highlight.js/lib/languages/sql.js'
 import typescript from 'highlight.js/lib/languages/typescript.js'
 import xml from 'highlight.js/lib/languages/xml.js'
 import yaml from 'highlight.js/lib/languages/yaml.js'
+import { extractShellCommand } from './tool-utils'
 
 const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
   bat: 'batch', c: 'c', cc: 'cpp', cfg: 'ini', conf: 'ini', cpp: 'cpp',
@@ -161,5 +162,8 @@ export function resolveToolResultFormat(toolArgs: string, result: string): ToolR
   const pathFormat = pathResultFormat(toolArgs, result)
   if (pathFormat) return pathFormat
   if (hasMarkdownStructure(result)) return { kind: 'markdown' }
-  return autoDetectedResultFormat(result) ?? { kind: 'text' }
+  // A command's output is a terminal stream, not source: a language guessed for
+  // it turns `---` rules into headings and `--` columns into SQL comments.
+  const commandOutput = formattedJson(toolArgs) !== undefined && extractShellCommand(toolArgs) !== undefined
+  return (commandOutput ? undefined : autoDetectedResultFormat(result)) ?? { kind: 'text' }
 }

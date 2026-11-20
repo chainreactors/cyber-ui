@@ -180,8 +180,8 @@ export default function ToolCallDisplay({
     copied: sectionLabels?.copied || 'Copied',
   }
   const resultFormat = useMemo(
-    () => displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult),
-    [toolArgs, displayResult],
+    () => displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult, requestLanguage),
+    [toolArgs, displayResult, requestLanguage],
   )
 
   const statusLabel = statusLabels && (error ? statusLabels.error : pending ? statusLabels.pending : statusLabels.completed)

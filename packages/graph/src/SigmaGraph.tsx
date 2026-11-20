@@ -2160,7 +2160,7 @@ const SigmaGraph: React.FC<SigmaGraphProps> = ({
                 previous `dark:bg-slate-800` read as four blue chips on a neutral
                 dark canvas, and `shadow-lg` only muddied them.
                 The hover surface is `secondary` and not `muted` on purpose: hosts
-                that own `muted` as a text colour (cairn does) turn hover:bg-muted
+                that own `muted` as a text colour (the host does) turn hover:bg-muted
                 into a near-white block on dark. */}
             <div className="absolute bottom-3 left-3">
                 <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-popover/90 shadow-sm backdrop-blur-sm">

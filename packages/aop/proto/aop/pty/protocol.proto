@@ -4,7 +4,7 @@ package aop.pty;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/chainreactors/aiscan/aop/pty;pty";
+option go_package = "github.com/chainreactors/cyber/aop/pty;pty";
 
 message Session {
   string id = 1;

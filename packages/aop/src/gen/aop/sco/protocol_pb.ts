@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file aop/sco/protocol.proto.
  */
 export const file_aop_sco_protocol: GenFile = /*@__PURE__*/
-  fileDesc("ChZhb3Avc2NvL3Byb3RvY29sLnByb3RvEgdhb3Auc2NvIioKBU5vZGVzEg0KBW5vZGVzGAEgAygMEhIKCm1lZGlhX3R5cGUYAiABKAkiPQoPUHJvdG9jb2xNZXNzYWdlEh8KBW5vZGVzGAogASgLMg4uYW9wLnNjby5Ob2Rlc0gAQgkKB21lc3NhZ2VCLVorZ2l0aHViLmNvbS9jaGFpbnJlYWN0b3JzL2Fpc2Nhbi9hb3Avc2NvO3Njb2IGcHJvdG8z");
+  fileDesc("ChZhb3Avc2NvL3Byb3RvY29sLnByb3RvEgdhb3Auc2NvIioKBU5vZGVzEg0KBW5vZGVzGAEgAygMEhIKCm1lZGlhX3R5cGUYAiABKAkiPQoPUHJvdG9jb2xNZXNzYWdlEh8KBW5vZGVzGAogASgLMg4uYW9wLnNjby5Ob2Rlc0gAQgkKB21lc3NhZ2VCLFoqZ2l0aHViLmNvbS9jaGFpbnJlYWN0b3JzL2N5YmVyL2FvcC9zY287c2NvYgZwcm90bzM");
 
 /**
  * Nodes carries libcstx-owned node documents without copying the libcstx

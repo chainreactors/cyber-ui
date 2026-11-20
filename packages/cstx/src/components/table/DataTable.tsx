@@ -71,7 +71,7 @@ const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : us
 // every row on any table that fits its container, which is most of them.
 // Spread == -offset puts the shadow rect's edge exactly on the cell's, so the
 // whole falloff lands outside the frozen column instead of hugging it as a line.
-// Neutral black, not slate-900: a blue-tinted shadow reads cold against Cairn's
+// Neutral black, not slate-900: a blue-tinted shadow reads cold against the host's
 // near-neutral dark surface. Dark needs the heavier alpha — black on #1e2025 has
 // far less room to fall off than black on white.
 const STICKY_START_SHADOW =
@@ -325,7 +325,7 @@ function CellCopyButton({ value, onCopy, i18n }: { value: unknown; onCopy: (text
         e.stopPropagation();
         // Own the clipboard write here instead of delegating it to the host's
         // onAction handler — consumers that never wired up 'cellClick' (all of
-        // Cairn's tables) previously got a button that flashed a checkmark
+        // the host's tables) previously got a button that flashed a checkmark
         // without copying anything. Still emit the event so hosts can react
         // (e.g. a toast); the copy no longer depends on them doing so.
         const ok = await copyToClipboard(text, e.currentTarget);

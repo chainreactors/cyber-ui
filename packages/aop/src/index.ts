@@ -70,7 +70,10 @@ export function eventFromJson(value: unknown): Event {
   return fromJson(EventSchema, value as JsonValue)
 }
 
-/** Decode one captured exchange from the protojson a control plane stored. */
+/** Decode one captured exchange from the protojson a control plane stored. A
+ *  stored record is immutable history, so fields a later schema retired are
+ *  skipped, exactly as the server's own reader of this kind does. A value of
+ *  the wrong type still throws: that is a contract mismatch, not history. */
 export function trafficFlowFromJson(value: unknown): Flow {
-  return fromJson(FlowSchema, value as JsonValue)
+  return fromJson(FlowSchema, value as JsonValue, { ignoreUnknownFields: true })
 }

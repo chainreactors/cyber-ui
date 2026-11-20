@@ -1,7 +1,7 @@
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { cn } from '@cyber/theme'
+import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock } from './CodeBlock'
 import { remarkCjkAutolinkBoundary } from './remark-cjk-autolink-boundary'
 
@@ -10,7 +10,11 @@ export interface CodeBlockRendererProps {
   /** The fence's language tag, absent when the block carries none. */
   language?: string
   compact: boolean
-  isDark: boolean
+  /**
+   * Explicit theme override. When omitted, the renderer should follow its host
+   * document's theme (the built-in CodeBlock does this reactively).
+   */
+  isDark?: boolean
 }
 
 interface Props {
@@ -18,6 +22,7 @@ interface Props {
   compact?: boolean
   muted?: boolean
   inverted?: boolean
+  /** Explicit code-theme override; omitted means follow the host document. */
   isDark?: boolean
   /** Show anchor links on headings (hover to reveal) */
   headingAnchors?: boolean
@@ -141,7 +146,7 @@ export function MarkdownContent({
   compact = false,
   muted = false,
   inverted = false,
-  isDark = false,
+  isDark,
   headingAnchors = false,
   codeBlock: CodeBlockRenderer,
   className,
@@ -149,7 +154,10 @@ export function MarkdownContent({
   const headingSlugs = useMemo(() => new Map<string, number>(), [content])
 
   const components: Components = useMemo(() => {
-    const useDarkCode = inverted || isDark
+    // Preserve an omitted override so CodeBlock can resolve and observe the
+    // host theme. Coercing `undefined` to false here made every chat/report
+    // consumer that relied on the default render oneLight in dark mode.
+    const useDarkCode = inverted ? true : isDark
     const headings = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const).reduce(
       (acc, tag) => {
         acc[tag] = headingAnchors
@@ -277,6 +285,16 @@ export function MarkdownContent({
 
 /* ---------- inline code with click-to-copy ---------- */
 
+/**
+ * Inline code is useful as a compact token until it starts wrapping. At that
+ * point a border and vertical padding are painted once per line fragment by
+ * the browser, which makes a long payload look like a stack of overlapping
+ * pills. Keep the threshold deliberately conservative: identifiers and short
+ * paths retain the copy-chip affordance, while SQL, URLs and JSON stay part of
+ * the paragraph without adding a second visual frame.
+ */
+const LONG_INLINE_CODE_LENGTH = 48
+
 function InlineCode({
   children,
   inverted,
@@ -287,32 +305,51 @@ function InlineCode({
   compact: boolean
 }) {
   const [copied, setCopied] = useState(false)
+  const text = typeof children === 'string' ? children : nodeText(children)
+  const isLong = text.length >= LONG_INLINE_CODE_LENGTH
 
-  const handleClick = () => {
-    const text = typeof children === 'string' ? children : nodeText(children)
+  const handleClick = (source?: Element | null) => {
     if (!text) return
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    })
+    void copyToClipboard(text, source)
+      .then((ok) => {
+        if (!ok) return
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      })
+      .catch(() => undefined)
   }
 
   return (
     <code
       role="button"
       tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
+      onClick={(e) => handleClick(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleClick(e.currentTarget)
+        }
+      }}
       title={copied ? 'Copied!' : 'Click to copy'}
+      data-inline-code={isLong ? 'long' : undefined}
       className={cn(
-        'font-mono cursor-pointer transition-colors',
+        'font-mono transition-colors align-baseline',
+        isLong ? 'cursor-copy' : 'cursor-pointer',
         compact ? 'text-caption' : 'text-xs',
-        'rounded border px-1.5 py-0.5 break-words text-[0.92em]',
+        isLong
+          ? 'text-[0.92em] leading-[inherit] [overflow-wrap:anywhere]'
+          : 'rounded border px-1.5 py-0.5 break-words text-[0.92em]',
         copied
-          ? 'border-ok bg-ok-soft text-ok'
-          : inverted
-            ? 'border-background/20 bg-background/20 text-background hover:bg-background/30'
-            : 'border-line bg-surface-2 text-accent-fg hover:bg-surface-2/60',
+          ? isLong
+            ? 'text-ok'
+            : 'border-ok bg-ok-soft text-ok'
+          : isLong
+            ? inverted
+              ? 'text-background'
+              : 'text-accent-fg'
+            : inverted
+              ? 'border-background/20 bg-background/20 text-background hover:bg-background/30'
+              : 'border-line bg-surface-2 text-accent-fg hover:bg-surface-2/60',
       )}
     >
       {children}

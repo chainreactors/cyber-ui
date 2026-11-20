@@ -23,7 +23,7 @@ export function NucleiTemplatePanel({
     const classification = model.classification ?? {}
     const metadata = model.metadata ?? {}
     const references = model.references?.length ? model.references : undefined
-    const cve = classification['cve-id'] || classification.cve_id
+    const cve = classification['cve-id']
 
     return {
       id: model.id || fallback?.id,

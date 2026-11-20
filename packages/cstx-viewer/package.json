@@ -11,6 +11,7 @@
   "dependencies": {
     "@cyber/cstx": "workspace:*",
     "@cyber/graph": "workspace:*",
+    "@cyber/theme": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "sigma": "^3.0.2",

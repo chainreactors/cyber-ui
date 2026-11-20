@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   AlertTriangle,
   Check,
@@ -6,67 +6,115 @@ import {
   ChevronDown,
   ChevronRight,
   Code2,
+  Copy,
   Loader2,
   Terminal,
   Wrench,
 } from 'lucide-react'
-import { cn } from '@cyber/theme'
+import { cn, copyToClipboard } from '@cyber/theme'
 import { CodeBlock, MarkdownContent } from '@cyber/markdown'
-import { stripAnsiControl, formatArgs, summarizeArgs } from '../../lib/tool-utils'
+import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/ui'
+import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
+import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
 
-const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
-  bat: 'batch', c: 'c', cc: 'cpp', cfg: 'ini', conf: 'ini', cpp: 'cpp',
-  cs: 'csharp', css: 'css', dockerfile: 'dockerfile', env: 'bash', go: 'go',
-  graphql: 'graphql', h: 'c', hpp: 'cpp', html: 'html', ini: 'ini', java: 'java',
-  js: 'javascript', json: 'json', jsonl: 'json', jsx: 'jsx', kt: 'kotlin',
-  lua: 'lua', mjs: 'javascript', php: 'php', proto: 'protobuf', ps1: 'powershell',
-  py: 'python', rb: 'ruby', rs: 'rust', sh: 'bash', sql: 'sql', svelte: 'svelte',
-  swift: 'swift', toml: 'toml', ts: 'typescript', tsx: 'tsx', vue: 'vue',
-  xml: 'xml', yaml: 'yaml', yml: 'yaml', zig: 'zig',
-}
-
-type ResultFormat = { kind: 'markdown' } | { kind: 'code'; language: string } | { kind: 'text' }
-
-/** The path a call names, if it names one. */
-function argPath(toolArgs: string): string | undefined {
-  try {
-    const args = JSON.parse(toolArgs) as Record<string, unknown>
-    for (const key of ['path', 'file_path', 'filename']) {
-      if (typeof args[key] === 'string' && args[key]) return args[key] as string
-    }
-  } catch {
-    // A malformed/legacy argument string simply falls back to plain text.
-  }
-  return undefined
-}
+const CODE_BLOCK_CLASS_ACCENT = 'rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
+const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
 
 /**
- * How to render a tool's result, decided from the shape of the call rather than
- * the tool's name.
- *
- * Tool names are an open set: `read`, `cat`, `view_file`, a runner download, and
- * whatever the next agent calls it are all the same act. Gating the preview on
- * one spelling means every other one silently loses it. What actually marks a
- * result as a document is the call naming a path and the body spanning lines —
- * a write or an edit names a path too, but answers in a single line
- * ("wrote 42 bytes"), which is a status message and reads worst as a code block.
+ * How a result is framed. `auto` keeps the renderer's long-standing choice —
+ * a Markdown document is rendered, code is highlighted, anything else is plain
+ * text — while `code` puts every result in the same block as the request, which
+ * is what a detail inspector wants: one frame, line numbers, wrapping.
  */
-function resultFormat(toolArgs: string, result: string): ResultFormat {
-  if (!result.includes('\n')) return { kind: 'text' }
-  const path = argPath(toolArgs)
-  if (!path) return { kind: 'text' }
-  const cleanPath = path.split(/[?#]/, 1)[0].toLowerCase()
-  const fileName = cleanPath.split(/[\\/]/).pop() || ''
-  const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.') + 1) : fileName
-  if (extension === 'md' || extension === 'mdx' || extension === 'markdown') {
-    return { kind: 'markdown' }
-  }
-  const language = CODE_LANGUAGE_BY_EXTENSION[extension]
-  return language ? { kind: 'code', language } : { kind: 'text' }
+export type ToolResultMode = 'auto' | 'code'
+
+function requestCopyValue(args: string, language?: string): string {
+  const command = language ? extractShellCommand(args) : undefined
+  return command || formatArgs(args)
 }
 
-function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: string }) {
-  const format = resultFormat(toolArgs, result)
+function CopyButton({ value, label, copiedLabel }: { value: string; label: string; copiedLabel: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    try {
+      const ok = await copyToClipboard(value, event.currentTarget)
+      if (!ok) return
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1600)
+    } catch {
+      // Clipboard access can be denied in an embedded/insecure browser context.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-surface-2 hover:text-accent-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={copied ? copiedLabel : label}
+      title={copied ? copiedLabel : label}
+    >
+      {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+    </button>
+  )
+}
+
+function RequestContent({ args, language, mode }: { args: string; language?: string; mode: ToolResultMode }) {
+  const formatted = formatArgs(args)
+  const command = language ? extractShellCommand(args) : undefined
+  const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
+  const body = command
+    ? command.split('\n').map((line, index) => index === 0 ? `${prompt}${line}` : line).join('\n')
+    : formatted
+  if (mode === 'code') {
+    // The framed mode claims a syntax and line numbers for every payload, so a
+    // plain-text request is framed like the response beside it.
+    const syntax = command ? language : formatted.trim().startsWith('{') || formatted.trim().startsWith('[') ? 'json' : 'text'
+    return (
+      <CodeBlock
+        code={body}
+        language={syntax}
+        showLineNumbers
+        maxHeight={192}
+        className={cn(CODE_BLOCK_CLASS, command && 'border-l-2 border-l-accent')}
+      />
+    )
+  }
+  // Chat keeps the request as it was: a shell command or JSON is highlighted, and
+  // arguments that are neither stay unclaimed text.
+  if (command) {
+    return <CodeBlock code={body} language={language} maxHeight={192} className={CODE_BLOCK_CLASS_ACCENT} />
+  }
+  let json = false
+  try {
+    JSON.parse(args)
+    json = true
+  } catch {
+    // Keep plain-text legacy arguments as text rather than claiming JSON.
+  }
+  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className={CODE_BLOCK_CLASS} />
+}
+
+/** The text a result is shown as: pretty-printed JSON, else the result itself. */
+function shownResult(result: string, format: ToolResultFormat): string {
+  return format.kind === 'code' ? format.code ?? result : result
+}
+
+function ToolResultContent({ result, format, mode }: { result: string; format: ToolResultFormat; mode: ToolResultMode }) {
+  if (mode === 'code') {
+    // Inside the uniform frame a Markdown document shows its source.
+    return (
+      <CodeBlock
+        code={shownResult(result, format)}
+        language={format.kind === 'code' ? format.language : 'text'}
+        showLineNumbers
+        maxHeight={320}
+        className={CODE_BLOCK_CLASS}
+      />
+    )
+  }
   if (format.kind === 'markdown') {
     return (
       <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
@@ -77,7 +125,7 @@ function ToolResultContent({ result, toolArgs }: { result: string; toolArgs: str
   if (format.kind === 'code') {
     return (
       <CodeBlock
-        code={result}
+        code={shownResult(result, format)}
         language={format.language}
         showLineNumbers
         maxHeight={320}
@@ -109,14 +157,48 @@ const DEFAULT_LABELS: ToolCallLabels = {
   completed: 'completed',
 }
 
+/** Host-supplied labels for the payload sections and their copy buttons. */
+export interface ToolCallSectionLabels {
+  thinking?: string
+  request?: string
+  response?: string
+  copyRequest?: string
+  copyResponse?: string
+  copied?: string
+}
+
 export interface ToolCallDisplayProps {
   toolName: string
   toolArgs?: string
   result?: string
+  /** Syntax used for shell-like requests; unknown shapes fall back to JSON. */
+  requestLanguage?: string
+  /** Reasoning emitted in the same agent turn as this call. */
+  thinking?: string
   pending?: boolean
   error?: boolean
   defaultExpanded?: boolean
+  /** Frame the result as the same code block as the request, line numbers included. */
+  resultMode?: ToolResultMode
+  /** Keep request/response summaries out of the compact header when desired. */
+  showHeaderSummary?: boolean
+  /** Host theme override for the compact header's hover treatment. */
+  headerClassName?: string
+  /** Enable a localized status hint on hover and keyboard focus. */
+  statusLabels?: {
+    completed: string
+    pending: string
+    error: string
+    noErrorDetails: string
+    expand: string
+  }
+  /** Optional localized labels for the expanded body sections. */
+  sectionLabels?: ToolCallSectionLabels
   className?: string
+  /** Optional content rendered in the shared call header (for example, an
+   *  owning Oracle intent). Keeping this slot here lets host surfaces reuse the
+   *  Harness renderer instead of rebuilding a second tool card. */
+  headerMeta?: ReactNode
   labels?: Partial<ToolCallLabels>
   headerExtra?: ReactNode
   children?: ReactNode
@@ -126,22 +208,91 @@ export interface ToolCallDisplayProps {
   content?: 'all' | 'arguments' | 'result'
 }
 
-export function ToolCallBody({ toolArgs = '', result, labels, children, bodyOnly = false, content = 'all' }: Pick<ToolCallDisplayProps, 'toolArgs' | 'result' | 'labels' | 'children' | 'bodyOnly' | 'content'>) {
-  const l = { ...DEFAULT_LABELS, ...labels }
-  const formattedArgs = formatArgs(toolArgs)
-  const displayResult = result === undefined ? undefined : stripAnsiControl(result)
-  const argumentsBody = <pre className="max-h-40 overflow-auto overscroll-contain whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">{formattedArgs}</pre>
-  const resultBody = displayResult !== undefined && <ToolResultContent result={displayResult} toolArgs={toolArgs} />
-  const secondary = !!children && !bodyOnly
-  function section(kind: 'arguments' | 'result', label: string, body: ReactNode) {
-    return secondary
-      ? <details className="border-t border-border px-3 py-2" data-testid={`tool-${kind}`}><summary className="cursor-pointer text-xs text-muted-foreground">{label}</summary><div className="mt-2">{body}</div></details>
-      : <div className="px-3 py-2" data-testid={`tool-${kind}`}><div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>{body}</div>
+export interface ToolCallBodyProps extends Pick<ToolCallDisplayProps,
+  'toolArgs' | 'result' | 'labels' | 'sectionLabels' | 'requestLanguage' | 'thinking' |
+  'resultMode' | 'children' | 'bodyOnly' | 'content'> {
+}
+
+function PayloadSection({ kind, label, copy, secondary, children }: {
+  kind: 'arguments' | 'result' | 'thinking'
+  label: string
+  copy?: { value: string; label: string; copiedLabel: string }
+  secondary: boolean
+  children: ReactNode
+}) {
+  const copyButton = copy && <CopyButton value={copy.value} label={copy.label} copiedLabel={copy.copiedLabel} />
+  if (secondary) {
+    return (
+      <details className="border-t border-border px-3 py-2" data-testid={`tool-${kind}`}>
+        <summary className="cursor-pointer text-xs text-muted-foreground">{label}</summary>
+        <div className="mt-2">{children}</div>
+      </details>
+    )
   }
+  return (
+    <div className="px-3 py-2" data-testid={`tool-${kind}`}>
+      <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span>{label}</span>
+        {copyButton}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+export function ToolCallBody({
+  toolArgs = '',
+  result,
+  labels,
+  sectionLabels,
+  requestLanguage,
+  thinking,
+  resultMode = 'auto',
+  children,
+  bodyOnly = false,
+  content = 'all',
+}: ToolCallBodyProps) {
+  const l = { ...DEFAULT_LABELS, ...labels }
+  const displayResult = result === undefined ? undefined : stripAnsiControl(result)
+  const resultFormat = displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult, requestLanguage)
+  const displayThinking = thinking?.trim() || undefined
+  // Copying is part of the card; hosts localize its labels rather than opting
+  // in, so the default surface keeps both buttons.
+  const requestLabel = sectionLabels?.request || l.arguments
+  const responseLabel = sectionLabels?.response || l.result
+  const copyLabels = {
+    request: sectionLabels?.copyRequest || `Copy ${requestLabel.toLowerCase()}`,
+    response: sectionLabels?.copyResponse || `Copy ${responseLabel.toLowerCase()}`,
+    copied: sectionLabels?.copied || 'Copied',
+  }
+  const secondary = !!children && !bodyOnly
   return <div className="min-w-0" data-testid="tool-content">
     {children}
-    {content !== 'result' && toolArgs && section('arguments', l.arguments, argumentsBody)}
-    {content !== 'arguments' && displayResult !== undefined && section('result', l.result, resultBody)}
+    {content !== 'result' && displayThinking && (
+      <PayloadSection kind="thinking" label={sectionLabels?.thinking || 'Thinking'} secondary={secondary}>
+        <MarkdownContent content={displayThinking} compact muted />
+      </PayloadSection>
+    )}
+    {content !== 'result' && toolArgs && (
+      <PayloadSection
+        kind="arguments"
+        label={requestLabel}
+        copy={{ value: requestCopyValue(toolArgs, requestLanguage), label: copyLabels.request, copiedLabel: copyLabels.copied }}
+        secondary={secondary}
+      >
+        <RequestContent args={toolArgs} language={requestLanguage} mode={resultMode} />
+      </PayloadSection>
+    )}
+    {content !== 'arguments' && displayResult !== undefined && resultFormat && (
+      <PayloadSection
+        kind="result"
+        label={responseLabel}
+        copy={{ value: shownResult(displayResult, resultFormat), label: copyLabels.response, copiedLabel: copyLabels.copied }}
+        secondary={secondary}
+      >
+        <ToolResultContent result={displayResult} format={resultFormat} mode={resultMode} />
+      </PayloadSection>
+    )}
   </div>
 }
 
@@ -149,22 +300,106 @@ export default function ToolCallDisplay({
   toolName,
   toolArgs = '',
   result,
+  requestLanguage,
+  thinking,
   pending = false,
   error = false,
   defaultExpanded = false,
+  resultMode = 'auto',
+  showHeaderSummary = true,
+  headerClassName,
+  statusLabels,
+  sectionLabels,
   className,
+  headerMeta,
   labels,
   headerExtra,
   children,
   bodyOnly = false,
   content = 'all',
 }: ToolCallDisplayProps) {
+  // Keep every tool body collapsed on first render, including calls that have
+  // persisted reasoning. Thinking remains available in the body when the user
+  // explicitly opens the call, which keeps long tool lists scannable.
   const [expanded, setExpanded] = useState(defaultExpanded)
   const summary = summarizeArgs(toolArgs)
   const formattedArgs = formatArgs(toolArgs)
+  const displayResult = useMemo(
+    () => result === undefined ? undefined : stripAnsiControl(result),
+    [result],
+  )
+  const rowSummary = summarizeToolCall(toolArgs, displayResult, pending, error)
+  const errorSummary = error ? rowSummary : ''
   const l = { ...DEFAULT_LABELS, ...labels }
-  const body = <ToolCallBody toolArgs={toolArgs} result={result} labels={labels} bodyOnly={bodyOnly} content={content}>{children}</ToolCallBody>
+  const statusLabel = statusLabels && (error ? statusLabels.error : pending ? statusLabels.pending : statusLabels.completed)
+  const statusDetail = statusLabels && error ? summarizeResult(displayResult ?? '') || statusLabels.noErrorDetails : ''
+  const body = (
+    <ToolCallBody
+      toolArgs={toolArgs}
+      result={result}
+      labels={labels}
+      sectionLabels={sectionLabels}
+      requestLanguage={requestLanguage}
+      thinking={thinking}
+      resultMode={resultMode}
+      bodyOnly={bodyOnly}
+      content={content}
+    >
+      {children}
+    </ToolCallBody>
+  )
   if (bodyOnly) return <div className={cn('min-w-0', className)}>{body}</div>
+
+  const header = (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      aria-expanded={expanded}
+      className={cn(
+        'flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-surface-2',
+        headerClassName,
+      )}
+    >
+      <Wrench
+        aria-hidden="true"
+        className={cn(
+          'h-3.5 w-3.5 shrink-0 transition-colors',
+          error ? 'text-destructive' : pending ? 'text-warning' : 'text-muted-foreground',
+        )}
+      />
+      <span className="shrink-0 rounded border border-border bg-card px-1.5 py-0.5 font-mono font-medium text-foreground">
+        {toolName || 'tool'}
+      </span>
+      {statusLabel && <span className="sr-only">{statusLabel}</span>}
+      {headerMeta}
+      {showHeaderSummary ? (
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate font-mono',
+            error ? 'text-destructive' : 'text-muted-foreground',
+          )}
+          title={errorSummary || summary || formattedArgs}
+        >
+          {rowSummary || (error ? l.failed : pending ? l.running : l.completed)}
+        </span>
+      ) : headerMeta ? null : (
+        <span className="min-w-0 flex-1" aria-hidden="true" />
+      )}
+      {headerExtra}
+      {error ? (
+        <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
+      ) : pending ? (
+        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-warning" />
+      ) : (
+        <Check className="h-3 w-3 shrink-0 text-success" />
+      )}
+      {expanded ? (
+        <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+      ) : (
+        <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+      )}
+    </button>
+  )
 
   return (
     <div
@@ -174,41 +409,23 @@ export default function ToolCallDisplay({
         className,
       )}
     >
-      <button
-        type="button"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full min-w-0 items-center gap-2 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50"
-      >
-        <Wrench
-          className={cn(
-            'h-3.5 w-3.5 shrink-0 transition-colors',
-            error ? 'text-destructive' : pending ? 'text-warning' : 'text-muted-foreground',
-          )}
-        />
-        <span className="shrink-0 rounded border border-border bg-card px-1.5 py-0.5 font-mono font-medium text-foreground">
-          {toolName || 'tool'}
-        </span>
-        <span
-          className="min-w-0 flex-1 truncate font-mono text-muted-foreground"
-          title={summary || formattedArgs}
-        >
-          {summary || (error ? l.failed : pending ? l.running : l.completed)}
-        </span>
-        {headerExtra}
-        {error ? (
-          <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
-        ) : pending ? (
-          <Loader2 className="h-3 w-3 shrink-0 animate-spin text-warning" />
-        ) : (
-          <Check className="h-3 w-3 shrink-0 text-success" />
-        )}
-        {expanded ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-        )}
-      </button>
+      {statusLabels ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{header}</TooltipTrigger>
+          <TooltipPortal>
+            <TooltipContent
+              align="start"
+              sideOffset={6}
+              collisionPadding={8}
+              className="z-[100] max-w-[min(24rem,calc(100vw-2rem))] whitespace-pre-wrap break-words text-xs leading-relaxed"
+            >
+              <div className="font-medium">{statusLabel}</div>
+              {statusDetail && <div className="mt-1">{statusDetail}</div>}
+              {!expanded && <div className="mt-1 text-muted-foreground">{statusLabels.expand}</div>}
+            </TooltipContent>
+          </TooltipPortal>
+        </Tooltip>
+      ) : header}
 
       <div
         className={cn(
@@ -217,7 +434,7 @@ export default function ToolCallDisplay({
         )}
       >
         <div className="overflow-hidden">
-          <div className="border-t border-border">
+          <div className="divide-y divide-border border-t border-border">
             {body}
           </div>
         </div>

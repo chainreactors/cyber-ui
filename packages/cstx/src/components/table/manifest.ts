@@ -20,7 +20,14 @@ export const cstxTableManifest: ComponentManifest = {
       label: 'Total row count',
       shape: 'scalar',
       required: false,
-      description: 'Total number of rows on the server. Required for server-side pagination.',
+      description: 'Exact total number of rows on the server, when available. Unknown totals use has_next instead.',
+    },
+    {
+      key: 'has_next',
+      label: 'Another page is available',
+      shape: 'scalar',
+      required: false,
+      description: 'Enables forward navigation for server pagination when total is unknown.',
     },
   ],
   propSlots: [
@@ -30,6 +37,21 @@ export const cstxTableManifest: ComponentManifest = {
       type: 'object',
       description:
         'Array of { key, title, sortable?, width?, render?, renderOptions?, filterable?, align?, hidden? }. If omitted, columns are auto-inferred from data.',
+    },
+    {
+      key: 'loadingColumns',
+      label: 'Loading column definitions',
+      type: 'object',
+      description:
+        'Optional column definitions used only while an auto-inferred table is waiting for its first response. Keeps the skeleton on the same grid tracks as the eventual table.',
+    },
+    {
+      key: 'loadingColumnCount',
+      label: 'Loading column count',
+      type: 'number',
+      default: 5,
+      description:
+        'Fallback number of neutral data tracks when no loadingColumns or explicit columns are available.',
     },
     {
       key: 'columnsExclude',

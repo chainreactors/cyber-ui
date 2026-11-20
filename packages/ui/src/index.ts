@@ -22,6 +22,7 @@ export {
 export {
   Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger,
   DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+  type DialogContentProps,
 } from './dialog'
 export {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -49,7 +50,7 @@ export { Switch } from './switch'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs'
 export { Textarea, type TextareaProps } from './textarea'
 export { ToggleGroup, ToggleGroupItem } from './toggle-group'
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip'
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipPortal, TooltipProvider } from './tooltip'
 export { ThemeToggle, type ThemeToggleProps } from './theme-toggle'
 export { Collapsible, type CollapsibleProps } from './collapsible'
 export { DisclosureCard, type DisclosureCardProps } from './disclosure-card'

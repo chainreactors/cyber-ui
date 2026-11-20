@@ -10,6 +10,8 @@ export interface TypeFilterBarProps {
   compact?: boolean;
   colorMap?: Record<string, string>;
   counts?: Record<string, number>;
+  labels?: Record<string, string>;
+  clearLabel?: string;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -26,6 +28,8 @@ export function TypeFilterBar({
   compact,
   colorMap,
   counts,
+  labels,
+  clearLabel = 'Clear',
 }: TypeFilterBarProps) {
   const isFiltered = selected.size > 0 && selected.size < allValues.length;
 
@@ -77,7 +81,7 @@ export function TypeFilterBar({
             )}
             style={customStyle ? (active ? customStyle.active : customStyle.inactive) : undefined}
           >
-            {val}
+            {typeof labels?.[val] === 'string' ? labels[val] : val}
             {count != null && (
               <span className="ml-1 opacity-60">{count}</span>
             )}
@@ -94,7 +98,7 @@ export function TypeFilterBar({
           )}
         >
           <X className="h-3 w-3" />
-          Clear
+          {clearLabel}
         </button>
       )}
     </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
+import { copyToClipboard } from "@cyber/theme"
 import type { FileNode, UploadProgress, DownloadProgress } from "../types"
 import {
   normalizePath, formatPathForDisplay,
@@ -15,6 +16,7 @@ export function useFileActions(state: FileManagerState) {
     isWindowsSession,
     currentPath,
     currentDirPath,
+    currentDirFiles,
     selection,
     selectedFile,
     renameTarget,
@@ -129,7 +131,8 @@ export function useFileActions(state: FileManagerState) {
 
   const handleCopyName = useCallback(async (node: FileNode) => {
     try {
-      await navigator.clipboard.writeText(node.name)
+      const copied = await copyToClipboard(node.name)
+      if (!copied) throw new Error(t('copyFailed'))
       toast({
         title: t('copySuccess'),
         description: t('copyNameSuccessDesc', { name: node.name })
@@ -147,7 +150,8 @@ export function useFileActions(state: FileManagerState) {
     try {
       const path = normalizePath(node.fullPath || node.id, isWindowsSession)
       const displayPath = formatPathForDisplay(path, isWindowsSession)
-      await navigator.clipboard.writeText(displayPath)
+      const copied = await copyToClipboard(displayPath)
+      if (!copied) throw new Error(t('copyFailed'))
       toast({
         title: t('copySuccess'),
         description: t('copyPathSuccessDesc', { path: displayPath })
@@ -246,14 +250,14 @@ export function useFileActions(state: FileManagerState) {
     setDownloading(true)
 
     const nodesToDownload: { name: string; fullPath: string; isDirectory: boolean }[] = []
-    for (const nodeId of selection.selectedIds) {
-      const tree = treeRef.current
-      const node = tree?.get(nodeId)
-      if (node && node.data.fullPath) {
+    // Selection belongs to the directory listing, which also renders when
+    // the optional tree is hidden. Use that listing as the source of files.
+    for (const node of currentDirFiles) {
+      if (selection.selectedIds.has(node.id) && node.fullPath) {
         nodesToDownload.push({
-          name: node.data.name,
-          fullPath: node.data.fullPath,
-          isDirectory: node.data.isDirectory || false,
+          name: node.name,
+          fullPath: node.fullPath,
+          isDirectory: node.isDirectory || false,
         })
       }
     }
@@ -288,7 +292,7 @@ export function useFileActions(state: FileManagerState) {
     } finally {
       setDownloading(false)
     }
-  }, [selection.selectedIds, sid, downloadFile, treeRef, setDownloading, toast, t])
+  }, [selection.selectedIds, sid, downloadFile, currentDirFiles, setDownloading, toast, t])
 
   const handleBatchDelete = useCallback(async () => {
     if (selection.selectedIds.size === 0) return

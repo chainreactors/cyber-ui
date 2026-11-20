@@ -1,6 +1,6 @@
 import { Component, Fragment, useMemo, useState, type ReactNode } from 'react'
 import type { Element, ElementContent, Nodes, Root, RootContent } from 'hast'
-import { cn } from '@cyber/theme'
+import { cn, copyToClipboard } from '@cyber/theme'
 import { Badge, Callout, type BadgeProps, type CalloutTone } from '@cyber/ui'
 import type { TrafficHttpView } from '@cyber/traffic'
 import type { CstxReportPreview } from '@cyber/cstx'
@@ -71,9 +71,25 @@ interface RenderContext {
   componentNames: ReadonlySet<string>
   renderHttpView?: (view: TrafficHttpView) => ReactNode
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
+  renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
+  fitHttpView?: boolean
+}
+
+/** A fenced block outside HTTP evidence: its text and the fence's language. */
+export interface ReportCodeBlock {
+  code: string
+  language?: string
 }
 
 const HEADING = /^h([1-6])$/
+
+/**
+ * Keep short inline code as a scannable token, but flatten payloads once they
+ * are long enough to wrap. Browsers paint an inline element's border and
+ * padding on every line fragment; with the report paragraph rhythm that makes
+ * a long SQL/URL look like overlapping blue boxes.
+ */
+const LONG_INLINE_CODE_LENGTH = 48
 
 function isElement(node: RootContent | ElementContent | undefined): node is Element {
   return !!node && node.type === 'element'
@@ -136,6 +152,8 @@ function prepareContext(
   componentNames: readonly string[],
   renderHttpView?: (view: TrafficHttpView) => ReactNode,
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode,
+  renderCodeBlock?: (block: ReportCodeBlock) => ReactNode,
+  fitHttpView?: boolean,
 ): RenderContext {
   const headingIds = new WeakMap<Element, string>()
   const headings: Heading[] = []
@@ -172,6 +190,8 @@ function prepareContext(
     componentNames: new Set(componentNames),
     renderHttpView,
     renderFindingActions,
+    renderCodeBlock,
+    fitHttpView,
   }
 }
 
@@ -226,11 +246,14 @@ function EvidencePre({ node, label }: { node: Element; label?: string }) {
           type="button"
           aria-label="Copy evidence"
           className="text-muted-foreground transition-colors hover:text-foreground"
-          onClick={() => {
-            void navigator.clipboard?.writeText(code).then(() => {
-              setCopied(true)
-              setTimeout(() => setCopied(false), 2000)
-            })
+          onClick={(event) => {
+            void copyToClipboard(code, event.currentTarget)
+              .then((ok) => {
+                if (!ok) return
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              })
+              .catch(() => undefined)
           }}
         >
           {copied ? (
@@ -253,6 +276,24 @@ function EvidencePre({ node, label }: { node: Element; label?: string }) {
       </pre>
     </div>
   )
+}
+
+/** The fence's language, from the `language-*` class of the block's code. */
+function codeLanguage(node: Element): string | undefined {
+  const marked = stringProp(node, 'dataLanguage')
+  if (marked) return marked
+  const code = node.children.find((child): child is Element => isElement(child) && child.tagName === 'code') ?? node
+  const classes = code.properties?.className
+  const names: unknown[] = Array.isArray(classes) ? classes : []
+  const language = names.find((name): name is string => typeof name === 'string' && name.startsWith('language-'))
+  return language ? language.slice('language-'.length).toLowerCase() : undefined
+}
+
+/** A fenced block that is not an HTTP packet: the owner's code block when it
+ *  supplies one, the verbatim evidence block otherwise. */
+function CodeBlockNode({ node, context }: { node: Element; context: RenderContext }) {
+  if (!context.renderCodeBlock) return <EvidencePre node={node} />
+  return <>{context.renderCodeBlock({ code: textOf(node), language: codeLanguage(node) })}</>
 }
 
 function packetLabel(node: Element, index: number): string {
@@ -288,7 +329,7 @@ function HttpEvidence({ node, context }: { node: Element; context: RenderContext
     <section {...passthroughProps(node)} className="my-3" aria-label="HTTP evidence">
       {renderNodes(intro, context)}
       {view && context.renderHttpView ? (
-        <div className="h-[420px] overflow-hidden rounded-md border border-border">
+        <div className={cn('overflow-hidden rounded-md border border-border', !context.fitHttpView && 'h-[420px]')}>
           {context.renderHttpView(view)}
         </div>
       ) : (
@@ -450,7 +491,7 @@ const COMPONENT_RENDERERS: Record<KnownReportComponentName, ComponentRenderer> =
   'http-evidence': (node, context) => <HttpEvidence node={node} context={context} />,
   'data-table': (node, context) => <ReportTable node={node} context={context} />,
   callout: (node, context) => <ReportCallout node={node} context={context} />,
-  'code-block': (node) => <EvidencePre node={node} />,
+  'code-block': (node, context) => <CodeBlockNode node={node} context={context} />,
   markdown: (node, context) => (
     <div {...passthroughProps(node)} className="my-2">
       {renderNodes(node.children, context)}
@@ -486,7 +527,21 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'b': return <strong {...props} className="font-semibold">{children()}</strong>
     case 'em':
     case 'i': return <em {...props} className="italic">{children()}</em>
-    case 'code': return <code {...props} className="rounded border border-primary/10 bg-primary/[0.065] px-1 py-0.5 font-mono text-xs text-primary">{children()}</code>
+    case 'code': {
+      const isLong = stringProp(node, 'dataInlineCode') === 'long'
+        || textOf(node).length >= LONG_INLINE_CODE_LENGTH
+      return (
+        <code
+          {...props}
+          data-inline-code={isLong ? 'long' : undefined}
+          className={isLong
+            ? 'font-mono text-xs leading-[inherit] align-baseline text-primary [overflow-wrap:anywhere]'
+            : 'rounded border border-primary/10 bg-primary/[0.065] px-1 py-0.5 font-mono text-xs text-primary'}
+        >
+          {children()}
+        </code>
+      )
+    }
     case 'kbd': return <kbd {...props} className="rounded border border-primary/15 bg-primary/[0.04] px-1 py-0.5 font-mono text-xs text-primary">{children()}</kbd>
     case 'samp': return <samp {...props} className="font-mono text-xs">{children()}</samp>
     case 'var': return <var {...props}>{children()}</var>
@@ -525,7 +580,7 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'dt': return <dt {...props} className="mt-2 font-semibold">{children()}</dt>
     case 'dd': return <dd {...props} className="ml-4 text-muted-foreground">{children()}</dd>
     case 'blockquote': return <ReportCallout node={node} context={context} />
-    case 'pre': return <EvidencePre node={node} />
+    case 'pre': return <CodeBlockNode node={node} context={context} />
     case 'table': return <ReportTable node={node} context={context} />
     case 'caption': return <caption {...props} className="px-3 py-2 text-left text-xs font-semibold">{children()}</caption>
     case 'colgroup': return <colgroup {...props}>{renderTableNodes(node.children, context)}</colgroup>
@@ -559,6 +614,25 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'aside': return <aside {...props}>{children()}</aside>
     case 'footer': return <footer {...props}>{children()}</footer>
     case 'div': return <div {...props}>{children()}</div>
+    // A report image is an operator-supplied screenshot. The host resolves the
+    // reference before rendering — an unresolved one is left as-is and degrades to
+    // the alt text, which is the caption the author wrote.
+    case 'img': {
+      const src = stringProp(node, 'src')
+      const alt = stringProp(node, 'alt') ?? ''
+      if (!src || src.startsWith('cairn-shot:')) {
+        return alt ? <span className="text-xs italic text-muted-foreground">{alt}</span> : null
+      }
+      return (
+        <img
+          {...props}
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="my-2 block max-w-full rounded-md border border-primary/15"
+        />
+      )
+    }
     case 'figure': return <figure {...props} className="my-3">{children()}</figure>
     case 'figcaption': return <figcaption {...props} className="mt-1 text-xs text-muted-foreground">{children()}</figcaption>
     case 'address': return <address {...props}>{children()}</address>
@@ -594,6 +668,16 @@ export interface ReportDocumentProps {
    * which is what keeps a frozen export identical to the document it came from.
    */
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
+  /**
+   * Optional owner-provided renderer for fenced blocks outside HTTP evidence.
+   * Omitted, they render as verbatim evidence blocks.
+   */
+  renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
+  /**
+   * The owner's HTTP view sizes itself to its packets. Omitted, the view gets
+   * the fixed frame a fill-height viewer needs.
+   */
+  fitHttpView?: boolean
   /** CSTX assets associated with the report's task. */
   assetPreview?: CstxReportPreview | null
   /** Raw CSTX vulnerability records associated with the report's task. */
@@ -610,6 +694,8 @@ export function ReportDocument({
   componentNames,
   renderHttpView,
   renderFindingActions,
+  renderCodeBlock,
+  fitHttpView,
   assetPreview,
   vulnerabilities,
   vulnerabilitiesTitle,
@@ -618,7 +704,7 @@ export function ReportDocument({
   className,
 }: ReportDocumentProps) {
   const rendered = useMemo(() => {
-    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions)
+    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView)
     const firstContentIndex = tree.children.findIndex((node) => (
       isElement(node) || (node.type === 'text' && node.value.trim() !== '')
     ))
@@ -633,7 +719,7 @@ export function ReportDocument({
         context,
       ),
     }
-  }, [tree, componentNames, renderHttpView, renderFindingActions])
+  }, [tree, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView])
 
   return (
     <div className={cn('cyber-report text-muted-foreground', className)}>

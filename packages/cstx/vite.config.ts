@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'react', 'react-dom', 'react/jsx-runtime',
+        '@cyber/theme',
         '@cyber/ui',
         'recharts',
         '@tanstack/react-table',

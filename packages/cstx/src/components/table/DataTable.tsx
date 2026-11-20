@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { RuntimeComponentProps } from '../../runtime/registry';
 import { cn } from '../../lib/cn';
+import { copyToClipboard } from '@cyber/theme';
 import { asRecord, asStringArray } from '../../lib/coerce';
 import { resolveLucideIcon } from '../../lib/lucideIcon';
 import { downloadText, rowsToCsv } from '../../lib/downloadUtils';
@@ -49,7 +50,7 @@ import { EmptyGuide } from './sub/EmptyGuide';
 import { ResizeHandle } from './sub/ResizeHandle';
 import { DiffBadge, DiffSummaryBar, getDiffRowClass } from './sub/DiffBadge';
 import { ExportButton } from './sub/ExportButton';
-import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, FLAG_DESCRIPTION_MAP } from './sub/FlagCell';
+import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, flagDescription } from './sub/FlagCell';
 import { Flag as FlagIcon } from 'lucide-react';
 import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
 import { getFieldValue } from '../../lib/fieldPath';
@@ -59,6 +60,9 @@ import { useUrlSlot } from './hooks/useUrlState';
 import type {CSTXNode} from '../../types/transport.gen';
 
 type Row = Record<string, unknown>;
+function tableMessage(i18n: Record<string, unknown> | undefined, key: string, fallback: string): string {
+  return typeof i18n?.[key] === 'string' ? i18n[key] as string : fallback;
+}
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 // Edge shadows for the frozen index / actions columns. These are a scroll
@@ -94,6 +98,7 @@ interface TableActionConfig {
 const DEFAULT_COLUMN_WIDTH_PX = 128;
 const DEFAULT_COMMON_BADGE_KEYS = ['type'];
 const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100, 500];
+const MAX_LOADING_COLUMNS = 32;
 const IDENTITY_KEEP_KEYS = new Set(['name', 'title', 'sources']);
 
 function hasDisplayValue(value: unknown): boolean {
@@ -128,6 +133,68 @@ function estimateColumnWidth(width: string | undefined): number {
 // of short cells fits instead of forcing a scrollbar at the summed preferred widths.
 function columnFloorWidth(width: string | undefined): number {
   return Math.max(64, Math.round(estimateColumnWidth(width) * 0.5));
+}
+
+/**
+ * Keep the table and its loading state on the same set of CSS grid tracks.
+ *
+ * The table has a few tracks that do not come from data (selection, diff,
+ * expansion and actions).  Treating those as an implementation detail in the
+ * loading renderer used to leave the skeleton with fewer children than the
+ * grid template, which made CSS create implicit columns and stacked the bars
+ * in the first cell.  Building both layouts from this one helper makes the
+ * number and order of tracks explicit.
+ */
+function buildGridLayout(
+  columns: ColumnConfig[],
+  options: {
+    enableRowSelection: boolean;
+    diffMode: boolean;
+    enableExpanding: boolean;
+    actionsColumnWidth: number;
+  },
+): { tracks: string[]; ids: string[]; minWidth: number } {
+  const tracks: string[] = [];
+  const ids: string[] = [];
+  if (options.enableRowSelection) {
+    tracks.push('72px');
+    ids.push('__row_control');
+  }
+  if (options.diffMode) {
+    tracks.push('90px');
+    ids.push('__diff');
+  }
+  if (options.enableExpanding) {
+    tracks.push('32px');
+    ids.push('__expand');
+  }
+  for (const column of columns) {
+    if (!column.width) {
+      tracks.push('minmax(0,1fr)');
+    } else {
+      // Treat inferred widths as preferred sizes.  This mirrors the real table
+      // grid and lets a loading placeholder occupy the same columns without a
+      // hard-coded, guessed percentage layout.
+      tracks.push(
+        `minmax(${columnFloorWidth(column.width)}px,${(estimateColumnWidth(column.width) / 100).toFixed(2)}fr)`,
+      );
+    }
+    ids.push(column.key);
+  }
+  if (options.actionsColumnWidth > 0) {
+    tracks.push(`${options.actionsColumnWidth}px`);
+    ids.push('__actions');
+  }
+
+  const minWidth = columns.reduce(
+    (total, column) => total + columnFloorWidth(column.width),
+    32,
+  ) + (options.enableRowSelection ? 72 : 0)
+    + (options.diffMode ? 90 : 0)
+    + (options.enableExpanding ? 32 : 0)
+    + options.actionsColumnWidth;
+
+  return { tracks, ids, minWidth };
 }
 
 function actionButtonClass(variant: string | undefined): string {
@@ -230,43 +297,6 @@ function RowControlCell({ row, table, label }: {
   );
 }
 
-/**
- * Copy `text` to the clipboard, resolving to whether it actually succeeded.
- * The async Clipboard API only exists in a secure context (https / localhost);
- * this table is frequently served over plain http on a bare IP, where
- * `navigator.clipboard` is undefined — so fall back to a hidden-textarea
- * execCommand copy. The textarea is parented inside an open dialog when there
- * is one, so a focus-trapped modal doesn't swallow the selection.
- */
-async function writeClipboard(text: string): Promise<boolean> {
-  if (!text) return false;
-  const secure = typeof window !== 'undefined' && window.isSecureContext;
-  if (secure && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      /* fall through to the execCommand path */
-    }
-  }
-  if (typeof document === 'undefined') return false;
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', '');
-  textarea.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0';
-  const host = (document.activeElement?.closest("[role='dialog']") as HTMLElement | null) ?? document.body;
-  host.appendChild(textarea);
-  textarea.select();
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch {
-    ok = false;
-  }
-  textarea.remove();
-  return ok;
-}
-
 function CellCopyButton({ value, onCopy, copyLabel, copiedLabel }: { value: unknown; onCopy: (text: string) => void; copyLabel: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
   const text = value != null ? String(value) : '';
@@ -294,7 +324,7 @@ function CellCopyButton({ value, onCopy, copyLabel, copiedLabel }: { value: unkn
         // Cairn's tables) previously got a button that flashed a checkmark
         // without copying anything. Still emit the event so hosts can react
         // (e.g. a toast); the copy no longer depends on them doing so.
-        const ok = await writeClipboard(text);
+        const ok = await copyToClipboard(text, e.currentTarget);
         onCopy(text);
         if (!ok) return;
         setCopied(true);
@@ -369,7 +399,7 @@ function RowActionsCell({
   );
 }
 
-function RowFlagBadges({ row }: { row: Row }) {
+function RowFlagBadges({ row, i18n }: { row: Row; i18n?: Record<string, unknown> }) {
   const active = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row as unknown as CSTXNode, opt.value));
   if (active.length === 0) return null;
   return (
@@ -377,7 +407,7 @@ function RowFlagBadges({ row }: { row: Row }) {
       {active.map(f => {
         const Icon = FLAG_ICON_MAP[f.key] ?? FlagIcon;
         return (
-          <span key={f.key} title={FLAG_DESCRIPTION_MAP[f.key] ?? f.label}>
+          <span key={f.key} title={flagDescription(f, i18n)}>
             <Icon className="h-3 w-3" style={{ color: FLAG_COLOR_MAP[f.key] }} />
           </span>
         );
@@ -437,6 +467,7 @@ function buildColumns(
     enableRowSelection?: boolean;
     stickyFirstColumn?: boolean;
     enableCstxFlags?: boolean;
+    i18n?: Record<string, unknown>;
     diffMode?: boolean;
     diffField?: string;
 
@@ -538,7 +569,7 @@ function buildColumns(
         if (!showFlagBadges) return content;
         return (
           <span className="flex min-w-0 max-w-full items-center gap-0">
-            <RowFlagBadges row={tableRow.original} />
+            <RowFlagBadges row={tableRow.original} i18n={options?.i18n} />
             <span className="min-w-0 flex-1 overflow-hidden">{content}</span>
           </span>
         );
@@ -590,6 +621,8 @@ function RecordCard({
   enableCstxFlags,
   typeKey,
   typeColorMap,
+  typeLabels,
+  i18n,
   rowActions,
   onAction,
   isActive,
@@ -606,6 +639,8 @@ function RecordCard({
   enableCstxFlags: boolean;
   typeKey: string | undefined;
   typeColorMap: Record<string, string> | undefined;
+  typeLabels: Record<string, string>;
+  i18n: Record<string, unknown>;
   rowActions: TableActionConfig[];
   onAction?: (action: string, payload?: Record<string, unknown>) => void;
   isActive: boolean;
@@ -656,13 +691,13 @@ function RecordCard({
         {typeText && (
           <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--c-muted,#475569)] dark:bg-[var(--c-surface-2,#1e293b)] dark:text-[var(--c-muted,#94a3b8)]">
             {typeColor && <span className="h-1.5 w-1.5 rounded-full" style={{ background: typeColor }} />}
-            {typeText}
+            {tableMessage(typeLabels, typeText, typeText)}
           </span>
         )}
         <div className="min-w-0 flex-1 font-medium text-[var(--c-fg,#0f172a)] dark:text-[var(--c-fg,#e2e8f0)]">
           {primaryCol ? renderCellContent(primaryCol, data[primaryCol.key], data, renderers, false) : null}
         </div>
-        {enableCstxFlags && <RowFlagBadges row={data} />}
+        {enableCstxFlags && <RowFlagBadges row={data} i18n={i18n} />}
         {rowActions.length > 0 && (
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
             <RowActionsCell actions={rowActions} row={data} rowId={row.id} onAction={onAction} />
@@ -704,6 +739,17 @@ export function CSTXTable({
   const rawRows = (data.rows ?? []) as Row[];
   const isLoading = loading.rows;
   const explicitColumns = config.columns as ColumnConfig[] | undefined;
+  // A data-driven table cannot infer its columns while the first request is
+  // still in flight.  Hosts with a known shape may provide a small schema for
+  // the loading frame; when they do not, the renderer falls back to a stable
+  // set of neutral tracks instead of letting CSS invent implicit columns.
+  const configuredLoadingColumns = Array.isArray(config.loadingColumns)
+    ? config.loadingColumns as ColumnConfig[]
+    : undefined;
+  const configuredLoadingColumnCount = typeof config.loadingColumnCount === 'number'
+    && Number.isFinite(config.loadingColumnCount)
+    ? Math.min(MAX_LOADING_COLUMNS, Math.max(1, Math.floor(config.loadingColumnCount)))
+    : 5;
   const columnsExclude = config.columnsExclude as string[] | undefined;
   const initialPageSize = (config.pageSize as number) || 50;
   const enableSearch = config.enableSearch !== false;
@@ -727,6 +773,7 @@ export function CSTXTable({
   const explicitMetaKeys = asStringArray(config.metaKeys);
   const paginationMode = (config.paginationMode as string) || 'client';
   const serverPagination = paginationMode === 'server';
+  const serverTotalKnown = typeof data.total === 'number' && Number.isFinite(data.total);
   const serverTotal = serverPagination ? ((data.total as number) || 0) : 0;
   const searchHistoryKey = (config.searchHistoryKey as string) || '';
   const cellRenderers = (config._rendererRegistry as CellRendererRegistry | undefined) ?? defaultCellRenderers;
@@ -754,20 +801,37 @@ export function CSTXTable({
   // string maps supplied by the host app; every string falls back to English when absent, so
   // callers that pass nothing keep the current behaviour.
   const columnLabels = useMemo(() => asRecord(config.columnLabels), [config.columnLabels]);
+  // Label maps affect display only; filtering, sorting, and exports keep raw types.
+  const typeLabels = useMemo(() => Object.fromEntries(
+    Object.entries(asRecord(config.typeLabels)).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  ), [config.typeLabels]);
   const i18n = useMemo(() => asRecord(config.i18n), [config.i18n]);
   const tr = useCallback(
-    (key: string, fallback: string) => (typeof i18n[key] === 'string' ? (i18n[key] as string) : fallback),
+    (key: string, fallback: string) => tableMessage(i18n, key, fallback),
     [i18n],
   );
+  // Hosts built against either naming of the cell and selection strings keep
+  // working: the older per-chip keys are read when the grouped ones are absent.
+  const trAlias = useCallback(
+    (key: string, alias: string, fallback: string) => tr(key, tr(alias, fallback)),
+    [tr],
+  );
+  const exportLabels = useMemo(() => Object.fromEntries(exportFormats.flatMap((format) => {
+    const grouped = i18n[`export.${format}`];
+    if (typeof grouped === 'string') return [[format, grouped]];
+    const legacy = i18n[`export${format[0].toUpperCase()}${format.slice(1)}`];
+    return typeof legacy === 'string' ? [[format, legacy]] : [];
+  })), [exportFormats, i18n]);
 
   const effectiveRowActions = useMemo(() => {
     if (!enableCstxFlags) return rowActions;
     const flagAction: TableActionConfig = {
       id: '__cstxFlag',
-      label: 'Flag',
+      label: tr('flags', 'Flag'),
       render: (row, rowId) => (
         <FlagCell
           row={row}
+          i18n={i18n}
           onToggle={(flag, active) =>
             onAction?.('cstxFlagToggle', { rowId, row, flag: flag.key, flagValue: flag.value, active })
           }
@@ -775,7 +839,7 @@ export function CSTXTable({
       ),
     };
     return [flagAction, ...rowActions];
-  }, [enableCstxFlags, rowActions, onAction]);
+  }, [enableCstxFlags, rowActions, onAction, i18n, tr]);
 
   const urlStateKey = (config.urlStateKey as string) || null;
   const urlPrefix = urlStateKey ? `${urlStateKey}_` : null;
@@ -791,7 +855,23 @@ export function CSTXTable({
   );
 
   const searchHistory = useSearchHistory(searchHistoryKey || '__unused__');
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
+  // Dialog pickers can own selection so it survives closing, paging and imports.
+  const controlledRowSelection = config.rowSelection as RowSelectionState | undefined;
+  const rowSelection = controlledRowSelection ?? internalRowSelection;
+  const setRowSelection = (update: React.SetStateAction<RowSelectionState>) => {
+    if (controlledRowSelection === undefined) {
+      setInternalRowSelection(update);
+      return;
+    }
+    const next = typeof update === 'function' ? update(rowSelection) : update;
+    const selectedIds = Object.keys(next).filter((id) => next[id]);
+    onAction?.('selection-change', {
+      count: selectedIds.length,
+      selectedIds,
+      selectedRows: rawRows.filter((row, index) => next[resolveRowId(row, rowIdKey, index)]),
+    });
+  };
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
 
@@ -830,9 +910,12 @@ export function CSTXTable({
     const scoped = applyExclusions(afterExclude, commonBadges.map((b) => b.key));
     return scoped.map((c) => {
       const label = columnLabels[c.key];
-      return typeof label === 'string' && label ? { ...c, title: label } : c;
+      const titled = typeof label === 'string' && label ? { ...c, title: label } : c;
+      return c.key === typeFilterKey && Object.keys(typeLabels).length > 0
+        ? { ...titled, renderOptions: { ...c.renderOptions, labelMap: typeLabels } }
+        : titled;
     });
-  }, [explicitColumns, rows, columnsExclude, columnSelectorEnabled, commonBadges, columnLabels]);
+  }, [explicitColumns, rows, columnsExclude, columnSelectorEnabled, commonBadges, columnLabels, typeFilterKey, typeLabels]);
 
   const metaKeySet = useMemo(() => {
     const keys = new Set(allColumns.filter((c) => isMetaKey(c.key)).map((c) => c.key));
@@ -950,18 +1033,35 @@ export function CSTXTable({
       enableRowSelection,
       stickyFirstColumn,
       enableCstxFlags,
+      i18n,
       diffMode,
       diffField,
       rowActions: effectiveRowActions,
       rowIdKey,
       onAction,
-      selectAllLabel: tr('selectAllRows', 'Select all filtered rows'),
+      selectAllLabel: trAlias('selectAll', 'selectAllRows', 'Select all filtered rows'),
       selectRowLabel: tr('selectRow', 'Select row {n}'),
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, diffMode, diffField, effectiveRowActions, rowIdKey, onAction, tr],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction, tr],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
+
+  const loadingColumns = useMemo(() => {
+    const source = configuredLoadingColumns?.length
+      ? configuredLoadingColumns
+      : explicitColumns?.length
+        ? explicitColumns
+        : [];
+    const excluded = new Set(columnsExclude ?? []);
+    return source.filter((column) => (
+      column
+      && typeof column.key === 'string'
+      && column.key.length > 0
+      && !column.hidden
+      && !excluded.has(column.key)
+    )).slice(0, MAX_LOADING_COLUMNS);
+  }, [configuredLoadingColumns, explicitColumns, columnsExclude]);
 
   // --- Table instance ---
   const table = useReactTable({
@@ -986,42 +1086,50 @@ export function CSTXTable({
   // --- Grid template ---
   const actionsColumnWidth = effectiveRowActions.length > 0 ? Math.max(44, effectiveRowActions.length * 28 + 8) : 0;
 
-  const baseGridTemplate = useMemo(() => {
-    const parts: string[] = [];
-    if (enableRowSelection) parts.push('72px');
-    if (diffMode) parts.push('90px');
-    if (enableExpanding) parts.push('32px');
-    for (const col of visibleColumns) {
-      if (!col.width) { parts.push('minmax(0,1fr)'); continue; }
-      // Treat the inferred width as a *preferred* size, not a fixed track: an fr weight
-      // (∝ preferred px) lets columns fill the container and grow on wide viewports, while a
-      // per-column floor lets them compress before a horizontal scrollbar appears. Fixed px
-      // tracks summed past the viewport, forcing a scrollbar even when the short cell values
-      // would have fit. No spaces inside minmax() — getAdjustedGridTemplate() splits the
-      // template on whitespace to remap per-column resize widths.
-      parts.push(`minmax(${columnFloorWidth(col.width)}px,${(estimateColumnWidth(col.width) / 100).toFixed(2)}fr)`);
-    }
-    if (actionsColumnWidth > 0) parts.push(`${actionsColumnWidth}px`);
-    return parts.join(' ');
-  }, [visibleColumns, enableRowSelection, enableExpanding, diffMode, actionsColumnWidth]);
-
-  const gridColumnIds = useMemo(() => {
-    const ids: string[] = [];
-    if (enableRowSelection) ids.push('__row_control');
-    if (diffMode) ids.push('__diff');
-    if (enableExpanding) ids.push('__expand');
-    for (const col of visibleColumns) ids.push(col.key);
-    if (actionsColumnWidth > 0) ids.push('__actions');
-    return ids;
-  }, [visibleColumns, enableRowSelection, enableExpanding, diffMode, actionsColumnWidth]);
+  const gridLayout = useMemo(
+    () => buildGridLayout(visibleColumns, {
+      enableRowSelection,
+      diffMode,
+      enableExpanding,
+      actionsColumnWidth,
+    }),
+    [visibleColumns, enableRowSelection, diffMode, enableExpanding, actionsColumnWidth],
+  );
+  const baseGridTemplate = gridLayout.tracks.join(' ');
+  const gridColumnIds = gridLayout.ids;
 
   const gridTemplateColumns = enableColumnResize
     ? getAdjustedGridTemplate(baseGridTemplate, gridColumnIds)
     : baseGridTemplate;
 
-  const tableMinWidth = visibleColumns.reduce(
-    (total, col) => total + columnFloorWidth(col.width), 32,
-  ) + (enableRowSelection ? 72 : 0) + (diffMode ? 90 : 0) + (enableExpanding ? 32 : 0) + actionsColumnWidth;
+  const tableMinWidth = gridLayout.minWidth;
+
+  // During a genuine first load there are no data rows from which to infer a
+  // schema.  Use the host-provided loading columns when available; otherwise
+  // reserve a modest number of neutral data tracks.  Fixed system tracks are
+  // included in both the template and the child count, so the skeleton never
+  // creates implicit CSS columns (the source of the old left-stacked bars).
+  const skeletonLayout = useMemo(() => {
+    const fallbackColumns = loadingColumns.length > 0
+      ? loadingColumns
+      : Array.from({ length: configuredLoadingColumnCount }, (_, index) => ({
+        key: `__loading_${index}`,
+      }));
+    return buildGridLayout(fallbackColumns, {
+      enableRowSelection,
+      diffMode,
+      enableExpanding,
+      actionsColumnWidth,
+    });
+  }, [loadingColumns, configuredLoadingColumnCount, enableRowSelection, diffMode, enableExpanding, actionsColumnWidth]);
+  const useSkeletonFallback = isLoading && visibleColumns.length === 0;
+  const skeletonGridTemplate = useSkeletonFallback
+    ? skeletonLayout.tracks.join(' ')
+    : gridTemplateColumns;
+  const skeletonColumnCount = useSkeletonFallback
+    ? skeletonLayout.ids.length
+    : (gridColumnIds.length || configuredLoadingColumnCount);
+  const skeletonMinWidth = useSkeletonFallback ? skeletonLayout.minWidth : tableMinWidth;
 
   const tableGridStyle: React.CSSProperties = {
     gridTemplateColumns,
@@ -1134,7 +1242,9 @@ export function CSTXTable({
   const selectedCount = selectedRows.length;
   const selectedOriginalRows = selectedRows.map((row) => row.original);
   useEffect(() => {
-    onAction?.('selection-change', { count: selectedCount, selectedRows: selectedOriginalRows });
+    if (controlledRowSelection === undefined) {
+      onAction?.('selection-change', { count: selectedCount, selectedRows: selectedOriginalRows });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowSelection]);
   const batchActions = config.batchActions as TableActionConfig[] | undefined;
@@ -1172,8 +1282,6 @@ export function CSTXTable({
       });
     }
   }, [exportFilename, onAction, selectedRows, table, title, visibleColumns]);
-  const skeletonColumnCount = visibleColumns.length || 5;
-
   const hasActiveFilters = typeFilter.size > 0 || !!globalFilter;
   const showFilterChips = typeFilter.size > 0 && typeFilter.size < typeValues.length;
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
@@ -1195,10 +1303,10 @@ export function CSTXTable({
         {commonBadges.map((badge) => (
           <span
             key={badge.key}
-            title={`${badge.label}: ${badge.value}`}
+            title={`${badge.label}: ${badge.key === typeFilterKey ? tableMessage(typeLabels, badge.value, badge.value) : badge.value}`}
             className="shrink-0 rounded bg-[var(--c-surface-2,#f1f5f9)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--c-muted,#475569)] dark:bg-[var(--c-surface-2,#1e293b)] dark:text-[var(--c-muted,#94a3b8)]"
           >
-            {badge.value}
+            {badge.key === typeFilterKey ? tableMessage(typeLabels, badge.value, badge.value) : badge.value}
           </span>
         ))}
         {showRowCount && (
@@ -1245,6 +1353,7 @@ export function CSTXTable({
               </span>
               {enableCstxFlags && (
                 <BatchFlagMenu
+                  i18n={i18n}
                   onApply={(flag, mode) => {
                     onAction?.('batchFlagToggle', {
                       flag: flag.key,
@@ -1324,11 +1433,8 @@ export function CSTXTable({
               compact
               onExport={handleExport}
               formats={exportFormats}
-              labels={{
-                xlsx: tr('exportXlsx', 'Export XLSX'),
-                csv: tr('exportCsv', 'Export CSV'),
-                report: tr('exportReport', 'Generate Report'),
-              }}
+              label={tr('export', 'Export')}
+              labels={exportLabels}
             />
           )}
         </div>
@@ -1344,6 +1450,8 @@ export function CSTXTable({
           compact
           colorMap={typeColorMap}
           counts={typeCounts}
+          labels={typeLabels}
+          clearLabel={tr('clear', 'Clear')}
         />
       )}
 
@@ -1362,7 +1470,7 @@ export function CSTXTable({
                 onClick={() => handleTypeToggle(v)}
                 className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
               >
-                {v}
+                {tableMessage(typeLabels, v, v)}
                 <span className="text-blue-400 dark:text-blue-500">&times;</span>
               </button>
             ))}
@@ -1399,7 +1507,9 @@ export function CSTXTable({
               columns={skeletonColumnCount}
               rows={Math.min(pageSize, 8)}
               compact={compact}
-              gridTemplate={gridTemplateColumns}
+              gridTemplate={skeletonGridTemplate}
+              columnIds={useSkeletonFallback ? skeletonLayout.ids : gridColumnIds}
+              minWidth={skeletonMinWidth}
             />
           )
         ) : filteredByType.length === 0 ? (
@@ -1436,6 +1546,8 @@ export function CSTXTable({
                 enableCstxFlags={enableCstxFlags}
                 typeKey={typeFilterKey}
                 typeColorMap={typeColorMap}
+                typeLabels={typeLabels}
+                i18n={i18n}
                 rowActions={effectiveRowActions}
                 onAction={onAction}
                 selectRowLabel={tr('selectRow', 'Select row {n}')}
@@ -1551,8 +1663,8 @@ export function CSTXTable({
                             <>
                               <CellOpenLinkButton href={externalHref} openLabel={tr('openLink', 'Open link')} />
                               <CellCopyButton
-                                copyLabel={tr('copyCell', 'Copy')}
-                                copiedLabel={tr('copiedCell', 'Copied')}
+                                copyLabel={trAlias('copy', 'copyCell', 'Copy')}
+                                copiedLabel={trAlias('copied', 'copiedCell', 'Copied')}
                                 value={cell.getValue()}
                                 onCopy={(text) => {
                                   onAction?.('cellClick', {
@@ -1588,10 +1700,11 @@ export function CSTXTable({
       </div>
 
       {/* ── Pagination (bottom bar) ── */}
-      {enablePagination && filteredByType.length > 0 && (
+      {enablePagination && (filteredByType.length > 0 || (serverPagination && serverPage > 0)) && (
         <PaginationBar
           mode={serverPagination ? 'server' : 'client'}
           compact={compact}
+          loading={isLoading}
           pageSize={pageSize}
           pageSizeOptions={pageSizeOptions}
           onPageSizeChange={handlePageSizeChange}
@@ -1604,13 +1717,27 @@ export function CSTXTable({
           onNextPage={() => table.nextPage()}
           onGoToPage={(page) => table.setPageIndex(page)}
           serverTotal={serverTotal}
+          serverTotalKnown={serverTotalKnown}
+          serverHasNext={data.has_next === true}
+          serverRows={rawRows.length}
           serverPage={serverPage}
           serverPageCount={serverPageCount}
           onServerPageChange={handleServerPageChange}
           labels={{
             rangeOf: tr('rangeOf', '{start}-{end} of {total}'),
+            range: tr('range', '{start}-{end}'),
             perPage: tr('perPage', '{n} / page'),
             emptyRows: tr('emptyRows', '0 rows'),
+            firstPage: tr('firstPage', 'First page'),
+            previousPage: tr('previousPage', 'Previous page'),
+            nextPage: tr('nextPage', 'Next page'),
+            lastPage: tr('lastPage', 'Last page'),
+            navigation: tr('pagination', 'Pagination'),
+            pageNumber: tr('pageNumber', 'Page {n}'),
+            pageOf: tr('pageOf', '{page} / {pages}'),
+            pageSize: tr('pageSize', 'Rows per page'),
+            jumpTo: tr('jumpTo', 'Go to page'),
+            jump: tr('jump', 'Go'),
           }}
         />
       )}

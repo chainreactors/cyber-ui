@@ -38,8 +38,7 @@ import {triggerBlobDownload} from '../../lib/downloadUtils';
 import {CSTX_FLAG_OPTIONS, getCstxFlagActionLabel, hasCstxFlag, type CstxFlagOption} from '../../lib/cstxFlags';
 import {getStableNodeLookupId} from '../../lib/nodeLookup';
 import {formatTimeValue} from '../../lib/timeDisplay';
-
-const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
+import {copyToClipboard} from '@cyber/theme';
 
 const downloadJson = (data: unknown, filename: string) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});

@@ -1,5 +1,5 @@
 import { MarkerType, type Edge, type Node } from '@xyflow/react'
-import { layoutDAG } from './graph-layout'
+import { layoutGraph } from './graph-layout'
 import type {
   ExecutionAccentKind,
   ExecutionEventRecord,
@@ -901,7 +901,7 @@ export function reduceExecutionGraphState(
     })
   }
 
-  const positions = layoutDAG(
+  const positions = layoutGraph(
     visibleNodes.map((node) => ({
       id: node.id,
       width: node.data.kind === 'step'

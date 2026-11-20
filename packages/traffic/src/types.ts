@@ -14,6 +14,9 @@ export interface TrafficHighlightSource {
 
 export interface TrafficHttpView {
   id: string | number
+  /** Captured wire text, when available. Copy/export must prefer it to reconstruction. */
+  rawRequest?: string
+  rawResponse?: string
   method: string
   url: string
   hostPath: string

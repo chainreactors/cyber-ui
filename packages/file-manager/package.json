@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cyber/theme": "workspace:*",
     "@cyber/aop": "workspace:*",
     "@cyber/ui": "workspace:*",
     "@radix-ui/react-checkbox": "^1.3.3",

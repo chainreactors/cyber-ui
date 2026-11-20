@@ -13,7 +13,8 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'react', 'react-dom', 'react/jsx-runtime',
-        'lucide-react', '@cyber/aop', '@cyber/ui',
+        '@cyber/theme', '@cyber/aop', '@cyber/ui',
+        'lucide-react',
       ],
     },
   },

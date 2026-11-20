@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { Bot } from 'lucide-react'
+import { Bot, BrainCircuit } from 'lucide-react'
 import { cn } from '@cyber/theme'
 import { Collapsible } from '@cyber/ui'
 import type { MessageBubbleVariant } from './MessageBubble'
@@ -75,12 +75,18 @@ export default function AssistantResponse({
     <>
       {hasThinking && (
         <Collapsible
-          title={labels?.thinking || 'Thinking'}
+          title={
+            <span className="flex min-w-0 items-center gap-2">
+              <BrainCircuit className="assistant-thinking__icon h-3.5 w-3.5 shrink-0" strokeWidth={1.7} aria-hidden="true" />
+              <span className="truncate">{labels?.thinking || 'Thinking'}</span>
+            </span>
+          }
           defaultExpanded={defaultThinkingExpanded}
           expanded={thinkingExpanded}
           onToggle={onThinkingToggle}
-          className={cn(!showResponse && !hasTools ? '' : 'border-b border-border')}
-          bodyClassName="text-sm leading-relaxed text-muted-foreground"
+          className={cn('assistant-thinking', (showResponse || hasTools) && 'border-b border-border')}
+          headerClassName="assistant-thinking__trigger text-xs normal-case tracking-normal"
+          bodyClassName="assistant-thinking__body text-sm leading-relaxed text-muted-foreground"
         >
           <div role="region" aria-label={labels?.thinking || 'Thinking'} tabIndex={0}
             className="max-h-64 overflow-auto overscroll-contain focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">{thinking}</div>
@@ -137,7 +143,7 @@ export default function AssistantResponse({
   if (variant === 'voice-card') {
     return (
       <div data-testid="assistant-response" className={className}>
-        <AgentVoiceCard streaming={streaming} className="overflow-hidden">
+        <AgentVoiceCard streaming={streaming} className={cn('overflow-hidden', hasThinking && 'assistant-response__card--thinking')}>
           {cardInner}
         </AgentVoiceCard>
       </div>

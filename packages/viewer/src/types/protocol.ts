@@ -5,7 +5,7 @@
 
 /** AIDE platform event format (Python EventRecord). */
 export interface APGEvent {
-  /** Legacy event class name, e.g. "TextPartEvent", "NodeStartEvent" */
+  /** Platform event class name, e.g. "TextPartEvent", "NodeStartEvent" */
   event_type: string
   session_id?: string
   timestamp: string
@@ -33,11 +33,11 @@ export function eventAgent(evt: WireEvent): string {
 
 const PLATFORM_AGENT_EVENTS = new Set([
   'ConversationTurnStartEvent', 'ConversationTurnCompleteEvent',
-  'MessageStartEvent', 'ModelRequestEvent', 'ModelResponseEvent',
+  'MessageStartEvent',
   'ModelResponseCompleteEvent', 'SystemPromptPartEvent', 'UserPromptPartEvent',
   'TextPartEvent', 'ToolCallPartEvent', 'ToolReturnPartEvent',
 ])
-/** Check whether a legacy platform event belongs to the agent category. */
+/** Check whether a platform event belongs to the agent category. */
 export function isAgentEvent(evt: WireEvent): boolean {
   const t = eventType(evt)
   return PLATFORM_AGENT_EVENTS.has(t)

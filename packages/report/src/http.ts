@@ -59,7 +59,7 @@ export function parseHttpExchange(
   const target = requestMatch[2]
   const url = host && !/^https?:\/\//i.test(target) ? `http://${host}${target}` : target
 
-  return evidenceExchangeToHttpView(
+  const view = evidenceExchangeToHttpView(
     {
       request: {
         method: requestMatch[1],
@@ -81,4 +81,5 @@ export function parseHttpExchange(
     index,
     url,
   )
+  return { ...view, rawRequest: requestText, rawResponse: responseText }
 }

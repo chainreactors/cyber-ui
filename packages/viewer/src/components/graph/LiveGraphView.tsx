@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css'
 
 import { useGraphState } from '../../providers/useGraphState'
 import { useResolvedTheme } from '../../lib/use-resolved-theme'
-import { layoutDAG } from '../../lib/graph-layout'
+import { layoutGraph } from '../../lib/graph-layout'
 import type { APGNodeData } from '../../lib/event-reducer'
 import LiveAPGNode from './LiveAPGNode'
 import { SelfLoopEdge, BackEdge } from './SelfLoopEdge'
@@ -54,7 +54,7 @@ export default function LiveGraphView({
   // Sync props into controlled state with auto-layout
   useEffect(() => {
     // Compute DAG layout positions from the incoming nodes/edges
-    const positions = layoutDAG(
+    const positions = layoutGraph(
       nodesProp.map((n) => ({ id: n.id, width: 200, height: 60 })),
       edgesProp.map((e) => ({ source: e.source, target: e.target })),
     )

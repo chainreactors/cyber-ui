@@ -328,8 +328,8 @@ html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-rep
   @page {
     size: A4;
     margin: 19mm 18mm 20mm;
-    @top-left { content: "CAIRN / REPORT"; font: 8pt sans-serif; color: #64748b; letter-spacing: 1pt; }
-    @bottom-left { content: "CAIRN"; font: 8pt sans-serif; color: #64748b; }
+    @top-left { content: "CYBER / REPORT"; font: 8pt sans-serif; color: #64748b; letter-spacing: 1pt; }
+    @bottom-left { content: "CYBER"; font: 8pt sans-serif; color: #64748b; }
     @bottom-right { content: counter(page) " / " counter(pages); font: 8pt sans-serif; color: #64748b; }
   }
   @page report-cover { @top-left { content: none; } }
@@ -540,7 +540,7 @@ function appendReportData(fragment: string, options: StandaloneReportOptions): s
     : ''
   const cover = [
     `<header class="report-cover" data-cover-page="${Boolean(options.coverPage)}">`,
-    '<div class="report-masthead"><span class="report-wordmark">CAIRN</span>',
+    '<div class="report-masthead"><span class="report-wordmark">CYBER</span>',
     `<span>${escapeHtml(options.documentLabel || 'Report')}</span></div>`,
     title,
     options.subtitle ? `<p class="report-subtitle">${escapeHtml(options.subtitle)}</p>` : '',
@@ -550,7 +550,7 @@ function appendReportData(fragment: string, options: StandaloneReportOptions): s
   const content = header
     ? `${header[1].slice(heading?.[0].length || 0)}${preview}${normalized.slice(header[0].length)}`
     : `${preview}${normalized}`
-  return `${cover}<div class="report-content">${content}</div><footer class="report-end">CAIRN <span>·</span> ${escapeHtml(options.documentLabel || 'Report')}</footer>`
+  return `${cover}<div class="report-content">${content}</div><footer class="report-end">CYBER <span>·</span> ${escapeHtml(options.documentLabel || 'Report')}</footer>`
 }
 
 /** Wrap a sanitized report-contract fragment as a portable HTML document. */

@@ -18,7 +18,6 @@ import sql from 'highlight.js/lib/languages/sql.js'
 import typescript from 'highlight.js/lib/languages/typescript.js'
 import xml from 'highlight.js/lib/languages/xml.js'
 import yaml from 'highlight.js/lib/languages/yaml.js'
-import { extractShellCommand } from './tool-utils'
 
 const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
   bat: 'batch', c: 'c', cc: 'cpp', cfg: 'ini', conf: 'ini', cpp: 'cpp',
@@ -155,15 +154,17 @@ function autoDetectedResultFormat(result: string): ToolResultFormat | undefined 
   return { kind: 'code', language }
 }
 
-/** Resolve the safest renderer without coupling the decision to a tool name. */
-export function resolveToolResultFormat(toolArgs: string, result: string): ToolResultFormat {
+/** Resolve the safest renderer without coupling the decision to a tool name.
+ *  `requestLanguage` is the host's own statement that the request is a command
+ *  (see the host's tool-name map), so the response is a terminal stream: a
+ *  language guessed for it turns `---` rules into headings and `--` columns
+ *  into SQL comments. Guessing the same thing from argument key names would be
+ *  a second rule for one judgement — `{"input":"…"}` is not a command. */
+export function resolveToolResultFormat(toolArgs: string, result: string, requestLanguage?: string): ToolResultFormat {
   const jsonCode = formattedJson(result)
   if (jsonCode !== undefined) return { kind: 'code', language: 'json', code: jsonCode }
   const pathFormat = pathResultFormat(toolArgs, result)
   if (pathFormat) return pathFormat
   if (hasMarkdownStructure(result)) return { kind: 'markdown' }
-  // A command's output is a terminal stream, not source: a language guessed for
-  // it turns `---` rules into headings and `--` columns into SQL comments.
-  const commandOutput = formattedJson(toolArgs) !== undefined && extractShellCommand(toolArgs) !== undefined
-  return (commandOutput ? undefined : autoDetectedResultFormat(result)) ?? { kind: 'text' }
+  return (requestLanguage ? undefined : autoDetectedResultFormat(result)) ?? { kind: 'text' }
 }

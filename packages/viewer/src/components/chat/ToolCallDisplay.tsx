@@ -254,7 +254,7 @@ export function ToolCallBody({
 }: ToolCallBodyProps) {
   const l = { ...DEFAULT_LABELS, ...labels }
   const displayResult = result === undefined ? undefined : stripAnsiControl(result)
-  const resultFormat = displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult)
+  const resultFormat = displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult, requestLanguage)
   const displayThinking = thinking?.trim() || undefined
   // A host opts into the copy affordance by naming it, so a host that never
   // asked for one keeps its card free of extra controls.

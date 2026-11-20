@@ -271,7 +271,7 @@ export default function ToolCallDisplay({
         <div className="overflow-hidden">
           <div className="divide-y divide-border border-t border-border">
             {displayThinking && (
-              <div className="bg-card px-3 py-2">
+              <div className="bg-card px-3 py-2" data-testid="tool-thinking">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   {labels.thinking}
                 </div>
@@ -279,7 +279,7 @@ export default function ToolCallDisplay({
               </div>
             )}
             {toolArgs && (
-              <div className="bg-card px-3 py-2">
+              <div className="bg-card px-3 py-2" data-testid="tool-arguments">
                 <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   <span>{labels.request}</span>
                   <CopyButton value={requestCopyValue(toolArgs, requestLanguage)} label={copyLabels.request} copiedLabel={copyLabels.copied} />
@@ -288,7 +288,7 @@ export default function ToolCallDisplay({
               </div>
             )}
             {displayResult !== undefined && resultFormat && (
-              <div className="px-3 py-2">
+              <div className="px-3 py-2" data-testid="tool-result">
                 <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   <span>{labels.response}</span>
                   <CopyButton value={shownResult(displayResult, resultFormat)} label={copyLabels.response} copiedLabel={copyLabels.copied} />

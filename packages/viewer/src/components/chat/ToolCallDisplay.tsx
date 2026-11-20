@@ -256,9 +256,15 @@ export function ToolCallBody({
   const displayResult = result === undefined ? undefined : stripAnsiControl(result)
   const resultFormat = displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult, requestLanguage)
   const displayThinking = thinking?.trim() || undefined
-  // A host opts into the copy affordance by naming it, so a host that never
-  // asked for one keeps its card free of extra controls.
-  const copied = sectionLabels?.copied || 'Copied'
+  // Copying is part of the card; hosts localize its labels rather than opting
+  // in, so the default surface keeps both buttons.
+  const requestLabel = sectionLabels?.request || l.arguments
+  const responseLabel = sectionLabels?.response || l.result
+  const copyLabels = {
+    request: sectionLabels?.copyRequest || `Copy ${requestLabel.toLowerCase()}`,
+    response: sectionLabels?.copyResponse || `Copy ${responseLabel.toLowerCase()}`,
+    copied: sectionLabels?.copied || 'Copied',
+  }
   const secondary = !!children && !bodyOnly
   return <div className="min-w-0" data-testid="tool-content">
     {children}
@@ -270,10 +276,8 @@ export function ToolCallBody({
     {content !== 'result' && toolArgs && (
       <PayloadSection
         kind="arguments"
-        label={sectionLabels?.request || l.arguments}
-        copy={sectionLabels?.copyRequest
-          ? { value: requestCopyValue(toolArgs, requestLanguage), label: sectionLabels.copyRequest, copiedLabel: copied }
-          : undefined}
+        label={requestLabel}
+        copy={{ value: requestCopyValue(toolArgs, requestLanguage), label: copyLabels.request, copiedLabel: copyLabels.copied }}
         secondary={secondary}
       >
         <RequestContent args={toolArgs} language={requestLanguage} mode={resultMode} />
@@ -282,10 +286,8 @@ export function ToolCallBody({
     {content !== 'arguments' && displayResult !== undefined && resultFormat && (
       <PayloadSection
         kind="result"
-        label={sectionLabels?.response || l.result}
-        copy={sectionLabels?.copyResponse
-          ? { value: shownResult(displayResult, resultFormat), label: sectionLabels.copyResponse, copiedLabel: copied }
-          : undefined}
+        label={responseLabel}
+        copy={{ value: shownResult(displayResult, resultFormat), label: copyLabels.response, copiedLabel: copyLabels.copied }}
         secondary={secondary}
       >
         <ToolResultContent result={displayResult} format={resultFormat} mode={resultMode} />

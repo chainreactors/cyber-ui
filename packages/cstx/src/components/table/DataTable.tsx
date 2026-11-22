@@ -59,6 +59,14 @@ import { useUrlSlot } from './hooks/useUrlState';
 import type {CSTXNode} from '../../types/transport.gen';
 
 type Row = Record<string, unknown>;
+
+export interface TableExportRequest {
+  format: string;
+  rows: Row[];
+  columns: { key: string; title: string }[];
+  selectedOnly: boolean;
+  types: string[];
+}
 function tableMessage(i18n: Record<string, unknown> | undefined, key: string, fallback: string): string {
   return typeof i18n?.[key] === 'string' ? i18n[key] as string : fallback;
 }
@@ -785,6 +793,7 @@ export function CSTXTable({
   const diffMode = config.diffMode === true;
   const diffField = (config.diffField as string) || '_cstx_diff_change_kind';
   const enableExport = config.enableExport === true;
+  const onExport = config.onExport as ((request: TableExportRequest) => void) | undefined;
   const exportFormats = (config.exportFormats as string[] | undefined) ?? ['xlsx', 'csv'];
   const exportFilename = config.exportFilename as string | undefined;
   const exportRequiresSelection = config.exportRequiresSelection === true;
@@ -1241,6 +1250,10 @@ export function CSTXTable({
     const exportOriginalRows = exportRows.map((row) => row.original);
     const columnDefs = visibleColumns.map((c) => ({ key: c.key, title: c.title ?? c.key }));
 
+    if (onExport) {
+      onExport({ format, rows: exportOriginalRows, columns: columnDefs, selectedOnly: selectedRows.length > 0, types: [...typeFilter] });
+      return;
+    }
     if (format === 'csv') {
       const csvRows = [
         columnDefs.map((column) => column.title),
@@ -1264,7 +1277,7 @@ export function CSTXTable({
         selectedOnly: selectedRows.length > 0,
       });
     }
-  }, [exportFilename, onAction, selectedRows, table, title, visibleColumns]);
+  }, [exportFilename, onAction, onExport, selectedRows, table, title, typeFilter, visibleColumns]);
   const hasActiveFilters = typeFilter.size > 0 || !!globalFilter;
   const showFilterChips = typeFilter.size > 0 && typeFilter.size < typeValues.length;
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);

@@ -70,11 +70,12 @@ export const FLAG_DESCRIPTION_MAP: Record<string, string> = {
 export interface FlagCellProps {
   row: Row;
   onToggle: (flag: CstxFlagOption, active: boolean) => void;
+  activeIconClassNames?: Partial<Record<CstxFlagOption['key'], string>>;
   /** Optional host-provided labels, descriptions, and action text. */
   i18n?: Record<string, unknown>;
 }
 
-export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
+export function FlagCell({ row, onToggle, activeIconClassNames, i18n }: FlagCellProps) {
   const node = row as unknown as CSTXNode;
   const activeFlags = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(node, opt.value));
   const hasFlags = activeFlags.length > 0;
@@ -96,9 +97,10 @@ export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
           {hasFlags
             ? activeFlags.slice(0, 2).map(f => {
                 const Icon = FLAG_ICON_MAP[f.key] ?? Flag;
+                const iconClassName = activeIconClassNames?.[f.key];
                 return (
                   <span key={f.key} title={flagDescription(f, i18n)}>
-                    <Icon className="h-3 w-3" style={{ color: FLAG_COLOR_MAP[f.key] }} />
+                    <Icon className={`h-3 w-3 ${iconClassName ?? ''}`} style={iconClassName ? undefined : { color: FLAG_COLOR_MAP[f.key] }} />
                   </span>
                 );
               })
@@ -122,6 +124,7 @@ export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
         {CSTX_FLAG_OPTIONS.map(option => {
           const active = hasCstxFlag(node, option.value);
           const Icon = FLAG_ICON_MAP[option.key] ?? Flag;
+          const iconClassName = active ? activeIconClassNames?.[option.key] : undefined;
           return (
             <DropdownMenuItem
               key={option.key}
@@ -132,7 +135,7 @@ export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
               className="gap-2 cursor-pointer"
               title={flagDescription(option, i18n)}
             >
-              <Icon className="h-3.5 w-3.5" style={{ color: FLAG_COLOR_MAP[option.key] }} />
+              <Icon className={`h-3.5 w-3.5 ${iconClassName ?? ''}`} style={iconClassName ? undefined : { color: FLAG_COLOR_MAP[option.key] }} />
               <span className="flex-1">{flagAction(option, active, i18n)}</span>
               {active && <span className="h-1.5 w-1.5 rounded-full" style={{ background: FLAG_COLOR_MAP[option.key] }} />}
             </DropdownMenuItem>

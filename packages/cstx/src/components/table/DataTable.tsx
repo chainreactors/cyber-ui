@@ -777,6 +777,7 @@ export function CSTXTable({
   const enableRowSelection = config.enableRowSelection === true;
   const enableExpanding = config.enableExpanding === true;
   const enableColumnResize = config.enableColumnResize === true;
+  const enableLastColumnResize = config._enableLastColumnResize === true;
   const enableFieldSearch = config.enableFieldSearch === true;
   const enableContextMenu = config.enableContextMenu === true;
   const stickyFirstColumn = config.stickyFirstColumn === true || enableRowSelection;
@@ -1566,7 +1567,7 @@ export function CSTXTable({
                       style={isSticky ? { background: 'var(--c-surface, var(--color-surface, #fff))' } : undefined}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
-                      {enableColumnResize && headerIdx < hg.headers.length - 1 && !(header.column.columnDef.meta as Record<string, unknown>)?.fixed && (
+                      {enableColumnResize && (enableLastColumnResize || headerIdx < hg.headers.length - 1) && !(header.column.columnDef.meta as Record<string, unknown>)?.fixed && (
                         <ResizeHandle
                           columnId={header.id}
                           isResizing={resizingColumn === header.id}

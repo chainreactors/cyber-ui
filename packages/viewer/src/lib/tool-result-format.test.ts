@@ -25,4 +25,20 @@ describe('resolveToolResultFormat', () => {
     })
     expect(resolveToolResultFormat('', 'request completed\nexit code: 0')).toEqual({ kind: 'text' })
   })
+
+  it('treats a response as terminal output when the host labels the request a command', () => {
+    const table = 'Service Status\n--------------\nnginx      running\nredis      stopped\n\nPORT   STATE\n-----  -----\n80     open'
+    expect(resolveToolResultFormat('{"command":"systemctl status"}', table, 'bash')).toEqual({ kind: 'text' })
+    // The same body without that statement is source or a document like any other.
+    expect(resolveToolResultFormat('{"command":"systemctl status"}', table).kind).not.toBe('text')
+  })
+
+  it('never decides the result format from argument key names', () => {
+    const report = '# Findings\n\n[detail](https://example.test/report)'
+    const python = 'def greet(name):\n    return f"Hello {name}"'
+    for (const args of ['{"input":"example"}', '{"script":"example"}', '{"cmd":"example"}']) {
+      expect(resolveToolResultFormat(args, report)).toEqual({ kind: 'markdown' })
+      expect(resolveToolResultFormat(args, python)).toEqual({ kind: 'code', language: 'python' })
+    }
+  })
 })

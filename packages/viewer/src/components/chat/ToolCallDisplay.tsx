@@ -17,31 +17,10 @@ import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from '@cyber/u
 import { stripAnsiControl, extractShellCommand, formatArgs, summarizeArgs, summarizeResult, summarizeToolCall } from '../../lib/tool-utils'
 import { resolveToolResultFormat, type ToolResultFormat } from '../../lib/tool-result-format'
 
-function ToolResultContent({ result, format }: { result: string; format: ToolResultFormat }) {
-  if (format.kind === 'markdown') {
-    return (
-      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
-        <MarkdownContent content={result} compact />
-      </div>
-    )
-  }
-  if (format.kind === 'code') {
-    return (
-      <CodeBlock
-        code={format.code ?? result}
-        language={format.language}
-        showLineNumbers
-        maxHeight={320}
-        className="rounded-md"
-      />
-    )
-  }
-  return (
-    <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">
-      {result}
-    </pre>
-  )
-}
+const CODE_BLOCK_CLASS_ACCENT = 'rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
+const CODE_BLOCK_CLASS = 'rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words'
+
+export type ToolResultMode = 'auto' | 'code'
 
 function requestCopyValue(args: string, language?: string): string {
   const command = language ? extractShellCommand(args) : undefined
@@ -76,25 +55,51 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
   )
 }
 
-function RequestContent({ args, language }: { args: string; language?: string }) {
-  const formatted = formatArgs(args)
-  const command = language ? extractShellCommand(args) : undefined
-  if (command) {
-    const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
-    const code = command
-      .split('\n')
-      .map((line, index) => index === 0 ? `${prompt}${line}` : line)
-      .join('\n')
-    return <CodeBlock code={code} language={language} maxHeight={192} className="rounded-md border-l-2 border-l-accent [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words" />
-  }
-  let json = false
+function requestSyntax(args: string): string | undefined {
   try {
     JSON.parse(args)
-    json = true
+    return 'json'
   } catch {
-    // Keep plain-text legacy arguments as text rather than claiming JSON.
+    return undefined
   }
-  return <CodeBlock code={formatted} language={json ? 'json' : undefined} maxHeight={192} className="rounded-md [&_code]:!whitespace-pre-wrap [&_code]:[overflow-wrap:anywhere] [&_pre]:whitespace-pre-wrap [&_pre]:break-words" />
+}
+
+function RequestContent({ args, language, mode }: { args: string; language?: string; mode: ToolResultMode }) {
+  const formatted = formatArgs(args)
+  const command = language ? extractShellCommand(args) : undefined
+  const prompt = language === 'powershell' ? 'PS> ' : language === 'batch' ? '> ' : '$ '
+  const body = command
+    ? command.split('\n').map((line, index) => index === 0 ? `${prompt}${line}` : line).join('\n')
+    : formatted
+  if (mode === 'code') {
+    const syntax = command ? language : formatted.trim().startsWith('{') || formatted.trim().startsWith('[') ? 'json' : 'text'
+    return <CodeBlock code={body} language={syntax} showLineNumbers maxHeight={192} className={cn(CODE_BLOCK_CLASS, command && 'border-l-2 border-l-accent')} />
+  }
+  if (command) {
+    return <CodeBlock code={body} language={language} maxHeight={192} className={CODE_BLOCK_CLASS_ACCENT} />
+  }
+  return <CodeBlock code={formatted} language={requestSyntax(args)} maxHeight={192} className={CODE_BLOCK_CLASS} />
+}
+
+function shownResult(result: string, format: ToolResultFormat): string {
+  return format.kind === 'code' ? format.code ?? result : result
+}
+
+function ToolResultContent({ result, format, mode }: { result: string; format: ToolResultFormat; mode: ToolResultMode }) {
+  if (mode === 'code') {
+    return <CodeBlock code={shownResult(result, format)} language={format.kind === 'code' ? format.language : 'text'} showLineNumbers maxHeight={320} className={CODE_BLOCK_CLASS} />
+  }
+  if (format.kind === 'markdown') {
+    return (
+      <div className="max-h-80 overflow-auto rounded-md border border-border/60 bg-card px-3 py-2">
+        <MarkdownContent content={result} compact />
+      </div>
+    )
+  }
+  if (format.kind === 'code') {
+    return <CodeBlock code={shownResult(result, format)} language={format.language} showLineNumbers maxHeight={320} className="rounded-md" />
+  }
+  return <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded font-mono text-xs text-foreground">{result}</pre>
 }
 
 export interface ToolCallDisplayProps {
@@ -108,6 +113,7 @@ export interface ToolCallDisplayProps {
   pending?: boolean
   error?: boolean
   defaultExpanded?: boolean
+  resultMode?: ToolResultMode
   /** Keep request/response summaries out of the compact header when desired. */
   showHeaderSummary?: boolean
   /** Host theme override for the compact header's hover treatment. */
@@ -145,6 +151,7 @@ export default function ToolCallDisplay({
   pending = false,
   error = false,
   defaultExpanded = false,
+  resultMode = 'auto',
   showHeaderSummary = true,
   headerClassName,
   statusLabels,
@@ -172,15 +179,10 @@ export default function ToolCallDisplay({
     response: sectionLabels?.copyResponse || `Copy ${labels.response.toLowerCase()}`,
     copied: sectionLabels?.copied || 'Copied',
   }
-  const displayResultFormat = useMemo(
-    () => displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult),
-    [toolArgs, displayResult],
+  const resultFormat = useMemo(
+    () => displayResult === undefined ? undefined : resolveToolResultFormat(toolArgs, displayResult, requestLanguage),
+    [toolArgs, displayResult, requestLanguage],
   )
-  const formattedResult = displayResult === undefined
-    ? undefined
-    : displayResultFormat?.kind === 'code'
-      ? (displayResultFormat.code ?? displayResult)
-      : displayResult
 
   const statusLabel = statusLabels && (error ? statusLabels.error : pending ? statusLabels.pending : statusLabels.completed)
   const statusDetail = statusLabels && error ? summarizeResult(displayResult ?? '') || statusLabels.noErrorDetails : ''
@@ -269,7 +271,7 @@ export default function ToolCallDisplay({
         <div className="overflow-hidden">
           <div className="divide-y divide-border border-t border-border">
             {displayThinking && (
-              <div className="bg-card px-3 py-2">
+              <div className="bg-card px-3 py-2" data-testid="tool-thinking">
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   {labels.thinking}
                 </div>
@@ -277,21 +279,21 @@ export default function ToolCallDisplay({
               </div>
             )}
             {toolArgs && (
-              <div className="bg-card px-3 py-2">
+              <div className="bg-card px-3 py-2" data-testid="tool-arguments">
                 <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   <span>{labels.request}</span>
                   <CopyButton value={requestCopyValue(toolArgs, requestLanguage)} label={copyLabels.request} copiedLabel={copyLabels.copied} />
                 </div>
-                <RequestContent args={toolArgs} language={requestLanguage} />
+                <RequestContent args={toolArgs} language={requestLanguage} mode={resultMode} />
               </div>
             )}
-            {displayResult !== undefined && (
-              <div className="px-3 py-2">
+            {displayResult !== undefined && resultFormat && (
+              <div className="px-3 py-2" data-testid="tool-result">
                 <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   <span>{labels.response}</span>
-                  <CopyButton value={formattedResult ?? displayResult} label={copyLabels.response} copiedLabel={copyLabels.copied} />
+                  <CopyButton value={shownResult(displayResult, resultFormat)} label={copyLabels.response} copiedLabel={copyLabels.copied} />
                 </div>
-                <ToolResultContent result={displayResult} format={displayResultFormat ?? { kind: 'text' }} />
+                <ToolResultContent result={displayResult} format={resultFormat} mode={resultMode} />
               </div>
             )}
           </div>

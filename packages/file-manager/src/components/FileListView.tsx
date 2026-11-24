@@ -209,6 +209,7 @@ export function FileListView({
                   return (
                     <ContextMenuBuilder key={file.id} sections={() => generateContextMenu(file)}>
                       <TableRow
+                        aria-selected={isMultiSelected || undefined}
                         className={cn(
                           "cursor-pointer transition-colors duration-150",
                           "hover:bg-accent/60 active:bg-accent",

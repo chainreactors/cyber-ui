@@ -72,6 +72,8 @@ interface RenderContext {
   renderHttpView?: (view: TrafficHttpView) => ReactNode
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode
   renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
+  /** Render parsed prose; the second argument is the original inline code UI. */
+  renderInlineText?: (text: string, inlineCode?: ReactNode) => ReactNode
   fitHttpView?: boolean
 }
 
@@ -154,6 +156,7 @@ function prepareContext(
   renderFindingActions?: (finding: ReportFindingBinding) => ReactNode,
   renderCodeBlock?: (block: ReportCodeBlock) => ReactNode,
   fitHttpView?: boolean,
+  renderInlineText?: RenderContext['renderInlineText'],
 ): RenderContext {
   const headingIds = new WeakMap<Element, string>()
   const headings: Heading[] = []
@@ -191,6 +194,7 @@ function prepareContext(
     renderHttpView,
     renderFindingActions,
     renderCodeBlock,
+    renderInlineText,
     fitHttpView,
   }
 }
@@ -215,7 +219,21 @@ class ComponentBoundary extends Component<
 // --- components ---
 
 function renderNodes(nodes: (RootContent | ElementContent)[], context: RenderContext): ReactNode[] {
-  return nodes.map((node, index) => <Fragment key={index}>{renderNode(node, context)}</Fragment>)
+  if (!context.renderInlineText) {
+    return nodes.map((node, index) => <Fragment key={index}>{renderNode(node, context)}</Fragment>)
+  }
+  const plain = { ...context, renderInlineText: undefined }
+  const emphasis = (node: RootContent | ElementContent | undefined) => isElement(node) && /^(em|strong|del)$/.test(node.tagName)
+  const text = (node: RootContent | ElementContent | undefined) => node?.type === 'text' ? node.value : ''
+  return nodes.map((node, index) => {
+    const left = nodes[index - 1]
+    const right = nodes[index + 1]
+    // Do not turn a fragment adjoining emphasis into its own link.
+    const joined = (emphasis(node) && (/[\w.\/\\-]$/.test(text(left)) || /^[\w.\/\\-]/.test(text(right))))
+      || (emphasis(left) && /^[\w.\/\\-]/.test(text(node)))
+      || (emphasis(right) && /[\w.\/\\-]$/.test(text(node)))
+    return <Fragment key={index}>{renderNode(node, joined ? plain : context)}</Fragment>
+  })
 }
 
 // Pretty-printed report HTML contains indentation text between table elements.
@@ -530,7 +548,7 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
     case 'code': {
       const isLong = stringProp(node, 'dataInlineCode') === 'long'
         || textOf(node).length >= LONG_INLINE_CODE_LENGTH
-      return (
+      const inline = (
         <code
           {...props}
           data-inline-code={isLong ? 'long' : undefined}
@@ -538,9 +556,10 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
             ? 'font-mono text-xs leading-[inherit] align-baseline text-primary [overflow-wrap:anywhere]'
             : 'rounded border border-primary/10 bg-primary/[0.065] px-1 py-0.5 font-mono text-xs text-primary'}
         >
-          {children()}
+          {renderNodes(node.children, { ...context, renderInlineText: undefined })}
         </code>
       )
+      return context.renderInlineText?.(textOf(node), inline) ?? inline
     }
     case 'kbd': return <kbd {...props} className="rounded border border-primary/15 bg-primary/[0.04] px-1 py-0.5 font-mono text-xs text-primary">{children()}</kbd>
     case 'samp': return <samp {...props} className="font-mono text-xs">{children()}</samp>
@@ -643,8 +662,11 @@ function renderSemantic(node: Element, context: RenderContext): ReactNode {
 }
 
 function renderNode(node: RootContent | ElementContent, context: RenderContext): ReactNode {
-  if (node.type === 'text') return node.value
+  if (node.type === 'text') return context.renderInlineText?.(node.value) ?? node.value
   if (!isElement(node)) return null
+  if (context.renderInlineText && (node.tagName === 'a' || node.tagName === 'pre' || node.tagName === 'button' || stringProp(node, 'dataEvidenceId'))) {
+    context = { ...context, renderInlineText: undefined }
+  }
 
   const component = stringProp(node, 'dataReportComponent')
   if (!isRegistered(component, context)) return renderSemantic(node, context)
@@ -673,6 +695,8 @@ export interface ReportDocumentProps {
    * Omitted, they render as verbatim evidence blocks.
    */
   renderCodeBlock?: (block: ReportCodeBlock) => ReactNode
+  /** Render parsed prose; the second argument is the original inline code UI. */
+  renderInlineText?: (text: string, inlineCode?: ReactNode) => ReactNode
   /**
    * The owner's HTTP view sizes itself to its packets. Omitted, the view gets
    * the fixed frame a fill-height viewer needs.
@@ -695,6 +719,7 @@ export function ReportDocument({
   renderHttpView,
   renderFindingActions,
   renderCodeBlock,
+  renderInlineText,
   fitHttpView,
   assetPreview,
   vulnerabilities,
@@ -704,7 +729,7 @@ export function ReportDocument({
   className,
 }: ReportDocumentProps) {
   const rendered = useMemo(() => {
-    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView)
+    const context = prepareContext(tree.children, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView, renderInlineText)
     const firstContentIndex = tree.children.findIndex((node) => (
       isElement(node) || (node.type === 'text' && node.value.trim() !== '')
     ))
@@ -719,7 +744,7 @@ export function ReportDocument({
         context,
       ),
     }
-  }, [tree, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView])
+  }, [tree, componentNames, renderHttpView, renderFindingActions, renderCodeBlock, fitHttpView, renderInlineText])
 
   return (
     <div className={cn('cyber-report text-muted-foreground', className)}>

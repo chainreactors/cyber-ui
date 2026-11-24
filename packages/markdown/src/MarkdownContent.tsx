@@ -34,7 +34,46 @@ interface Props {
    * node it cares about. Absent, blocks render as the ordinary `CodeBlock`.
    */
   codeBlock?: ComponentType<CodeBlockRendererProps>
+  /** Render parsed prose; the second argument is the original inline code UI. */
+  renderInlineText?: (text: string, inlineCode?: ReactNode) => ReactNode
   className?: string
+}
+
+// Tag only parsed prose and inline code; never re-tokenize Markdown source or
+// change fenced code, existing links, or whitespace between block elements.
+interface InlineTree {
+  type: string
+  value?: string
+  tagName?: string
+  properties?: Record<string, unknown>
+  children?: InlineTree[]
+}
+
+function rehypeInlineText() {
+  return (tree: InlineTree) => {
+    const emphasis = (node: InlineTree | undefined) => /^(em|strong|del)$/.test(node?.tagName ?? '')
+    const text = (node: InlineTree | undefined) => node?.type === 'text' ? node.value ?? '' : ''
+    const childrenOf = (children: InlineTree[]): InlineTree[] => children.map((child, i) => {
+      const left = children[i - 1]
+      const right = children[i + 1]
+      // A token split by emphasis is not an independent text reference.
+      const joined = (emphasis(child) && (/[\w.\/\\-]$/.test(text(left)) || /^[\w.\/\\-]/.test(text(right))))
+        || (emphasis(left) && /^[\w.\/\\-]/.test(text(child)))
+        || (emphasis(right) && /[\w.\/\\-]$/.test(text(child)))
+      return joined ? child : visit(child)
+    })
+    const visit = (node: InlineTree): InlineTree => {
+      if (node.tagName === 'a' || node.tagName === 'pre' || node.tagName === 'button') return node
+      if (node.tagName === 'code') {
+        return { ...node, properties: { ...node.properties, dataRenderInlineCode: 'true' } }
+      }
+      if (node.type === 'text' && node.value?.trim()) {
+        return { type: 'element', tagName: 'span', properties: { dataRenderInlineText: 'true' }, children: [node] }
+      }
+      return node.children ? { ...node, children: childrenOf(node.children) } : node
+    }
+    if (tree.children) tree.children = childrenOf(tree.children)
+  }
 }
 
 /* ---------- heading anchor helpers ---------- */
@@ -149,6 +188,7 @@ export function MarkdownContent({
   isDark,
   headingAnchors = false,
   codeBlock: CodeBlockRenderer,
+  renderInlineText,
   className,
 }: Props) {
   const headingSlugs = useMemo(() => new Map<string, number>(), [content])
@@ -212,7 +252,10 @@ export function MarkdownContent({
       pre: ({ children }) => (
         <div className={compact ? 'my-1.5' : 'my-4'}>{children}</div>
       ),
-      code: ({ className: codeClassName, children }) => {
+      ...(renderInlineText && { span: ({ node, children, ...props }) => node?.properties.dataRenderInlineText === 'true'
+        ? renderInlineText(nodeText(children))
+        : <span {...props}>{children}</span> }),
+      code: ({ node, className: codeClassName, children }) => {
         const langMatch = codeClassName?.match(/language-(\w+)/)
         const codeStr = String(children).replace(/\n$/, '')
         const isBlock = Boolean(codeClassName) || codeStr.includes('\n')
@@ -236,11 +279,14 @@ export function MarkdownContent({
           )
         }
 
-        return (
+        const inline = (
           <InlineCode inverted={inverted} compact={compact}>
             {children}
           </InlineCode>
         )
+        return node?.properties.dataRenderInlineCode === 'true' && renderInlineText
+          ? renderInlineText(codeStr, inline)
+          : inline
       },
       table: ({ children }) => (
         <div className={cn('overflow-x-auto rounded-lg border border-line bg-surface', compact ? 'my-1.5' : 'my-4')}>
@@ -264,7 +310,7 @@ export function MarkdownContent({
         <hr className={cn('border-none border-t border-line', compact ? 'my-2' : 'my-5')} />
       ),
     }
-  }, [compact, inverted, isDark, muted, headingAnchors, headingSlugs, CodeBlockRenderer])
+  }, [compact, inverted, isDark, muted, headingAnchors, headingSlugs, CodeBlockRenderer, renderInlineText])
 
   return (
     <div
@@ -276,7 +322,7 @@ export function MarkdownContent({
         className,
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkAutolinkBoundary]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkAutolinkBoundary]} rehypePlugins={renderInlineText ? [rehypeInlineText] : undefined} components={components}>
         {content || ''}
       </ReactMarkdown>
     </div>

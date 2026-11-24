@@ -397,8 +397,8 @@ function valueText(value: unknown): string {
 function renderExchange(exchange: Record<string, unknown>, index: number): string {
   const request = exchange.request && typeof exchange.request === 'object' ? exchange.request as Record<string, unknown> : {}
   const response = exchange.response && typeof exchange.response === 'object' ? exchange.response as Record<string, unknown> : {}
-  const requestText = Object.keys(request).length ? JSON.stringify(request, null, 2) : ''
-  const responseText = Object.keys(response).length ? JSON.stringify(response, null, 2) : ''
+  const requestText = typeof exchange.raw_request === 'string' && exchange.raw_request ? exchange.raw_request : Object.keys(request).length ? JSON.stringify(request, null, 2) : ''
+  const responseText = typeof exchange.raw_response === 'string' && exchange.raw_response ? exchange.raw_response : Object.keys(response).length ? JSON.stringify(response, null, 2) : ''
   return [
     `<section><h4>Exchange ${index + 1}</h4>`,
     requestText ? `<h5>Request</h5><pre><code>${escapeHtml(requestText)}</code></pre>` : '',

@@ -315,6 +315,7 @@ function HttpEvidence({ node, context }: { node: Element; context: RenderContext
   const intro = node.children.filter((child) => !(isElement(child) && child.tagName === 'pre'))
 
   const view = useMemo(() => {
+    if (reportAttr(node, 'raw') === 'true') return null
     const request = packets.find((packet) => reportAttr(packet, 'part') === 'request')
     const response = packets.find((packet) => reportAttr(packet, 'part') === 'response')
     if (!request) return null

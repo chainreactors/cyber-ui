@@ -451,6 +451,7 @@ function buildColumns(
     enableRowSelection?: boolean;
     stickyFirstColumn?: boolean;
     actionsColumnWidth?: number;
+    showReadOnlyFlags?: boolean;
     i18n?: Record<string, unknown>;
     diffMode?: boolean;
     diffField?: string;
@@ -506,8 +507,11 @@ function buildColumns(
     });
   }
 
+  let isFirstDataCol = true;
   for (const col of configs) {
     if (col.hidden) continue;
+    const showBadges = options?.showReadOnlyFlags && isFirstDataCol;
+    isFirstDataCol = false;
     cols.push({
       id: col.key,
       accessorKey: col.key,
@@ -541,7 +545,15 @@ function buildColumns(
           </button>
         );
       },
-      cell: ({ getValue, row }) => renderCellContent(col, getValue(), row.original, renderers, false),
+      cell: ({ getValue, row }) => {
+        const content = renderCellContent(col, getValue(), row.original, renderers, false);
+        return showBadges ? (
+          <div className="flex min-w-0 flex-col gap-1">
+            {content}
+            <FlagCell row={row.original} i18n={options.i18n} />
+          </div>
+        ) : content;
+      },
       size: col.width ? parseInt(String(col.width), 10) || undefined : undefined,
       meta: { align: col.align },
     });
@@ -586,6 +598,7 @@ function RecordCard({
   renderers,
   compact,
   enableRowSelection,
+  showReadOnlyFlags,
   typeKey,
   typeColorMap,
   typeLabels,
@@ -601,6 +614,7 @@ function RecordCard({
   renderers: CellRendererRegistry;
   compact: boolean;
   enableRowSelection: boolean;
+  showReadOnlyFlags: boolean;
   typeKey: string | undefined;
   typeColorMap: Record<string, string> | undefined;
   typeLabels: Record<string, string>;
@@ -666,6 +680,7 @@ function RecordCard({
         )}
       </div>
 
+      {showReadOnlyFlags && <FlagCell row={data} i18n={i18n} />}
       {bodyCols.length > 0 && (
         <dl
           className={cn('mt-2 grid gap-x-4', compact ? 'gap-y-1.5' : 'gap-y-2')}
@@ -755,7 +770,7 @@ export function CSTXTable({
   const exportRequiresSelection = config.exportRequiresSelection === true;
   const rowActions = (config.rowActions as TableActionConfig[] | undefined) ?? [];
   const canEditCstxFlags = config.enableCstxFlags === true;
-  const showCstxFlags = canEditCstxFlags || config.enableCstxFlags === 'read-only';
+  const showReadOnlyFlags = config.enableCstxFlags === 'read-only';
   const showRowCount = config.showRowCount !== false;
 
   // Optional localization. `columnLabels` overrides inferred/explicit header titles by key;
@@ -774,7 +789,7 @@ export function CSTXTable({
   );
 
   const effectiveRowActions = useMemo(() => {
-    if (!showCstxFlags) return rowActions;
+    if (!canEditCstxFlags) return rowActions;
     const flagAction: TableActionConfig = {
       id: '__cstxFlag',
       label: tr('flags', 'Flag'),
@@ -782,16 +797,16 @@ export function CSTXTable({
         <FlagCell
           row={row}
           i18n={i18n}
-          onToggle={canEditCstxFlags ? (flag, active) =>
+          onToggle={(flag, active) =>
             onAction?.('cstxFlagToggle', { rowId, row, flag: flag.key, flagValue: flag.value, active })
-            : undefined}
+          }
         />
       ),
     };
     return [flagAction, ...rowActions];
-  }, [showCstxFlags, canEditCstxFlags, rowActions, onAction, i18n, tr]);
+  }, [canEditCstxFlags, rowActions, onAction, i18n, tr]);
   const actionsColumnWidth = effectiveRowActions.length > 0
-    ? Math.max(44, rowActions.length * 28 + (showCstxFlags ? 152 : 8))
+    ? Math.max(44, rowActions.length * 28 + (canEditCstxFlags ? 152 : 8))
     : 0;
 
   const urlStateKey = (config.urlStateKey as string) || null;
@@ -987,6 +1002,7 @@ export function CSTXTable({
       enableRowSelection,
       stickyFirstColumn,
       actionsColumnWidth,
+      showReadOnlyFlags,
       i18n,
       diffMode,
       diffField,
@@ -994,7 +1010,7 @@ export function CSTXTable({
       rowIdKey,
       onAction,
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, actionsColumnWidth, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, actionsColumnWidth, showReadOnlyFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
@@ -1489,6 +1505,7 @@ export function CSTXTable({
                 renderers={cellRenderers}
                 compact={compact}
                 enableRowSelection={enableRowSelection}
+                showReadOnlyFlags={showReadOnlyFlags}
                 typeKey={typeFilterKey}
                 typeColorMap={typeColorMap}
                 typeLabels={typeLabels}

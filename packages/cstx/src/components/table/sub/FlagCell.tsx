@@ -19,7 +19,6 @@ import {
   getCstxFlagRemoveLabel,
   type CstxFlagOption,
 } from '../../../lib/cstxFlags';
-import type {CSTXNode} from '../../../types/transport.gen';
 
 type Row = Record<string, unknown>;
 
@@ -50,10 +49,10 @@ export const FLAG_ICON_MAP: Record<string, LucideIcon> = {
 };
 
 export const FLAG_COLOR_MAP: Record<string, string> = {
-  HONEYPOT: '#b57bff',
+  HONEYPOT: 'var(--c-special, #b57bff)',
   NOISE: 'var(--c-faint, #8293b2)',
   FALSE_POSITIVE: 'var(--c-danger, #e5705c)',
-  MANUAL_IGNORED: 'var(--c-faint, #8293b2)',
+  MANUAL_IGNORED: 'var(--c-caution, #ef9245)',
   THREAT_PRESENT: 'var(--c-warn, #edb35c)',
   HISTORIC_VULNERABLE: 'var(--c-accent, #5f9df7)',
 };
@@ -69,15 +68,31 @@ export const FLAG_DESCRIPTION_MAP: Record<string, string> = {
 
 export interface FlagCellProps {
   row: Row;
-  onToggle: (flag: CstxFlagOption, active: boolean) => void;
+  onToggle?: (flag: CstxFlagOption, active: boolean) => void;
   /** Optional host-provided labels, descriptions, and action text. */
   i18n?: Record<string, unknown>;
 }
 
 export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
-  const node = row as unknown as CSTXNode;
-  const activeFlags = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(node, opt.value));
+  const activeFlags = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row, opt.value));
   const hasFlags = activeFlags.length > 0;
+  const badges = hasFlags && (
+    <span className="flex min-w-0 flex-wrap gap-1">
+      {activeFlags.map(flag => {
+        const Icon = FLAG_ICON_MAP[flag.key];
+        const color = FLAG_COLOR_MAP[flag.key];
+        return (
+          <span key={flag.key} title={flagDescription(flag, i18n)}
+            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-chip border px-1.5 py-0.5 text-[11px] font-medium"
+            style={{ borderColor: color, background: 'var(--c-accent-soft, rgba(95,157,247,0.1))', color }}>
+            <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 break-words text-left">{flagLabel(flag, i18n)}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
+  if (!onToggle) return badges || null;
 
   return (
     <DropdownMenu>
@@ -85,26 +100,11 @@ export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
         <button
           type="button"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          className="flex items-center gap-0.5 rounded-md border px-1.5 py-1 text-[11px] transition-colors"
-          style={{
-            background: hasFlags ? 'var(--c-accent-soft, rgba(95,157,247,0.1))' : 'var(--c-raise, #1d2a3d)',
-            borderColor: hasFlags ? 'var(--c-accent, #5f9df7)' : 'var(--c-line, rgba(150,178,224,0.15))',
-            color: hasFlags ? 'var(--c-accent-fg, #97bffb)' : 'var(--c-faint, #8293b2)',
-          }}
+          className="flex max-w-[144px] min-w-0 items-center gap-1 rounded-md p-1 text-faint hover:bg-[var(--c-raise)]"
           title={hasFlags ? activeFlags.map(f => flagLabel(f, i18n)).join(', ') : flagMessage(i18n, 'setFlag', 'Set flag')}
         >
-          {hasFlags
-            ? activeFlags.slice(0, 2).map(f => {
-                const Icon = FLAG_ICON_MAP[f.key] ?? Flag;
-                return (
-                  <span key={f.key} title={flagDescription(f, i18n)}>
-                    <Icon className="h-3 w-3" style={{ color: FLAG_COLOR_MAP[f.key] }} />
-                  </span>
-                );
-              })
-            : <Flag className="h-3 w-3" />}
-          {activeFlags.length > 2 && <span className="text-[10px] opacity-70">+{activeFlags.length - 2}</span>}
-          <ChevronDown className="h-2.5 w-2.5 opacity-40" />
+          {badges || <Flag className="h-3 w-3 shrink-0" aria-hidden="true" />}
+          <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-40" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -120,7 +120,7 @@ export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {CSTX_FLAG_OPTIONS.map(option => {
-          const active = hasCstxFlag(node, option.value);
+          const active = hasCstxFlag(row, option.value);
           const Icon = FLAG_ICON_MAP[option.key] ?? Flag;
           return (
             <DropdownMenuItem

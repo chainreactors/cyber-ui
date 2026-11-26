@@ -80,6 +80,7 @@ export function CyberHubPocTemplateViewer({
   result,
   className,
   showResultCard = true,
+  remediationLabel = '修复建议',
   testPanel,
   associationPanel,
   metadataPanel,
@@ -265,7 +266,7 @@ export function CyberHubPocTemplateViewer({
                       <div>
                         <div className="text-xs font-medium text-muted mb-1 flex items-center gap-1">
                           <Shield className="h-3 w-3 text-green-500" />
-                          修复建议
+                          {remediationLabel}
                         </div>
                         <div className="rounded-md bg-ok-soft p-3 text-xs leading-relaxed text-fg ring-1 ring-line">
                           {remediation}

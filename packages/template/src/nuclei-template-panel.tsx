@@ -10,6 +10,7 @@ export function NucleiTemplatePanel({
   matcherResults,
   extractorResults,
   className,
+  labels,
   status = 'active',
   source,
   createdAt,
@@ -42,6 +43,7 @@ export function NucleiTemplatePanel({
         classification,
         metadata,
         reference: references,
+        remediation: model.remediation,
         verified: true,
       },
       created_at: createdAt,
@@ -74,6 +76,7 @@ export function NucleiTemplatePanel({
       poc={poc}
       result={scanResult}
       className={className}
+      remediationLabel={labels?.remediation}
       showResultCard={Boolean(scanResult.vulnerable || scanResult.error || scanResult.matchers || scanResult.extractors)}
     />
   )

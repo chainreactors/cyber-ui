@@ -28,6 +28,7 @@ export interface NucleiTemplateModel {
   severity?: string
   author?: string
   description?: string
+  remediation?: string
   tags: string[]
   references: string[]
   classification: Record<string, unknown>
@@ -54,6 +55,7 @@ export interface NucleiTemplatePanelLabels {
   definition: string
   noTemplate: string
   noRules: string
+  remediation?: string
 }
 
 export interface NucleiTemplatePanelProps {
@@ -149,6 +151,7 @@ export interface CyberHubPocTemplateViewerProps {
   result?: ScanResultData
   className?: string
   showResultCard?: boolean
+  remediationLabel?: string
   testPanel?: ReactNode
   associationPanel?: ReactNode
   metadataPanel?: ReactNode

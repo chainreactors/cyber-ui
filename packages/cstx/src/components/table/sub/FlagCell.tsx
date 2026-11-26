@@ -75,8 +75,7 @@ export interface FlagCellProps {
 
 export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
   const activeFlags = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row, opt.value));
-  const hasFlags = activeFlags.length > 0;
-  const badges = hasFlags && (
+  if (!onToggle) return activeFlags.length === 0 ? null : (
     <span className="flex min-w-0 flex-wrap gap-1">
       {activeFlags.map(flag => {
         const Icon = FLAG_ICON_MAP[flag.key];
@@ -86,13 +85,14 @@ export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
             className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-chip border px-1.5 py-0.5 text-[11px] font-medium"
             style={{ borderColor: color, background: 'var(--c-accent-soft, rgba(95,157,247,0.1))', color }}>
             <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 break-words text-left">{flagLabel(flag, i18n)}</span>
+            <span className="min-w-0 truncate text-left">{flagLabel(flag, i18n)}</span>
           </span>
         );
       })}
     </span>
   );
-  if (!onToggle) return badges || null;
+  const activeFlag = activeFlags.find(flag => flag.key === 'MANUAL_IGNORED') ?? activeFlags[0];
+  const TriggerIcon = activeFlag ? FLAG_ICON_MAP[activeFlag.key] : Flag;
 
   return (
     <DropdownMenu>
@@ -100,10 +100,10 @@ export function FlagCell({ row, onToggle, i18n }: FlagCellProps) {
         <button
           type="button"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          className="flex max-w-[144px] min-w-0 items-center gap-1 rounded-md p-1 text-faint hover:bg-[var(--c-raise)]"
-          title={hasFlags ? activeFlags.map(f => flagLabel(f, i18n)).join(', ') : flagMessage(i18n, 'setFlag', 'Set flag')}
+          className="flex shrink-0 items-center gap-1 rounded-md p-1 text-faint hover:bg-[var(--c-raise)]"
+          title={activeFlag ? activeFlags.map(f => flagLabel(f, i18n)).join(', ') : flagMessage(i18n, 'setFlag', 'Set flag')}
         >
-          {badges || <Flag className="h-3 w-3 shrink-0" aria-hidden="true" />}
+          <TriggerIcon className="h-3 w-3 shrink-0" style={activeFlag ? { color: FLAG_COLOR_MAP[activeFlag.key] } : undefined} aria-hidden="true" />
           <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-40" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>

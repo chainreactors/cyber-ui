@@ -451,7 +451,7 @@ function buildColumns(
     enableRowSelection?: boolean;
     stickyFirstColumn?: boolean;
     actionsColumnWidth?: number;
-    showReadOnlyFlags?: boolean;
+    showCstxFlags?: boolean;
     i18n?: Record<string, unknown>;
     diffMode?: boolean;
     diffField?: string;
@@ -510,7 +510,7 @@ function buildColumns(
   let isFirstDataCol = true;
   for (const col of configs) {
     if (col.hidden) continue;
-    const showBadges = options?.showReadOnlyFlags && isFirstDataCol;
+    const showBadges = options?.showCstxFlags && isFirstDataCol;
     isFirstDataCol = false;
     cols.push({
       id: col.key,
@@ -598,7 +598,7 @@ function RecordCard({
   renderers,
   compact,
   enableRowSelection,
-  showReadOnlyFlags,
+  showCstxFlags,
   typeKey,
   typeColorMap,
   typeLabels,
@@ -614,7 +614,7 @@ function RecordCard({
   renderers: CellRendererRegistry;
   compact: boolean;
   enableRowSelection: boolean;
-  showReadOnlyFlags: boolean;
+  showCstxFlags: boolean;
   typeKey: string | undefined;
   typeColorMap: Record<string, string> | undefined;
   typeLabels: Record<string, string>;
@@ -670,8 +670,9 @@ function RecordCard({
             {tableMessage(typeLabels, typeText, typeText)}
           </span>
         )}
-        <div className="min-w-0 flex-1 font-medium text-[var(--c-fg,#0f172a)] dark:text-[var(--c-fg,#e2e8f0)]">
+        <div className="flex min-w-0 flex-1 flex-col gap-1 font-medium text-[var(--c-fg,#0f172a)] dark:text-[var(--c-fg,#e2e8f0)]">
           {primaryCol ? renderCellContent(primaryCol, data[primaryCol.key], data, renderers, false) : null}
+          {showCstxFlags && <FlagCell row={data} i18n={i18n} />}
         </div>
         {rowActions.length > 0 && (
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -680,7 +681,6 @@ function RecordCard({
         )}
       </div>
 
-      {showReadOnlyFlags && <FlagCell row={data} i18n={i18n} />}
       {bodyCols.length > 0 && (
         <dl
           className={cn('mt-2 grid gap-x-4', compact ? 'gap-y-1.5' : 'gap-y-2')}
@@ -770,7 +770,7 @@ export function CSTXTable({
   const exportRequiresSelection = config.exportRequiresSelection === true;
   const rowActions = (config.rowActions as TableActionConfig[] | undefined) ?? [];
   const canEditCstxFlags = config.enableCstxFlags === true;
-  const showReadOnlyFlags = config.enableCstxFlags === 'read-only';
+  const showCstxFlags = canEditCstxFlags || config.enableCstxFlags === 'read-only';
   const showRowCount = config.showRowCount !== false;
 
   // Optional localization. `columnLabels` overrides inferred/explicit header titles by key;
@@ -806,7 +806,7 @@ export function CSTXTable({
     return [flagAction, ...rowActions];
   }, [canEditCstxFlags, rowActions, onAction, i18n, tr]);
   const actionsColumnWidth = effectiveRowActions.length > 0
-    ? Math.max(44, rowActions.length * 28 + (canEditCstxFlags ? 152 : 8))
+    ? Math.max(44, rowActions.length * 28 + (canEditCstxFlags ? 44 : 8))
     : 0;
 
   const urlStateKey = (config.urlStateKey as string) || null;
@@ -1002,7 +1002,7 @@ export function CSTXTable({
       enableRowSelection,
       stickyFirstColumn,
       actionsColumnWidth,
-      showReadOnlyFlags,
+      showCstxFlags,
       i18n,
       diffMode,
       diffField,
@@ -1010,7 +1010,7 @@ export function CSTXTable({
       rowIdKey,
       onAction,
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, actionsColumnWidth, showReadOnlyFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, actionsColumnWidth, showCstxFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
@@ -1505,7 +1505,7 @@ export function CSTXTable({
                 renderers={cellRenderers}
                 compact={compact}
                 enableRowSelection={enableRowSelection}
-                showReadOnlyFlags={showReadOnlyFlags}
+                showCstxFlags={showCstxFlags}
                 typeKey={typeFilterKey}
                 typeColorMap={typeColorMap}
                 typeLabels={typeLabels}

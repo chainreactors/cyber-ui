@@ -168,7 +168,7 @@ export { inferColumns, applyExclusions, flattenRow, isMetaKey } from './componen
 // Table sub-components
 export { PaginationBar } from './components/table/sub/PaginationBar';
 export type { PaginationBarProps, PaginationLabels } from './components/table/sub/PaginationBar';
-export { FlagCell, BatchFlagMenu } from './components/table/sub/FlagCell';
+export { FlagCell, BatchFlagMenu, FLAG_COLOR_MAP } from './components/table/sub/FlagCell';
 export type { FlagCellProps, BatchFlagMenuProps, BatchFlagMode } from './components/table/sub/FlagCell';
 
 // Color Manager

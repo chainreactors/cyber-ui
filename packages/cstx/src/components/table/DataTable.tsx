@@ -50,13 +50,10 @@ import { EmptyGuide } from './sub/EmptyGuide';
 import { ResizeHandle } from './sub/ResizeHandle';
 import { DiffBadge, DiffSummaryBar, getDiffRowClass } from './sub/DiffBadge';
 import { ExportButton } from './sub/ExportButton';
-import { FlagCell, BatchFlagMenu, FLAG_ICON_MAP, FLAG_COLOR_MAP, flagDescription } from './sub/FlagCell';
-import { Flag as FlagIcon } from 'lucide-react';
-import { CSTX_FLAG_OPTIONS, hasCstxFlag } from '../../lib/cstxFlags';
+import { FlagCell, BatchFlagMenu } from './sub/FlagCell';
 import { useColumnResize } from './hooks/useColumnResize';
 import { parseSearchQuery, matchesFieldSearch } from './hooks/useFieldSearch';
 import { useUrlSlot } from './hooks/useUrlState';
-import type {CSTXNode} from '../../types/transport.gen';
 
 type Row = Record<string, unknown>;
 function tableMessage(i18n: Record<string, unknown> | undefined, key: string, fallback: string): string {
@@ -403,23 +400,6 @@ function RowActionsCell({
   );
 }
 
-function RowFlagBadges({ row, i18n }: { row: Row; i18n?: Record<string, unknown> }) {
-  const active = CSTX_FLAG_OPTIONS.filter(opt => hasCstxFlag(row as unknown as CSTXNode, opt.value));
-  if (active.length === 0) return null;
-  return (
-    <span className="inline-flex shrink-0 items-center gap-0.5 mr-1">
-      {active.map(f => {
-        const Icon = FLAG_ICON_MAP[f.key] ?? FlagIcon;
-        return (
-          <span key={f.key} title={flagDescription(f, i18n)}>
-            <Icon className="h-3 w-3" style={{ color: FLAG_COLOR_MAP[f.key] }} />
-          </span>
-        );
-      })}
-    </span>
-  );
-}
-
 /**
  * Render a single cell's content: prefer the column's configured renderer, then
  * fall back by value shape (null → dash, array → list, object → json, scalar →
@@ -470,7 +450,7 @@ function buildColumns(
     enableExpanding?: boolean;
     enableRowSelection?: boolean;
     stickyFirstColumn?: boolean;
-    enableCstxFlags?: boolean;
+    actionsColumnWidth?: number;
     i18n?: Record<string, unknown>;
     diffMode?: boolean;
     diffField?: string;
@@ -526,11 +506,8 @@ function buildColumns(
     });
   }
 
-  let isFirstDataCol = true;
   for (const col of configs) {
     if (col.hidden) continue;
-    const showFlagBadges = options?.enableCstxFlags && isFirstDataCol;
-    isFirstDataCol = false;
     cols.push({
       id: col.key,
       accessorKey: col.key,
@@ -564,16 +541,7 @@ function buildColumns(
           </button>
         );
       },
-      cell: ({ getValue, row: tableRow }) => {
-        const content = renderCellContent(col, getValue(), tableRow.original, renderers, false);
-        if (!showFlagBadges) return content;
-        return (
-          <span className="flex min-w-0 max-w-full items-center gap-0">
-            <RowFlagBadges row={tableRow.original} i18n={options?.i18n} />
-            <span className="min-w-0 flex-1 overflow-hidden">{content}</span>
-          </span>
-        );
-      },
+      cell: ({ getValue, row }) => renderCellContent(col, getValue(), row.original, renderers, false),
       size: col.width ? parseInt(String(col.width), 10) || undefined : undefined,
       meta: { align: col.align },
     });
@@ -591,7 +559,7 @@ function buildColumns(
           onAction={options.onAction}
         />
       ),
-      size: Math.max(44, options.rowActions.length * 28 + 8),
+      size: options.actionsColumnWidth,
       meta: { fixed: true, align: 'right' },
     });
   }
@@ -618,7 +586,6 @@ function RecordCard({
   renderers,
   compact,
   enableRowSelection,
-  enableCstxFlags,
   typeKey,
   typeColorMap,
   typeLabels,
@@ -634,7 +601,6 @@ function RecordCard({
   renderers: CellRendererRegistry;
   compact: boolean;
   enableRowSelection: boolean;
-  enableCstxFlags: boolean;
   typeKey: string | undefined;
   typeColorMap: Record<string, string> | undefined;
   typeLabels: Record<string, string>;
@@ -693,7 +659,6 @@ function RecordCard({
         <div className="min-w-0 flex-1 font-medium text-[var(--c-fg,#0f172a)] dark:text-[var(--c-fg,#e2e8f0)]">
           {primaryCol ? renderCellContent(primaryCol, data[primaryCol.key], data, renderers, false) : null}
         </div>
-        {enableCstxFlags && <RowFlagBadges row={data} i18n={i18n} />}
         {rowActions.length > 0 && (
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
             <RowActionsCell actions={rowActions} row={data} rowId={row.id} onAction={onAction} />
@@ -789,7 +754,8 @@ export function CSTXTable({
   const exportFilename = config.exportFilename as string | undefined;
   const exportRequiresSelection = config.exportRequiresSelection === true;
   const rowActions = (config.rowActions as TableActionConfig[] | undefined) ?? [];
-  const enableCstxFlags = config.enableCstxFlags === true;
+  const canEditCstxFlags = config.enableCstxFlags === true;
+  const showCstxFlags = canEditCstxFlags || config.enableCstxFlags === 'read-only';
   const showRowCount = config.showRowCount !== false;
 
   // Optional localization. `columnLabels` overrides inferred/explicit header titles by key;
@@ -808,7 +774,7 @@ export function CSTXTable({
   );
 
   const effectiveRowActions = useMemo(() => {
-    if (!enableCstxFlags) return rowActions;
+    if (!showCstxFlags) return rowActions;
     const flagAction: TableActionConfig = {
       id: '__cstxFlag',
       label: tr('flags', 'Flag'),
@@ -816,14 +782,17 @@ export function CSTXTable({
         <FlagCell
           row={row}
           i18n={i18n}
-          onToggle={(flag, active) =>
+          onToggle={canEditCstxFlags ? (flag, active) =>
             onAction?.('cstxFlagToggle', { rowId, row, flag: flag.key, flagValue: flag.value, active })
-          }
+            : undefined}
         />
       ),
     };
     return [flagAction, ...rowActions];
-  }, [enableCstxFlags, rowActions, onAction, i18n, tr]);
+  }, [showCstxFlags, canEditCstxFlags, rowActions, onAction, i18n, tr]);
+  const actionsColumnWidth = effectiveRowActions.length > 0
+    ? Math.max(44, rowActions.length * 28 + (showCstxFlags ? 152 : 8))
+    : 0;
 
   const urlStateKey = (config.urlStateKey as string) || null;
   const urlPrefix = urlStateKey ? `${urlStateKey}_` : null;
@@ -1017,7 +986,7 @@ export function CSTXTable({
       enableExpanding,
       enableRowSelection,
       stickyFirstColumn,
-      enableCstxFlags,
+      actionsColumnWidth,
       i18n,
       diffMode,
       diffField,
@@ -1025,7 +994,7 @@ export function CSTXTable({
       rowIdKey,
       onAction,
     }),
-    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, enableCstxFlags, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
+    [resolvedColumns, enableSorting, cellRenderers, compact, enableExpanding, enableRowSelection, stickyFirstColumn, actionsColumnWidth, i18n, diffMode, diffField, effectiveRowActions, rowIdKey, onAction],
   );
 
   const visibleColumns = useMemo(() => resolvedColumns.filter((c) => !c.hidden), [resolvedColumns]);
@@ -1067,8 +1036,6 @@ export function CSTXTable({
   });
 
   // --- Grid template ---
-  const actionsColumnWidth = effectiveRowActions.length > 0 ? Math.max(44, effectiveRowActions.length * 28 + 8) : 0;
-
   const gridLayout = useMemo(
     () => buildGridLayout(visibleColumns, {
       enableRowSelection,
@@ -1334,7 +1301,7 @@ export function CSTXTable({
               <span className="text-[11px] font-medium tabular-nums" style={{ color: 'var(--c-accent-fg, #60a5fa)' }}>
                 {tr('selected', '{n} selected').replace('{n}', String(selectedCount))}
               </span>
-              {enableCstxFlags && (
+              {canEditCstxFlags && (
                 <BatchFlagMenu
                   i18n={i18n}
                   onApply={(flag, mode) => {
@@ -1522,7 +1489,6 @@ export function CSTXTable({
                 renderers={cellRenderers}
                 compact={compact}
                 enableRowSelection={enableRowSelection}
-                enableCstxFlags={enableCstxFlags}
                 typeKey={typeFilterKey}
                 typeColorMap={typeColorMap}
                 typeLabels={typeLabels}

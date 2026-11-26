@@ -27,6 +27,10 @@ const REPORT_EXPORT_CSP = [
   "form-action 'none'",
 ].join('; ')
 
+// Match the graphite tile and red core of the Cyber favicon.
+const REPORT_BRAND_INK = '#090b10'
+const REPORT_BRAND_RED = '#ff3b3f'
+
 /**
  * Offline presentation for the same semantic component contract rendered by
  * ReportDocument in the application. It is deliberately self-contained: a
@@ -38,23 +42,28 @@ export const STANDALONE_REPORT_CSS = `
    properties inside background/border shorthands. */
 :root {
   color-scheme: light;
-  --report-bg: #edf2f8;
+  --report-brand-ink: ${REPORT_BRAND_INK};
+  --report-brand-red: ${REPORT_BRAND_RED};
+  --report-bg: #f1f1f2;
   --report-surface: #ffffff;
-  --report-card: #f4f7fb;
-  --report-border: rgba(59, 111, 206, 0.16);
-  --report-border-subtle: rgba(59, 111, 206, 0.09);
+  --report-card: #f6f6f7;
+  --report-border: rgba(9, 11, 16, 0.16);
+  --report-border-subtle: rgba(9, 11, 16, 0.09);
   --report-text: #24344b;
   --report-muted: #52637a;
   --report-dim: #64748b;
-  --report-heading: #16243a;
-  --report-accent: #1d5fd6;
-  --report-accent-soft: rgba(59, 111, 206, 0.08);
+  --report-heading: var(--report-brand-ink);
+  --report-accent: var(--report-brand-ink);
+  --report-accent-soft: rgba(9, 11, 16, 0.08);
+  --report-low: #1d5fd6;
+  --report-low-soft: rgba(59, 111, 206, 0.08);
+  --report-info-bg: #f4f7fb;
   --report-green: #0f8a6e;
   --report-yellow: #9a6207;
   --report-red: #d21f2c;
   --report-orange: #c2410c;
   --report-purple: #7c5cbf;
-  --report-shadow: 0 12px 36px rgba(12, 15, 20, 0.1), 0 0 0 1px rgba(59, 111, 206, 0.05);
+  --report-shadow: 0 12px 36px rgba(12, 15, 20, 0.1), 0 0 0 1px rgba(9, 11, 16, 0.05);
   --report-sans: Inter, "Noto Sans SC", "Noto Sans CJK SC", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --report-mono: "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", "Noto Sans CJK SC", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -77,7 +86,7 @@ body {
   margin: 0 auto;
   padding: 0;
   border-width: 1px; border-style: solid; border-color: var(--report-border);
-  border-top-width: 5px; border-top-style: solid; border-top-color: var(--report-accent);
+  border-top-width: 5px; border-top-style: solid; border-top-color: var(--report-brand-red);
   border-radius: 12px;
   background-color: var(--report-surface);
   box-shadow: var(--report-shadow);
@@ -86,7 +95,7 @@ body {
 .cyber-report .report-cover {
   padding: 38px 52px 34px;
   border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: var(--report-border);
-  background: linear-gradient(120deg, #f0f5ff, #fff 75%);
+  background: linear-gradient(120deg, rgba(255, 59, 63, 0.08), #fff 75%);
 }
 .cyber-report .report-masthead { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 36px; color: var(--report-dim); font-size: 11px; letter-spacing: 0.12em; }
 .cyber-report .report-wordmark { color: var(--report-accent); font-size: 17px; font-weight: 800; letter-spacing: 0.22em; }
@@ -98,7 +107,7 @@ body {
 .cyber-report .report-cover-details dd { margin: 0; color: var(--report-heading); font-size: 13px; font-weight: 600; }
 .cyber-report .report-content { padding: 32px 52px 44px; }
 .cyber-report .report-content > :first-child { margin-top: 0; }
-.cyber-report .report-end { margin: 0 52px; padding: 18px 0 24px; border-top-width: 1px; border-top-style: solid; border-top-color: var(--report-border); color: var(--report-dim); font-size: 10px; letter-spacing: 0.1em; }
+.cyber-report .report-end { margin: 0 52px; padding: 18px 0 24px; border-top-width: 1px; border-top-style: solid; border-top-color: var(--report-border); color: var(--report-brand-ink); font-size: 10px; letter-spacing: 0.1em; }
 .cyber-report .report-end span { padding: 0 8px; }
 .cyber-report img { display: block; max-width: 100%; height: auto; margin: 20px auto; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 6px; }
 .cyber-report [id] { scroll-margin-top: 24px; }
@@ -117,7 +126,7 @@ body {
 }
 .cyber-report h1 { margin: 4px 0 16px; color: var(--report-heading); font-size: 34px; letter-spacing: -0.025em; font-weight: 700; }
 .cyber-report h2 { margin: 36px 0 16px; padding-bottom: 10px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: var(--report-border); font-size: 21px; letter-spacing: -0.015em; }
-.cyber-report h3 { margin: 26px 0 10px; color: #14439c; font-size: 16px; }
+.cyber-report h3 { margin: 26px 0 10px; color: var(--report-heading); font-size: 16px; }
 .cyber-report h4 { margin: 18px 0 6px; font-size: 14px; }
 .cyber-report h5,
 .cyber-report h6 { margin: 14px 0 6px; color: var(--report-muted); font-size: 12px; }
@@ -163,8 +172,8 @@ body {
   overflow-x: auto;
   border-width: 1px; border-style: solid; border-color: var(--report-border);
   border-radius: 9px;
-  background: #f4f7fb;
-  color: #263d5c;
+  background: #f6f6f7;
+  color: var(--report-text);
   font-family: var(--report-mono);
   font-size: 12px;
   line-height: 1.55;
@@ -185,7 +194,7 @@ body {
   line-height: 1.65;
 }
 .cyber-report caption { padding: 9px 12px; text-align: left; font-weight: 600; }
-.cyber-report thead { background: #e9f0fc; color: var(--report-heading); }
+.cyber-report thead { background: #efeff0; color: var(--report-heading); }
 .cyber-report th,
 .cyber-report td { padding: 9px 12px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: var(--report-border); text-align: left; vertical-align: top; }
 .cyber-report th { color: var(--report-heading); font-weight: 600; }
@@ -193,7 +202,7 @@ body {
 .cyber-report th[align="right"], .cyber-report td[align="right"] { text-align: right; font-variant-numeric: tabular-nums; }
 .cyber-report th[align="center"], .cyber-report td[align="center"] { text-align: center; }
 .cyber-report tbody tr:last-child > td { border-bottom: 0; }
-.cyber-report tbody tr:nth-child(even) { background: rgba(59, 111, 206, 0.035); }
+.cyber-report tbody tr:nth-child(even) { background: rgba(9, 11, 16, 0.035); }
 
 .cyber-report blockquote {
   margin: 12px 0;
@@ -212,14 +221,14 @@ body {
 .cyber-report [data-report-component="finding-card"][data-report-severity="critical"] { border-top-color: var(--report-red); }
 .cyber-report [data-report-component="finding-card"][data-report-severity="high"] { border-top-color: var(--report-orange); }
 .cyber-report [data-report-component="finding-card"][data-report-severity="medium"] { border-top-color: var(--report-yellow); }
-.cyber-report [data-report-component="finding-card"][data-report-severity="low"] { border-top-color: var(--report-accent); }
+.cyber-report [data-report-component="finding-card"][data-report-severity="low"] { border-top-color: var(--report-low); }
 .cyber-report [data-report-component="finding-card"][data-report-severity="info"] { border-top-color: var(--report-dim); }
-.cyber-report [data-report-component="severity-badge"] { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background-color: var(--report-card); color: var(--report-muted); font-size: 11px; font-weight: 700; line-height: 1.5; }
+.cyber-report [data-report-component="severity-badge"] { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background-color: var(--report-info-bg); color: var(--report-muted); font-size: 11px; font-weight: 700; line-height: 1.5; }
 .cyber-report [data-report-component="severity-badge"][data-report-severity="critical"] { background: rgba(197, 53, 84, 0.12); color: var(--report-red); }
 .cyber-report [data-report-component="severity-badge"][data-report-severity="high"] { background: rgba(194, 65, 12, 0.12); color: var(--report-orange); }
 .cyber-report [data-report-component="severity-badge"][data-report-severity="medium"] { background: rgba(154, 98, 7, 0.12); color: var(--report-yellow); }
-.cyber-report [data-report-component="severity-badge"][data-report-severity="low"] { background-color: var(--report-accent-soft); color: var(--report-accent); }
-.cyber-report [data-report-component="http-evidence"] { margin: 14px 0; padding: 12px 14px; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 10px; background: #fbfdff; }
+.cyber-report [data-report-component="severity-badge"][data-report-severity="low"] { background-color: var(--report-low-soft); color: var(--report-low); }
+.cyber-report [data-report-component="http-evidence"] { margin: 14px 0; padding: 12px 14px; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 10px; background: #fcfcfc; }
 .cyber-report [data-report-component="http-evidence"] > h4:first-child { margin-top: 0; }
 .cyber-report [data-report-component="data-table"] { display: table; }
 .cyber-report [data-report-component="toc"] { margin: 14px 0; padding: 12px 16px; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 9px; background-color: var(--report-card); }
@@ -228,7 +237,7 @@ body {
 .cyber-report [data-report-component="callout"][data-report-tone="info"],
 .cyber-report [data-report-component="callout"][data-report-tone="note"] { border-left-color: var(--report-accent); background-color: var(--report-accent-soft); }
 
-.cyber-report [data-report-component="toc"] { margin: 0 0 30px; padding: 20px 24px; background: #f7f9fd; }
+.cyber-report [data-report-component="toc"] { margin: 0 0 30px; padding: 20px 24px; background: #f8f8f9; }
 .cyber-report [data-report-component="toc"] > p { margin: 0 0 12px; color: var(--report-heading); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; }
 .cyber-report [data-report-component="toc"] ol { margin: 0; padding: 0; list-style: none; column-count: 2; column-gap: 32px; }
 .cyber-report [data-report-component="toc"] li { margin: 0 0 8px; break-inside: avoid; }
@@ -236,11 +245,11 @@ body {
 .cyber-report [data-report-component="toc"] a { color: var(--report-muted); text-decoration: none; }
 .cyber-report [data-report-component="toc"] a:hover { color: var(--report-accent); text-decoration: underline; }
 .cyber-report [data-report-component="finding-card"] > h2 { margin: 10px 0 18px; padding: 0; border: 0; font-size: 19px; }
-.cyber-report [data-report-component="finding-card"][data-report-severity]::before { content: attr(data-report-severity); display: inline-block; padding: 3px 10px; border-radius: 4px; background-color: var(--report-card); color: var(--report-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.cyber-report [data-report-component="finding-card"][data-report-severity]::before { content: attr(data-report-severity); display: inline-block; padding: 3px 10px; border-radius: 4px; background-color: var(--report-info-bg); color: var(--report-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .cyber-report [data-report-component="finding-card"][data-report-severity="critical"]::before { color: var(--report-red); background: #ffede9; }
 .cyber-report [data-report-component="finding-card"][data-report-severity="high"]::before { color: var(--report-orange); background: #ffede0; }
 .cyber-report [data-report-component="finding-card"][data-report-severity="medium"]::before { color: var(--report-yellow); background: #fdf1d2; }
-.cyber-report [data-report-component="finding-card"][data-report-severity="low"]::before { color: var(--report-accent); background: #e9f0fc; }
+.cyber-report [data-report-component="finding-card"][data-report-severity="low"]::before { color: var(--report-low); background: #e9f0fc; }
 html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-report-severity="critical"]::before { content: "严重"; }
 html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-report-severity="high"]::before { content: "高危"; }
 html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-report-severity="medium"]::before { content: "中危"; }
@@ -253,9 +262,9 @@ html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-rep
 .cyber-report [data-report-appendix="task-preview"] {
   margin: 22px 0;
   overflow: hidden;
-  border: 1px solid rgba(59, 111, 206, 0.2);
+  border: 1px solid rgba(9, 11, 16, 0.2);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(59, 111, 206, 0.1), rgba(59, 111, 206, 0.025) 44%, #fff);
+  background: linear-gradient(135deg, rgba(9, 11, 16, 0.1), rgba(9, 11, 16, 0.025) 44%, #fff);
 }
 .cyber-report [data-report-appendix="task-preview"] > header {
   display: flex;
@@ -264,12 +273,12 @@ html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-rep
   margin: 0;
   padding: 15px 17px;
   border: 0;
-  border-bottom: 1px solid rgba(59, 111, 206, 0.16);
+  border-bottom: 1px solid rgba(9, 11, 16, 0.16);
 }
 .cyber-report [data-report-appendix="task-preview"] h2 { margin: 2px 0 0; padding: 0; border: 0; color: var(--report-heading); font-size: 18px; }
 .cyber-report .report-appendix-kicker { color: var(--report-accent); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
 .cyber-report .report-appendix-counts { display: flex; gap: 8px; margin-left: auto; }
-.cyber-report .report-appendix-count { min-width: 62px; padding: 5px 10px; border: 1px solid rgba(59, 111, 206, 0.18); border-radius: 8px; background: rgba(255, 255, 255, 0.72); color: var(--report-accent); font-size: 18px; font-weight: 700; line-height: 1.1; text-align: center; }
+.cyber-report .report-appendix-count { min-width: 62px; padding: 5px 10px; border: 1px solid rgba(9, 11, 16, 0.18); border-radius: 8px; background: rgba(255, 255, 255, 0.72); color: var(--report-accent); font-size: 18px; font-weight: 700; line-height: 1.1; text-align: center; }
 .cyber-report .report-appendix-count small { display: block; margin-top: 3px; color: var(--report-dim); font-size: 9px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
 .cyber-report .report-appendix-body { padding: 14px; }
 .cyber-report .report-preview-tab-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -277,7 +286,7 @@ html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-rep
 .cyber-report .report-preview-tab-label { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 6px; color: var(--report-muted); cursor: pointer; font-size: 11px; font-weight: 600; }
 .cyber-report .report-preview-tab-label span { color: var(--report-dim); font-size: 10px; font-variant-numeric: tabular-nums; }
 .cyber-report #report-preview-assets:checked ~ .report-preview-tab-list label[for="report-preview-assets"],
-.cyber-report #report-preview-vulnerabilities:checked ~ .report-preview-tab-list label[for="report-preview-vulnerabilities"] { background-color: var(--report-surface); color: var(--report-accent); box-shadow: 0 1px 4px rgba(59, 111, 206, 0.12); }
+.cyber-report #report-preview-vulnerabilities:checked ~ .report-preview-tab-list label[for="report-preview-vulnerabilities"] { background-color: var(--report-surface); color: var(--report-accent); box-shadow: 0 1px 4px rgba(9, 11, 16, 0.12); }
 .cyber-report .report-preview-panel { display: none; margin-top: 12px; }
 .cyber-report #report-preview-assets:checked ~ .report-preview-panels [data-report-preview-panel="assets"],
 .cyber-report #report-preview-vulnerabilities:checked ~ .report-preview-panels [data-report-preview-panel="vulnerabilities"] { display: block; }
@@ -293,23 +302,23 @@ html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-rep
 .cyber-report [data-report-vulnerability] { margin: 10px 0; padding: 0; overflow: hidden; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 10px; background: #fff; }
 .cyber-report [data-report-vulnerability] > summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background-color: var(--report-card); }
 .cyber-report [data-report-vulnerability] > summary strong { min-width: 0; flex: 1; color: var(--report-heading); }
-.cyber-report .report-severity { display: inline-flex; padding: 2px 7px; border-radius: 999px; background-color: var(--report-card); color: var(--report-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.cyber-report .report-severity { display: inline-flex; padding: 2px 7px; border-radius: 999px; background-color: var(--report-info-bg); color: var(--report-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .cyber-report .report-severity[data-severity="critical"] { background: rgba(197, 53, 84, 0.12); color: var(--report-red); }
 .cyber-report .report-severity[data-severity="high"] { background: rgba(194, 65, 12, 0.12); color: var(--report-orange); }
 .cyber-report .report-severity[data-severity="medium"] { background: rgba(154, 98, 7, 0.12); color: var(--report-yellow); }
-.cyber-report .report-severity[data-severity="low"] { background-color: var(--report-accent-soft); color: var(--report-accent); }
+.cyber-report .report-severity[data-severity="low"] { background-color: var(--report-low-soft); color: var(--report-low); }
 .cyber-report .report-vulnerability-body { padding: 13px 15px 15px; border-top-width: 1px; border-top-style: solid; border-top-color: var(--report-border); }
 .cyber-report .report-vulnerability-narrative { margin: 10px 0; padding: 10px 12px; border-width: 1px; border-style: solid; border-color: var(--report-border-subtle); border-radius: 8px; background-color: var(--report-accent-soft); white-space: pre-wrap; }
 .cyber-report .report-vulnerability-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 18px; margin: 12px 0; padding: 10px 12px; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 8px; background: rgba(240, 242, 245, 0.5); }
 .cyber-report .report-vulnerability-fields dt { margin: 0; color: var(--report-dim); font-size: 9px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
 .cyber-report .report-vulnerability-fields dd { margin: 2px 0 0; color: var(--report-text); font-size: 11px; }
-.cyber-report .report-vulnerability-detail { margin-top: 10px; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 8px; background: #fbfdff; }
+.cyber-report .report-vulnerability-detail { margin-top: 10px; border-width: 1px; border-style: solid; border-color: var(--report-border); border-radius: 8px; background: #fcfcfc; }
 .cyber-report .report-vulnerability-detail > summary { padding: 8px 10px; color: var(--report-heading); font-size: 11px; }
 .cyber-report .report-vulnerability-detail > div { padding: 0 10px 10px; }
 
 @media (max-width: 680px) {
   body { padding: 0; }
-  .cyber-report { border: 0; border-top-width: 4px; border-top-style: solid; border-top-color: var(--report-accent); border-radius: 0; box-shadow: none; }
+  .cyber-report { border: 0; border-top-width: 4px; border-top-style: solid; border-top-color: var(--report-brand-red); border-radius: 0; box-shadow: none; }
   .cyber-report .report-cover { padding: 26px 22px; }
   .cyber-report .report-masthead { margin-bottom: 24px; }
   .cyber-report .report-content { padding: 24px 22px 30px; }
@@ -328,15 +337,15 @@ html[lang="zh-CN"] .cyber-report [data-report-component="finding-card"][data-rep
   @page {
     size: A4;
     margin: 19mm 18mm 20mm;
-    @top-left { content: "CYBER / REPORT"; font: 8pt sans-serif; color: #64748b; letter-spacing: 1pt; }
-    @bottom-left { content: "CYBER"; font: 8pt sans-serif; color: #64748b; }
+    @top-left { content: "CYBER / REPORT"; font: 8pt sans-serif; color: ${REPORT_BRAND_INK}; letter-spacing: 1pt; }
+    @bottom-left { content: "CYBER"; font: 8pt sans-serif; color: ${REPORT_BRAND_INK}; }
     @bottom-right { content: counter(page) " / " counter(pages); font: 8pt sans-serif; color: #64748b; }
   }
   @page report-cover { @top-left { content: none; } }
   html, body { background: #fff; }
   body { padding: 0; font-family: "DejaVu Sans", "Noto Sans CJK SC", sans-serif; font-size: 10pt; line-height: 1.75; }
   .cyber-report { width: 100%; padding: 0; border: 0; border-radius: 0; box-shadow: none; }
-  .cyber-report .report-cover { padding: 8mm 0 9mm; border-top: 1.4mm solid #1d5fd6; background: #fff; break-inside: avoid; }
+  .cyber-report .report-cover { padding: 8mm 0 9mm; border-top: 1.4mm solid ${REPORT_BRAND_RED}; background: #fff; break-inside: avoid; }
   .cyber-report .report-cover[data-cover-page="true"] { page: report-cover; min-height: 235mm; padding-top: 12mm; break-after: page; }
   .cyber-report .report-cover[data-cover-page="true"] h1 { margin-top: 32mm; font-size: 30pt; }
   .cyber-report .report-masthead { margin-bottom: 12mm; }

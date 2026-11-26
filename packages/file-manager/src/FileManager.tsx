@@ -28,6 +28,7 @@ interface FileManagerCoreProps {
   session?: any
   onOpenTab?: (title: string, module: string, subModule?: string, component?: unknown) => void
   className?: string
+  initialSelectedId?: string
   showTree?: boolean
   splitDirection?: 'horizontal' | 'vertical'
   allowTreeOnly?: boolean
@@ -39,6 +40,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
   session,
   onOpenTab,
   className,
+  initialSelectedId,
   showTree = true,
   splitDirection = 'horizontal',
   allowTreeOnly = false,
@@ -218,10 +220,25 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
   }, { enabled: !state.fileSizeWarning && !state.showCreateFolder && !state.showCreateFile && !state.showRenameDialog && !state.showUploadDialog })
 
   // Initialize - wait for session to be loaded, only once
+  const pendingInitialSelection = useRef(initialSelectedId)
+  useEffect(() => {
+    const id = pendingInitialSelection.current
+    if (!id || !state.currentDirPath) return
+    pendingInitialSelection.current = undefined
+    if (state.currentDirFiles.some(file => !file.isDirectory && file.id === id)) {
+      state.setSelection({ selectedIds: new Set([id]), lastSelectedId: id, selectRange: false })
+    }
+  }, [state.currentDirPath, state.currentDirFiles, state.setSelection])
+
   const hasInitialized = useRef(false)
   useEffect(() => {
     if (sessionId && session && !hasInitialized.current) {
       hasInitialized.current = true
+      // A deep link must resolve against the requested directory, not history.
+      if (initialSelectedId) {
+        void state.initializeFileSystem()
+        return
+      }
 
       // Fast path: check memory cache (synchronous)
       const cached = state.getFileTreeCache(sessionId)
@@ -240,7 +257,7 @@ const FileManagerCore: React.FC<FileManagerCoreProps> = ({
         })
       }
     }
-  }, [sessionId, session])
+  }, [sessionId, session, initialSelectedId])
 
   // Debounced cache write effect
   useEffect(() => {
@@ -550,6 +567,8 @@ export interface FileManagerProps {
   defaultLayoutMode?: 'split' | 'tree'
   historyKey?: string
   initialPath?: string
+  /** Select an existing file in the initial directory once it loads. */
+  initialSelectedId?: string
   isWindows?: boolean
   maxHistory?: number
   messages?: Record<string, string>
@@ -571,6 +590,7 @@ export function FileManager({
   defaultLayoutMode = 'split',
   historyKey,
   initialPath: initialPathInput = '',
+  initialSelectedId,
   isWindows: isWindowsInput,
   maxHistory = 12,
   messages,
@@ -623,6 +643,7 @@ export function FileManager({
         sessionId={resolvedSourceKey}
         session={{ workdir: initialPath, type: isWindows ? 'windows' : 'unix' }}
         className={className}
+        initialSelectedId={initialSelectedId}
         showTree={showTree}
         splitDirection={splitDirection}
         allowTreeOnly={allowTreeOnly}
